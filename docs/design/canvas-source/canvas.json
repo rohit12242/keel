@@ -1,0 +1,19 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Today", "x": 0, "y": 0, "w": 1400, "h": 1060 },
+    { "file": "NewObjective.dc.html", "title": "New objective", "x": 1480, "y": 0, "w": 1400, "h": 1140 },
+    { "file": "Deviation.dc.html", "title": "Log a deviation", "x": 2960, "y": 0, "w": 1400, "h": 1180 },
+    { "file": "ParkingLot.dc.html", "title": "Parking lot", "x": 4440, "y": 0, "w": 1400, "h": 940 },
+    { "file": "Objective.dc.html", "title": "Objective detail", "x": 0, "y": 1320, "w": 1400, "h": 1560 },
+    { "file": "Review.dc.html", "title": "Review", "x": 1480, "y": 1320, "w": 1400, "h": 1620 }
+  ],
+  "annotations": [
+    { "id": "note-today", "x": 0, "y": -170, "w": 430, "text": "Several objectives at once, several entries per day.\nOne is fixed-weekday, one is flexible-weekly, one is off today — all three states visible." },
+    { "id": "note-new", "x": 1480, "y": -170, "w": 430, "text": "The schedule builder. Everything on the right is derived — planned days, target hours, review date.\nAdding a third objective while two run asks for a reason, and records it." },
+    { "id": "note-dev", "x": 2960, "y": -170, "w": 430, "text": "Chosen vs drifted, with the reasoning captured at the time.\nThe review tests that reasoning against what happened." },
+    { "id": "note-park", "x": 4440, "y": -170, "w": 430, "text": "Unchanged except that ideas are now global rather than tied to one objective." },
+    { "id": "note-obj", "x": 0, "y": 1150, "w": 430, "text": "The attendance strip is the schedule made visible — met, short, missed, off, and off-but-worked.\nThe history table compares each day against its target." },
+    { "id": "note-review", "x": 1480, "y": 1150, "w": 430, "text": "Adherence is the headline, ahead of streak.\nDeviations split by kind; chosen ones get a was-it-worth-it verdict looking back." }
+  ],
+  "launch": { "view": "canvas" }
+}

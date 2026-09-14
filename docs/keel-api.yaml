@@ -1,0 +1,1338 @@
+openapi: 3.1.0
+info:
+  title: Keel API
+  version: 0.1.0
+  summary: Core reads and writes for Keel v1.
+  description: |
+    The contract for Keel's core reads and writes, written before any code exists.
+
+    Three rules run through the whole document.
+
+    **No user identifier appears in any path.** Every request is scoped to the
+    authenticated session, and every query is filtered by that user server-side.
+    A path that could name another user's row is a path that can leak one (NFR-10).
+
+    **Every operation declares how it fails.** There is no operation with only a
+    success response. Failures use RFC 9457 Problem Details, so one shape covers
+    every error the client has to render (NFR-07).
+
+    **No aggregate is stored, and none is written.** Adherence, totals, streaks,
+    extension counts and sequence numbers appear in responses only, computed at
+    read time. No request body may set one (NFR-09).
+
+    Out of scope for v1: offline logging (NFR-06). There is no sync endpoint, no
+    client-supplied identifier, and no conflict resolution.
+servers:
+  - url: https://api.keel.app/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local
+
+tags:
+  - name: Session
+    description: Sign in and out. A session survives the auth service being unreachable (NFR-08).
+  - name: Today
+    description: The one read behind the Today screen.
+  - name: Effort
+    description: What you actually did.
+  - name: Objectives
+    description: Commitments, their schedules and their status.
+  - name: Reviews
+    description: Per objective, per period.
+  - name: Deviations
+    description: Belongs to a day, not an objective.
+  - name: Parking lot
+    description: Ideas, locked, and their verdict history.
+
+security:
+  - sessionCookie: []
+
+paths:
+  /session:
+    post:
+      tags: [Session]
+      summary: Sign in
+      operationId: createSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        '201':
+          description: Signed in. A session cookie is set.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401':
+          description: |
+            Email or password not recognised. The body never says which of the
+            two was wrong, and the response time does not differ between a known
+            and an unknown address.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [Session]
+      summary: Sign out
+      operationId: deleteSession
+      responses:
+        '204': { description: Signed out. The cookie is cleared. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /users:
+    post:
+      tags: [Session]
+      summary: Create an account
+      operationId: createUser
+      security: []
+      description: |
+        Creates the account and signs in, so the client lands on Today rather
+        than bouncing back to the sign-in screen. `tz` comes from the browser and
+        becomes the default zone new entries are stamped with.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, tz]
+              properties:
+                email: { type: string, format: email }
+                password:
+                  type: string
+                  minLength: 12
+                  description: |
+                    Length is the only rule. Composition rules push people towards
+                    predictable substitutions, and this log holds diary-grade text
+                    (NFR-11).
+                tz: { type: string, example: 'Asia/Kolkata' }
+      responses:
+        '201':
+          description: Account created and signed in. A session cookie is set.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '409':
+          description: |
+            That email already has an account. This endpoint does reveal it,
+            unlike sign-in and password reset — there is no way to offer account
+            creation without saying whether the account exists.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /password-resets:
+    post:
+      tags: [Session]
+      summary: Request a reset link
+      operationId: requestPasswordReset
+      security: []
+      description: |
+        Always 202, whether or not the address has an account, and the response
+        time does not differ between the two. The screen shows the same
+        confirmation either way.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202':
+          description: If that address has an account, a link is on its way.
+        '400': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /password-resets/{token}:
+    post:
+      tags: [Session]
+      summary: Set a new password
+      operationId: completePasswordReset
+      security: []
+      description: Single-use. Using the token invalidates it and every existing session.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string, minLength: 32 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, minLength: 12 }
+      responses:
+        '200':
+          description: Password changed and signed in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '410':
+          description: The token has expired or has already been used.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /day/{date}:
+    get:
+      tags: [Today]
+      summary: Everything the Today screen needs, in one round trip
+      description: |
+        This is the read NFR-03 constrains: p95 under 300 ms, and one request
+        rather than one per objective. It returns every active objective, the
+        plan slot covering `date` if there is one, that date's entries, and the
+        totals the sidebar shows.
+
+        An objective with `slot: null` is not scheduled for this date. Logging
+        against it is still allowed and the resulting entry is `extra`.
+      operationId: getDay
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: A local calendar date, not an instant. The client sends the day it means.
+          schema: { type: string, format: date }
+          example: '2026-09-05'
+      responses:
+        '200':
+          description: The day.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Day' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /objectives/{objectiveId}/effort-entries:
+    post:
+      tags: [Effort]
+      summary: Log effort
+      description: |
+        `local_date` and `tz` are both required and both come from the client.
+        The server never derives the day from the time the request arrived — an
+        entry logged at 23:55 belongs to that date for good (NFR-12).
+      operationId: createEffortEntry
+      parameters: [{ $ref: '#/components/parameters/objectiveId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EffortEntryWrite' }
+      responses:
+        '201':
+          description: Logged.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EffortEntry' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: |
+            The objective is not active, or `local_date` falls outside every plan
+            segment. Ended and completed objectives accept no new effort.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /effort-entries/{entryId}:
+    patch:
+      tags: [Effort]
+      summary: Edit an entry
+      description: |
+        Editable only from Today, which the contract enforces by refusing to
+        change `local_date`. A mistake on the wrong day is deleted and re-logged.
+      operationId: updateEffortEntry
+      parameters: [{ $ref: '#/components/parameters/entryId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                minutes: { type: integer, minimum: 1, maximum: 1440 }
+                occurred_at_local: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+                note: { type: string, maxLength: 2000 }
+                link: { type: [string, 'null'], maxLength: 500 }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EffortEntry' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [Effort]
+      summary: Delete an entry
+      operationId: deleteEffortEntry
+      parameters: [{ $ref: '#/components/parameters/entryId' }]
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /objectives:
+    get:
+      tags: [Objectives]
+      summary: List objectives
+      operationId: listObjectives
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, active, paused, completed, ended]
+            default: all
+      responses:
+        '200':
+          description: Objectives, with computed adherence for each.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [objectives]
+                properties:
+                  objectives:
+                    type: array
+                    items: { $ref: '#/components/schemas/ObjectiveSummary' }
+                  committed_minutes_per_week:
+                    type: integer
+                    description: Computed across active objectives.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [Objectives]
+      summary: Create an objective
+      description: Creates the objective and its first plan segment, and generates that segment's slots.
+      operationId: createObjective
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ObjectiveWrite' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Objective' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422':
+          description: |
+            The schedule is inconsistent with its mode — weekdays given for a
+            flexible schedule, or a day count for a fixed one — or the parked
+            idea named is still locked.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /objectives/{objectiveId}:
+    get:
+      tags: [Objectives]
+      summary: One objective, with its whole-run figures
+      operationId: getObjective
+      parameters: [{ $ref: '#/components/parameters/objectiveId' }]
+      responses:
+        '200':
+          description: The objective, its segments, its status history and its computed figures.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Objective' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /objectives/{objectiveId}/effort:
+    get:
+      tags: [Effort]
+      summary: The Effort tab — every session, month by month
+      description: Read-only. Entries are edited from Today, never from here.
+      operationId: listObjectiveEffort
+      parameters:
+        - { $ref: '#/components/parameters/objectiveId' }
+        - name: month
+          in: query
+          required: true
+          schema: { type: string, pattern: '^[0-9]{4}-[0-9]{2}$' }
+          example: '2026-09'
+      responses:
+        '200':
+          description: Days in the month, grouped by week, including planned days with no entry.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EffortMonth' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /objectives/{objectiveId}/status-changes:
+    post:
+      tags: [Objectives]
+      summary: Pause, resume, complete or end
+      description: |
+        Append-only. Nothing is ever deleted, and a status change never edits an
+        earlier one. Pausing stops plan-slot generation; resuming starts it again.
+      operationId: createStatusChange
+      parameters: [{ $ref: '#/components/parameters/objectiveId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [change]
+              properties:
+                change: { type: string, enum: [pause, resume, complete, end] }
+                reason: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEvent' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: |
+            The change does not follow from the current status — resuming an
+            objective that is not paused, or ending one already ended.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /objectives/{objectiveId}/extensions:
+    post:
+      tags: [Objectives]
+      summary: Extend — add a plan segment
+      description: |
+        An extension carries its own schedule. It may differ from the segment
+        before it, which is why a schedule belongs to a segment rather than to
+        the objective.
+
+        Two rules the contract enforces rather than the UI: the extension must be
+        authorised by a saved plan-end review that has not already extended, and
+        the resulting end date must be strictly in the future.
+      operationId: createExtension
+      parameters: [{ $ref: '#/components/parameters/objectiveId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [review_id, extend_by_days, reason, schedule]
+              properties:
+                review_id:
+                  type: string
+                  format: uuid
+                  description: The saved plan-end review authorising this extension.
+                extend_by_days: { type: integer, minimum: 1, maximum: 365 }
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                  description: Required. "Why extend rather than complete?"
+                schedule: { $ref: '#/components/schemas/ScheduleWrite' }
+      responses:
+        '201':
+          description: New segment created and its slots generated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanSegment' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: |
+            No saved plan-end review authorises this, the review named has already
+            produced a segment, or the plan end date has not yet passed.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: |
+            The new end date is not strictly after today. An extension that would
+            end in the past is refused, never silently adjusted.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /objectives/{objectiveId}/reviews:
+    get:
+      tags: [Reviews]
+      summary: The Reviews tab
+      operationId: listReviews
+      parameters: [{ $ref: '#/components/parameters/objectiveId' }]
+      responses:
+        '200':
+          description: Saved reviews newest last, plus the draft if one exists.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reviews]
+                properties:
+                  reviews:
+                    type: array
+                    items: { $ref: '#/components/schemas/ReviewSummary' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [Reviews]
+      summary: Start or resume the review for a period
+      description: |
+        Idempotent for a period. Called twice it returns the same draft, with
+        `201` the first time and `200` afterwards — which is what makes "Start
+        review" and "Resume draft" the same button.
+      operationId: startReview
+      parameters: [{ $ref: '#/components/parameters/objectiveId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [period_start, period_end]
+              properties:
+                period_start: { type: string, format: date }
+                period_end: { type: string, format: date }
+      responses:
+        '200':
+          description: An existing draft for this period.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Review' }
+        '201':
+          description: A new draft.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Review' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A saved review already covers this period.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /reviews/{reviewId}:
+    get:
+      tags: [Reviews]
+      summary: One review, with its figures recomputed
+      description: |
+        Every figure in the response is computed now, from entries and slots.
+        None of it was stored when the review was saved, so a review opened today
+        and the same review opened next year show the same numbers only because
+        the underlying rows have not changed.
+      operationId: getReview
+      parameters: [{ $ref: '#/components/parameters/reviewId' }]
+      responses:
+        '200':
+          description: The review.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Review' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    patch:
+      tags: [Reviews]
+      summary: Autosave the draft
+      description: Called as typing pauses. Only a draft accepts writes.
+      operationId: updateReview
+      parameters: [{ $ref: '#/components/parameters/reviewId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewWrite' }
+      responses:
+        '200':
+          description: Draft updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Review' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The review is saved. Saved reviews are updated through their own endpoint.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: |
+            A criteria assessment or an outcome was sent on a weekly or monthly
+            review. Only a plan-end review carries either.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [Reviews]
+      summary: Discard the draft
+      operationId: discardReview
+      parameters: [{ $ref: '#/components/parameters/reviewId' }]
+      responses:
+        '204': { description: Draft discarded. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The review is saved. A saved review is never deleted.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /reviews/{reviewId}/save:
+    post:
+      tags: [Reviews]
+      summary: Save the review
+      description: Turns the draft into a record. After this it appears in the reviews list.
+      operationId: saveReview
+      parameters: [{ $ref: '#/components/parameters/reviewId' }]
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Review' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Already saved.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: |
+            A plan-end review is missing its outcome or its criteria verdict, or a
+            chosen deviation in the period has not been judged.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /reviews/{reviewId}/deviation-verdicts/{deviationId}:
+    put:
+      tags: [Reviews]
+      summary: Judge a chosen deviation
+      description: |
+        Idempotent — the same verdict sent twice leaves one row. A verdict names
+        the review that gave it and is never changed by a later review.
+      operationId: setDeviationVerdict
+      parameters:
+        - { $ref: '#/components/parameters/reviewId' }
+        - name: deviationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verdict]
+              properties:
+                verdict: { type: string, enum: [worth_it, not_worth_it] }
+      responses:
+        '200':
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deviation' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: An earlier review already judged this deviation.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: |
+            The deviation is drifted, or its date is outside this review's period.
+            Only chosen deviations are judged.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /deviations:
+    get:
+      tags: [Deviations]
+      summary: List deviations in a date range
+      description: |
+        No objective filter, because a deviation has no objective. A review asks
+        for its own period and shows whatever falls inside it, which means one
+        deviation can appear in several objectives' reviews.
+      operationId: listDeviations
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Deviations, newest first, with computed cost totals by kind.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deviations]
+                properties:
+                  deviations:
+                    type: array
+                    items: { $ref: '#/components/schemas/Deviation' }
+                  cost:
+                    type: object
+                    description: Computed, never stored.
+                    properties:
+                      chosen: { $ref: '#/components/schemas/CostTally' }
+                      drifted: { $ref: '#/components/schemas/CostTally' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [Deviations]
+      summary: Record a deviation
+      operationId: createDeviation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviationWrite' }
+      responses:
+        '201':
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deviation' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422':
+          description: The pattern named does not exist, or `local_date` is in the future.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /deviation-patterns:
+    get:
+      tags: [Deviations]
+      summary: Named patterns, with how often each has happened
+      operationId: listDeviationPatterns
+      responses:
+        '200':
+          description: Patterns. The count beside each is computed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [patterns]
+                properties:
+                  patterns:
+                    type: array
+                    items: { $ref: '#/components/schemas/DeviationPattern' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [Deviations]
+      summary: Name a new pattern
+      operationId: createDeviationPattern
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviationPattern' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409':
+          description: A pattern with that name already exists.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /parked-ideas:
+    get:
+      tags: [Parking lot]
+      summary: The parking lot
+      operationId: listParkedIdeas
+      responses:
+        '200':
+          description: Ideas with their current verdict and whether the lock has lifted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ideas]
+                properties:
+                  ideas:
+                    type: array
+                    items: { $ref: '#/components/schemas/ParkedIdea' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [Parking lot]
+      summary: Park an idea
+      description: The lock length is set by the server, not the client. An idea you can unlock is not locked.
+      operationId: createParkedIdea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idea, why]
+              properties:
+                idea: { type: string, minLength: 1, maxLength: 300 }
+                why: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '201':
+          description: Parked, with its lock date.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkedIdea' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /parked-ideas/{ideaId}/verdicts:
+    post:
+      tags: [Parking lot]
+      summary: Give or change a verdict
+      description: |
+        Append-only. Reviving a dropped idea adds a row rather than editing one,
+        which is what lets a review show the verdict as it stood at the time.
+      operationId: createParkedIdeaVerdict
+      parameters:
+        - name: ideaId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verdict]
+              properties:
+                verdict: { type: string, enum: [parked, taken, dropped] }
+                note: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkedIdea' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: |
+            The idea is still locked. A verdict before the lock lifts is the one
+            thing the parking lot exists to prevent.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: keel_session
+      description: |
+        A signed cookie carrying a real expiry. Validating it makes no network
+        call, so an open session keeps working while the auth service is
+        unreachable (NFR-08).
+
+  parameters:
+    objectiveId:
+      name: objectiveId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    entryId:
+      name: entryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    reviewId:
+      name: reviewId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Invalid:
+      description: The request body or a parameter failed validation. `errors` names each field.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthenticated:
+      description: No valid session. The client signs in again; it does not retry.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: |
+        No such row, or it belongs to someone else. The two are deliberately
+        indistinguishable — a 403 here would confirm the row exists.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    TooManyRequests:
+      description: Rate limited.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unavailable:
+      description: |
+        The database could not be reached. The client shows "couldn't reach your
+        log" — never a zero, never a blank, never a stale figure without its
+        timestamp (NFR-07).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details. One shape for every failure in this API.
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri, example: 'https://keel.app/problems/objective-not-active' }
+        title: { type: string, example: 'This objective is not active' }
+        status: { type: integer, example: 422 }
+        detail: { type: string, example: 'Ended objectives accept no new effort.' }
+        instance: { type: string, format: uri }
+        errors:
+          type: array
+          description: Field-level detail. Present on 400 only.
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: { type: string, example: 'minutes' }
+              message: { type: string, example: 'Must be between 1 and 1440.' }
+
+    User:
+      type: object
+      required: [id, email, tz]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        tz: { type: string, example: 'Asia/Kolkata' }
+
+    ScheduleWrite:
+      type: object
+      required: [mode, minutes_per_planned_day]
+      properties:
+        mode: { type: string, enum: [fixed, flexible] }
+        planned_weekdays:
+          type: array
+          description: Required when fixed, absent when flexible. 1 is Monday.
+          items: { type: integer, minimum: 1, maximum: 7 }
+        days_per_week:
+          type: integer
+          description: Required when flexible, absent when fixed.
+          minimum: 1
+          maximum: 7
+        minutes_per_planned_day: { type: integer, minimum: 15, maximum: 1440 }
+
+    Schedule:
+      allOf:
+        - $ref: '#/components/schemas/ScheduleWrite'
+        - type: object
+          properties:
+            label: { type: string, example: 'FIXED · MON–SAT · 2h 00m PER DAY' }
+
+    PlanSegment:
+      type: object
+      required: [id, seq, schedule, start_date, end_date, reason]
+      properties:
+        id: { type: string, format: uuid }
+        seq: { type: integer, description: '0 is the original plan.' }
+        schedule: { $ref: '#/components/schemas/Schedule' }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        reason: { type: string }
+        created_by_review_id: { type: [string, 'null'], format: uuid }
+
+    PlanSlot:
+      type: object
+      required: [id, period_kind, period_start, period_end, target_minutes]
+      properties:
+        id: { type: string, format: uuid }
+        period_kind: { type: string, enum: [day, week] }
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        target_minutes: { type: integer }
+        target_days: { type: [integer, 'null'], description: 'Week slots only.' }
+
+    EffortEntryWrite:
+      type: object
+      required: [local_date, tz, minutes, note]
+      properties:
+        local_date:
+          type: string
+          format: date
+          description: The day the user meant. Never inferred from the request time.
+        tz:
+          type: string
+          description: The zone the entry was made in.
+          example: 'Asia/Kolkata'
+        occurred_at_local:
+          type: string
+          pattern: '^[0-2][0-9]:[0-5][0-9]$'
+          description: When the work happened, which is not when it was logged.
+        minutes: { type: integer, minimum: 1, maximum: 1440 }
+        note: { type: string, minLength: 1, maxLength: 2000 }
+        link: { type: [string, 'null'], maxLength: 500 }
+
+    EffortEntry:
+      allOf:
+        - $ref: '#/components/schemas/EffortEntryWrite'
+        - type: object
+          required: [id, objective_id, logged_at, extra]
+          properties:
+            id: { type: string, format: uuid }
+            objective_id: { type: string, format: uuid }
+            logged_at: { type: string, format: date-time }
+            extra:
+              type: boolean
+              description: |
+                Computed, not stored. True when no day slot covers this date —
+                which includes days the objective was paused.
+
+    ObjectiveWrite:
+      type: object
+      required: [title, why_now, success_criteria, schedule, runs_for_days, review_cadence]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 4000 }
+        why_now: { type: string, minLength: 1, maxLength: 4000 }
+        success_criteria: { type: string, minLength: 1, maxLength: 2000 }
+        plan_link: { type: [string, 'null'], format: uri }
+        schedule: { $ref: '#/components/schemas/ScheduleWrite' }
+        runs_for_days: { type: integer, minimum: 1, maximum: 365 }
+        review_cadence: { type: string, enum: [weekly, monthly] }
+        from_parked_idea_id: { type: [string, 'null'], format: uuid }
+
+    Figures:
+      type: object
+      description: Every field here is computed at read time. None is stored, and none may be written.
+      required: [adherence_pct, logged_minutes, target_minutes]
+      properties:
+        adherence_pct: { type: number, example: 84 }
+        logged_minutes: { type: integer, example: 4315 }
+        target_minutes: { type: integer, example: 5160 }
+        planned_days: { type: integer }
+        planned_days_worked: { type: integer }
+        target_met_days: { type: integer }
+        extra_off_day_minutes: { type: integer }
+
+    ObjectiveSummary:
+      type: object
+      required: [id, title, status, schedule, start_date, end_date, figures]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        status: { type: string, enum: [active, paused, completed, ended] }
+        schedule: { $ref: '#/components/schemas/Schedule' }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date, description: 'The latest segment''s end. Derived.' }
+        next_review_on: { type: [string, 'null'], format: date }
+        from_parking_lot: { type: boolean }
+        figures: { $ref: '#/components/schemas/Figures' }
+
+    Objective:
+      allOf:
+        - $ref: '#/components/schemas/ObjectiveSummary'
+        - type: object
+          required: [why_now, success_criteria, segments, status_history]
+          properties:
+            description: { type: string }
+            why_now: { type: string }
+            success_criteria: { type: string }
+            plan_link: { type: [string, 'null'], format: uri }
+            review_cadence: { type: string, enum: [weekly, monthly] }
+            original_end_date: { type: string, format: date, description: 'Segment 0''s end. Derived.' }
+            extension_count: { type: integer, description: 'A row count. Derived.' }
+            segments:
+              type: array
+              items: { $ref: '#/components/schemas/PlanSegment' }
+            status_history:
+              type: array
+              description: |
+                Status events and extensions merged by date. The two are stored
+                separately and joined for display, never written twice.
+              items: { $ref: '#/components/schemas/StatusEvent' }
+            criteria_verdict:
+              type: [string, 'null']
+              enum: [met, partly_met, not_met, null]
+              description: From the final plan-end review. Derived.
+
+    StatusEvent:
+      type: object
+      required: [occurred_on, change]
+      properties:
+        occurred_on: { type: string, format: date }
+        change: { type: string, enum: [created, paused, resumed, completed, ended, extended] }
+        reason: { type: [string, 'null'] }
+        new_end_date: { type: [string, 'null'], format: date, description: 'Present only on extended rows.' }
+
+    DayObjective:
+      type: object
+      required: [id, title, schedule, slot, entries, logged_minutes]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        schedule: { $ref: '#/components/schemas/Schedule' }
+        slot:
+          oneOf:
+            - { $ref: '#/components/schemas/PlanSlot' }
+            - { type: 'null' }
+          description: Null when this date is not planned. Logging is still allowed and counts as extra.
+        next_planned_date: { type: [string, 'null'], format: date }
+        entries:
+          type: array
+          items: { $ref: '#/components/schemas/EffortEntry' }
+        logged_minutes: { type: integer }
+        period_logged_minutes:
+          type: integer
+          description: For a week slot — progress through the week so far.
+
+    Day:
+      type: object
+      required: [date, objectives, totals]
+      properties:
+        date: { type: string, format: date }
+        objectives:
+          type: array
+          items: { $ref: '#/components/schemas/DayObjective' }
+        totals:
+          type: object
+          properties:
+            today_minutes: { type: integer }
+            week_minutes: { type: integer }
+            extra_off_day_minutes: { type: integer }
+        last_deviation:
+          oneOf:
+            - { $ref: '#/components/schemas/Deviation' }
+            - { type: 'null' }
+
+    EffortMonth:
+      type: object
+      required: [month, weeks, totals]
+      properties:
+        month: { type: string, example: '2026-09' }
+        weeks:
+          type: array
+          items:
+            type: object
+            properties:
+              week_start: { type: string, format: date }
+              days:
+                type: array
+                items:
+                  type: object
+                  required: [date, planned]
+                  properties:
+                    date: { type: string, format: date }
+                    planned: { type: boolean }
+                    minutes: { type: [integer, 'null'], description: 'Null means a planned day with no entry.' }
+                    note: { type: [string, 'null'] }
+                    vs_target: { type: [integer, 'null'] }
+              subtotal_minutes: { type: integer }
+              planned_days_worked: { type: string, example: '1 of 3 planned days worked' }
+        totals:
+          type: object
+          properties:
+            logged_minutes: { type: integer }
+            sessions: { type: integer }
+            longest_streak_days: { type: integer }
+            extra_off_day_minutes: { type: integer }
+
+    DeviationWrite:
+      type: object
+      required: [local_date, tz, kind, what_happened, reasoning, minutes]
+      properties:
+        local_date: { type: string, format: date }
+        tz: { type: string }
+        kind: { type: string, enum: [chosen, drifted] }
+        what_happened: { type: string, minLength: 1, maxLength: 2000 }
+        reasoning: { type: string, minLength: 1, maxLength: 2000 }
+        did_instead: { type: string, maxLength: 2000 }
+        minutes: { type: integer, minimum: 1, maximum: 1440 }
+        pattern_id: { type: [string, 'null'], format: uuid, description: 'Null means a genuine one-off.' }
+
+    Deviation:
+      allOf:
+        - $ref: '#/components/schemas/DeviationWrite'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
+            pattern_name: { type: [string, 'null'] }
+            verdict:
+              type: [string, 'null']
+              enum: [worth_it, not_worth_it, null]
+              description: Chosen deviations only, set by a review.
+            verdict_review_id: { type: [string, 'null'], format: uuid }
+
+    CostTally:
+      type: object
+      properties:
+        count: { type: integer }
+        minutes: { type: integer }
+
+    DeviationPattern:
+      type: object
+      required: [id, name, occurrences]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        occurrences: { type: integer, description: 'Computed. The "3 before" count.' }
+
+    ParkedIdea:
+      type: object
+      required: [id, idea, why, caught_on, locked_until, verdict, locked]
+      properties:
+        id: { type: string, format: uuid }
+        idea: { type: string }
+        why: { type: string }
+        caught_on: { type: string, format: date }
+        locked_until: { type: string, format: date }
+        locked: { type: boolean, description: 'Computed against today.' }
+        verdict: { type: string, enum: [parked, taken, dropped], description: 'The latest verdict row.' }
+        note: { type: [string, 'null'] }
+        became_objective_id: { type: [string, 'null'], format: uuid }
+
+    ReviewWrite:
+      type: object
+      properties:
+        improvement_answer: { type: [string, 'null'], enum: [yes, partly, no, null] }
+        improvement_answer_note: { type: [string, 'null'], maxLength: 2000 }
+        what_went_right: { type: [string, 'null'], maxLength: 4000 }
+        what_needs_improvement: { type: [string, 'null'], maxLength: 4000 }
+        review_summary: { type: [string, 'null'], maxLength: 1000 }
+        criteria_assessment:
+          type: [string, 'null']
+          maxLength: 2000
+          description: Plan-end reviews only. Rejected with 422 on any other kind.
+        criteria_verdict:
+          type: [string, 'null']
+          enum: [met, partly_met, not_met, null]
+          description: Plan-end reviews only.
+        outcome:
+          type: [string, 'null']
+          enum: [continued, completed, paused, ended, null]
+          description: Plan-end reviews only.
+
+    ReviewSummary:
+      type: object
+      required: [id, kind, period_start, period_end, status]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [weekly, monthly, plan_end] }
+        label: { type: string, example: 'Week 3' }
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        status: { type: string, enum: [draft, saved] }
+        saved_at: { type: [string, 'null'], format: date-time }
+        outcome: { type: [string, 'null'] }
+        review_summary: { type: [string, 'null'] }
+        adherence_pct: { type: [number, 'null'], description: 'Computed for the period.' }
+
+    Review:
+      allOf:
+        - $ref: '#/components/schemas/ReviewSummary'
+        - $ref: '#/components/schemas/ReviewWrite'
+        - type: object
+          required: [objective_id, figures]
+          properties:
+            objective_id: { type: string, format: uuid }
+            due_on: { type: string, format: date }
+            previous_review_id: { type: [string, 'null'], format: uuid }
+            previous_improvement_note:
+              type: [string, 'null']
+              description: Quoted back as "last week you said this needed improvement".
+            figures: { $ref: '#/components/schemas/Figures' }
+            minutes_per_day:
+              type: array
+              description: The bar chart. Computed for the period.
+              items:
+                type: object
+                properties:
+                  date: { type: string, format: date }
+                  minutes: { type: integer }
+                  planned: { type: boolean }
+            deviations:
+              type: array
+              description: Every deviation whose date falls in the period, whatever objective you were on.
+              items: { $ref: '#/components/schemas/Deviation' }
+            parked_ideas:
+              type: array
+              description: Ideas caught in the period, with the verdict as it stood at period end.
+              items: { $ref: '#/components/schemas/ParkedIdea' }

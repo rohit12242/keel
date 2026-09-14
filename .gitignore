@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build output
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# environment and secrets — never commit any of these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# test and coverage
+coverage/
+.nyc_output/
+
+# editor and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Claude Code — personal overrides stay local, shared config is committed
+CLAUDE.local.md
+.claude/settings.local.json
+
+# this repository is PUBLIC.
+# Sprint sheets, the daily log and the parking lot live in ../Keel_doc and
+# contain personal notes. Never copy them in here.
+*.numbers
+*.xlsx

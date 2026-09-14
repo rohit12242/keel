@@ -1,0 +1,17 @@
+# <type>(<scope>): <summary>   ← 50 chars, imperative, no trailing period
+#
+# <body: what changed and why. Wrap at 72. The why is the point —
+#  the diff already shows the what.>
+#
+# Story: W3-xx        ← required footer; the sprint id this commit belongs to
+#
+# ----------------------------------------------------------------------
+# Conventional Commits — see docs/contributing.md
+#
+#   type   feat | fix | docs | refactor | test | chore
+#   scope  effort | objectives | reviews | parking | time
+#          | ci | db | contract
+#
+# Every commit ends with a `Story: W3-xx` footer. The story id is how the
+# sprint sheet and the repository stay connected at retrospective.
+# ----------------------------------------------------------------------

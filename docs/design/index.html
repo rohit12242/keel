@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keel — screen designs</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Spectral:wght@400;500;600&display=swap">
+<style>
+body{margin:0;background:#F2F1EC;color:#1C1D19;font-family:Archivo,Arial,sans-serif;padding:64px 32px;}
+.w{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:34px;}
+h1{font-family:Spectral,Georgia,serif;font-size:34px;font-weight:600;margin:0;letter-spacing:-.02em;}
+p{margin:0;color:#55574F;line-height:1.65;}
+.k{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;color:#86887F;}
+ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;border-top:1.5px solid #1C1D19;}
+li a{display:flex;align-items:baseline;gap:18px;padding:15px 4px;border-bottom:1px solid #DAD9D1;text-decoration:none;color:#1C1D19;font-size:17px;}
+li a:hover{background:#FAFAF7;}
+li a span.n{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8A473E;width:24px;}
+li a span.d{margin-left:auto;font-size:13px;color:#86887F;}
+.note{border-left:2px solid #3C5880;padding-left:18px;font-size:14px;color:#55574F;line-height:1.65;}
+</style>
+</head>
+<body>
+<div class="w">
+<span class="k">KEEL · SCREEN DESIGNS · 22 AUG 2026</span>
+<h1>Six screens</h1>
+<p>Static desktop mockups at 1400px, populated with realistic data. Open each in a browser and inspect it — the spacing, type scale and colours are real CSS values you can lift straight into the build.</p>
+<ol>
+<li><a href="screens/01-today.html"><span class="n">01</span>Today<span class="d">the daily loop</span></a></li>
+<li><a href="screens/02-new-objective.html"><span class="n">02</span>New objective<span class="d">schedule builder</span></a></li>
+<li><a href="screens/03-log-a-deviation.html"><span class="n">03</span>Log a deviation<span class="d">chosen or drifted</span></a></li>
+<li><a href="screens/04-parking-lot.html"><span class="n">04</span>Parking lot<span class="d">locked until review</span></a></li>
+<li><a href="screens/05-objective-detail.html"><span class="n">05</span>Objective detail<span class="d">attendance strip, history</span></a></li>
+<li><a href="screens/06-review.html"><span class="n">06</span>Review<span class="d">adherence and the decision</span></a></li>
+</ol>
+<div class="note">The palette: paper #F2F1EC, ink #1C1D19, rules #DAD9D1, effort green #3F6650, structure blue #3C5880, deviation red #8A473E. Type: Spectral for headings, Archivo for interface text, IBM Plex Mono for every figure. Keep figures tabular-nums so columns line up.</div>
+<div class="note">keel-app-screens.html in this folder is the same six screens on one pan-and-zoom canvas, with the design notes attached. The .dc source files are in canvas-source/ if the canvas ever needs rebuilding.</div>
+</div>
+</body>
+</html>
