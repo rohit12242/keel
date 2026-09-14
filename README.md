@@ -23,6 +23,7 @@ Sprint 01 — walking skeleton. No product features yet.
 | `docs/keel-api.yaml` | OpenAPI 3.1 contract, written before the code |
 | `docs/api-gaps.md` | Known gaps between contract and screens |
 | `docs/adr/` | Architecture decision records |
+| `docs/contributing.md` | Branching, commit convention and the review gate |
 | `docs/spikes/` | Spike write-ups |
 | `docs/flows.md` | Screen flow diagrams |
 | `docs/design/` | Screen designs |
