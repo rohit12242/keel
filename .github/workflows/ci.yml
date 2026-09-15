@@ -1,0 +1,89 @@
+name: CI
+
+# ADR-003: the pipeline that gates a merge. Runs on pull_request (never
+# pull_request_target), so a fork's code executes with no secrets — every
+# stage below is designed to pass without any. Deploy lives in W3-17, on main.
+on:
+  pull_request:
+
+# One developer pushing fixes should not queue behind themselves: a new commit
+# on a branch cancels the in-progress run for that branch (ADR-003).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # The eight blocking stages, ordered cheapest-and-most-likely-to-fail first
+  # and run as sequential steps so the job stops at the first failure
+  # (ADR-003: "fail fast, fail cheap"). This whole job is the required check.
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    steps:
+      # Stage 1 — install, with dependency caching.
+      # Node pinned to 26, NOT lts/* (resolves to 24 until late Oct 2026, then
+      # jumps) and NOT latest. A pin that changes underneath you is worse than
+      # a wrong pin.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so commit-message lint can see the range
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+      - name: Install
+        run: npm ci
+
+      # Stage 2 — format check (fails most often, costs seconds).
+      - name: Format check
+        run: npm run format:check
+
+      # Stage 3 — lint, including the ADR-001 domain import-boundary rule.
+      - name: Lint
+        run: npm run lint
+
+      # Stage 4 — typecheck.
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Stage 5 — unit tests (domain only: no database, no server).
+      - name: Unit tests
+        run: npm run test
+
+      # Stage 6 — contract validation: keel-api.yaml is valid OpenAPI 3.1 AND
+      # every operation declares a 4xx/5xx response (NFR-07).
+      - name: Contract validation
+        run: npm run contract
+
+      # Stage 7 — build.
+      - name: Build
+        run: npm run build
+
+      # Stage 8 — commit message lint: Conventional Commits + Story: W3-xx.
+      - name: Commit message lint
+        run: npm run commitlint
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
+  # Stage 9 — dependency audit. ADVISORY: it is the one check whose failures
+  # are not caused by the commit under review, so it must never block a merge.
+  # Kept a separate job, not added to the required checks, and allowed to be
+  # non-green without failing the workflow. It reports; triage is deliberate.
+  audit:
+    name: audit (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Audit
+        run: npm audit
