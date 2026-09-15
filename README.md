@@ -40,6 +40,3 @@ If you have ten minutes and want to see how it was built rather than what it doe
 
 TypeScript on Node (≥ 26), Next.js, PostgreSQL, deployed on AWS.
 Each of those is an ADR, not a default.
-
-## Testing
-Am i able to push directly to main branch.
