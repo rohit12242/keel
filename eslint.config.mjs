@@ -29,6 +29,11 @@ const eslintConfig = defineConfig([
                 "domain/ may not import a repository (ADR-001: repo.ts is the only file with SQL).",
             },
             {
+              group: ["@/config", "@/config/*"],
+              message:
+                "domain/ may not import config (it reads the environment). Take config values as arguments (ADR-001 / ADR-004).",
+            },
+            {
               group: [
                 "pg",
                 "postgres",
@@ -49,6 +54,25 @@ const eslintConfig = defineConfig([
                 "domain/ may not import a package that speaks HTTP or SQL (ADR-001).",
             },
           ],
+        },
+      ],
+    },
+  },
+
+  // W3-11 / ADR-004: environment variables are read in exactly one place,
+  // src/config/env.ts, which validates them and hands the rest of the app
+  // typed values. Nothing else reads process.env directly.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/config/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "MemberExpression[object.name='process'][property.name='env']",
+          message:
+            "Read environment variables only in src/config/env.ts (W3-11 / ADR-004); take config as values elsewhere.",
         },
       ],
     },

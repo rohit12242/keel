@@ -1,0 +1,33 @@
+# Local Postgres for Keel (W3-11). Local only — not the deployed database.
+# Production runs on RDS (ADR-004); this file never reaches it.
+#
+# The schema is W3-12. This brings up an empty, reachable Postgres and nothing
+# more — no migrations, no seed.
+
+services:
+  db:
+    image: postgres:17.6 # pinned; bump deliberately, never float to :latest
+    container_name: keel-db
+    restart: unless-stopped
+    environment:
+      # Local throwaway credentials. NOT a secret: this database is bound to
+      # localhost on your machine and holds no real data. DATABASE_URL in your
+      # .env must match these (see docs/local-setup.md).
+      POSTGRES_USER: keel
+      POSTGRES_PASSWORD: keel_local_dev
+      POSTGRES_DB: keel
+    ports:
+      - "5432:5432"
+    volumes:
+      - keel-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # `docker compose up` reports healthy only once Postgres accepts
+      # connections, so "up and healthy" means "reachable".
+      test: ["CMD-SHELL", "pg_isready -U keel -d keel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  keel-pgdata:
+    # Named volume: data survives `docker compose down` (use `down -v` to wipe).
