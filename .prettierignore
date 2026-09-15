@@ -1,0 +1,17 @@
+# Build output and dependencies
+.next/
+out/
+build/
+node_modules/
+coverage/
+
+# Lockfile
+package-lock.json
+
+# Hand-authored prose and design artboards — not Prettier's to reflow
+docs/
+*.md
+
+# Binary / generated
+public/
+*.ico

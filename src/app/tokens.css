@@ -1,0 +1,48 @@
+/*
+ * Design tokens — the single source for colour, type and spacing.
+ * Values are lifted from the screen designs in docs/design/ so the built app
+ * and the artboards agree. Consume these variables from CSS Modules; do not
+ * hard-code hex values in component styles.
+ *
+ * Styling approach is CSS Modules + these tokens (no Tailwind) — W3-09.
+ * Font family variables (--font-sans/serif/mono) are supplied by the root
+ * layout via next/font (Archivo, Spectral, IBM Plex Mono).
+ */
+:root {
+  /* Paper and surfaces (warm neutrals) */
+  --color-paper: #fafaf7;
+  --color-surface: #f7f6f2;
+  --color-surface-sunk: #f2f1ec;
+  --color-surface-hover: #edece6;
+
+  /* Ink and text */
+  --color-ink: #1c1d19;
+  --color-text-muted: #55574f;
+  --color-text-faint: #86887f;
+
+  /* Lines and borders */
+  --color-line: #dad9d1;
+  --color-line-soft: #e2e1d9;
+  --color-line-strong: #c2c1b7;
+
+  /* Accents — each carries meaning, never colour alone (NFR-13) */
+  --color-accent: #3c5880; /* planned / primary */
+  --color-accent-strong: #2c4363;
+  --color-positive: #3f6650; /* met / on-plan */
+  --color-deviation: #8a473e; /* deviation / off-plan */
+
+  /* Type scale */
+  --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Spectral", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* Spacing (4px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --radius: 0.375rem;
+}
