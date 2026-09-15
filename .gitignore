@@ -37,3 +37,13 @@ CLAUDE.local.md
 # contain personal notes. Never copy them in here.
 *.numbers
 *.xlsx
+
+# next.js / tooling (W3-09)
+next-env.d.ts
+.vercel
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
