@@ -13,7 +13,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "contract": "node scripts/validate-contract.mjs",
+    "commitlint": "node scripts/check-commits.mjs"
   },
   "dependencies": {
     "next": "16.3.5",
@@ -21,6 +23,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@seriousme/openapi-schema-validator": "^2.9.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
