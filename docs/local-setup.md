@@ -38,13 +38,19 @@ node -v       # expect v26.x
 npm ci
 ```
 
+npm 11+ may print a warning that some packages' install scripts are "not yet
+covered by allowScripts" (esbuild, fsevents, unrs-resolver). It is safe to
+ignore — those tools ship their binaries as ordinary optional dependencies, so
+lint, tests and the app all work without the scripts running.
+
 ## 4. Start Postgres
 
 ```sh
 docker compose up -d
 ```
 
-Wait until the database reports healthy:
+The first run pulls the Postgres image, which takes a moment. Wait until the
+database reports healthy:
 
 ```sh
 docker compose ps   # STATUS should show "healthy" for the db service
@@ -86,7 +92,8 @@ Then open http://localhost:3000.
 
 ## 7. How to tell it worked
 
-- `docker compose ps` shows the `db` service **healthy**.
+- `docker compose ps` shows the `db` service **healthy**. To probe it directly:
+  `docker compose exec db pg_isready -U keel -d keel` → `accepting connections`.
 - `npm run dev` starts without printing a `ConfigError`. If a variable is missing
   or malformed, the app fails immediately at startup and names the exact variable
   — fix that variable in `.env` and start again.
