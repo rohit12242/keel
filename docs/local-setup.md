@@ -11,8 +11,11 @@ Install these first if you do not have them:
 - **git**
 - **nvm** — https://github.com/nvm-sh/nvm (to get the exact Node version). If you
   manage Node another way, you need **Node 26** (see `.nvmrc`).
-- **Docker** with the Compose plugin — Docker Desktop, or `colima` + the `docker`
-  CLI on macOS. `docker compose version` must work.
+- **A Docker-compatible container runtime** providing `docker` and
+  `docker compose` — Docker Desktop, OrbStack, colima, or any equivalent. Use
+  whichever you already have; the only requirement is that `docker compose
+  version` succeeds. If you have none on macOS, colima is one license-free
+  option: `brew install colima docker docker-compose && colima start`.
 
 ## 1. Clone
 
