@@ -34,6 +34,11 @@ const eslintConfig = defineConfig([
                 "domain/ may not import config (it reads the environment). Take config values as arguments (ADR-001 / ADR-004).",
             },
             {
+              group: ["@/shared/db", "**/shared/db"],
+              message:
+                "domain/ may not import the database pool. repo.ts holds SQL; domain takes values (ADR-001).",
+            },
+            {
               group: [
                 "pg",
                 "postgres",
