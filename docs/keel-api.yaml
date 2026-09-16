@@ -48,6 +48,30 @@ security:
   - sessionCookie: []
 
 paths:
+  /health:
+    get:
+      tags: [Ops]
+      summary: Liveness and database reachability
+      description: |
+        Two distinct answers. `app` is "ok" whenever this responds at all — an
+        app crash shows as no response, never a body. `database` is the result
+        of a real round trip. Status is 200 when the database answers and 503
+        when only the app is up, so an outage is distinguishable from a crash.
+        Public: no session required (W3-16).
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: App alive and database reachable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '503':
+          description: App alive but the database is unreachable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
   /session:
     post:
       tags: [Session]
@@ -955,6 +979,15 @@ components:
           schema: { $ref: '#/components/schemas/Problem' }
 
   schemas:
+    Health:
+      type: object
+      required: [status, app, database, checked_at]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        app: { type: string, enum: [ok], description: 'Alive if this body was produced at all.' }
+        database: { type: string, enum: [ok, unreachable] }
+        checked_at: { type: string, format: date-time }
+
     Problem:
       type: object
       description: RFC 9457 Problem Details. One shape for every failure in this API.

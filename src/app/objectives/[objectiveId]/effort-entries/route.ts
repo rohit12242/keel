@@ -1,5 +1,6 @@
 import { createEffortEntry } from "@/modules/effort/service";
 import { jsonResponse, problem, problemType } from "@/shared/http";
+import { withRequestLog } from "@/shared/log";
 
 export const dynamic = "force-dynamic";
 
@@ -16,68 +17,75 @@ export async function POST(
   ctx: { params: Promise<{ objectiveId: string }> },
 ): Promise<Response> {
   const { objectiveId } = await ctx.params;
-  if (!UUID.test(objectiveId)) {
-    return problem(
-      404,
-      "Not found",
-      problemType("not-found"),
-      "No such objective.",
-    );
-  }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return problem(
-      400,
-      "Invalid request",
-      problemType("invalid"),
-      "The request body must be JSON.",
-    );
-  }
-
-  try {
-    const result = await createEffortEntry(objectiveId, body);
-    if (result.ok) return jsonResponse(201, result.entry);
-
-    switch (result.kind) {
-      case "validation":
-        return problem(
-          400,
-          "Invalid effort entry",
-          problemType("invalid"),
-          "One or more fields failed validation.",
-          result.errors,
-        );
-      case "not_found":
+  return withRequestLog(
+    "POST /objectives/[objectiveId]/effort-entries",
+    { objective_id: objectiveId },
+    async () => {
+      if (!UUID.test(objectiveId)) {
         return problem(
           404,
           "Not found",
           problemType("not-found"),
           "No such objective.",
         );
-      case "not_active":
+      }
+
+      let body: unknown;
+      try {
+        body = await req.json();
+      } catch {
         return problem(
-          422,
-          "This objective is not active",
-          problemType("objective-not-active"),
-          "Ended or completed objectives accept no new effort.",
+          400,
+          "Invalid request",
+          problemType("invalid"),
+          "The request body must be JSON.",
         );
-      case "outside_plan":
+      }
+
+      try {
+        const result = await createEffortEntry(objectiveId, body);
+        if (result.ok) return jsonResponse(201, result.entry);
+
+        switch (result.kind) {
+          case "validation":
+            return problem(
+              400,
+              "Invalid effort entry",
+              problemType("invalid"),
+              "One or more fields failed validation.",
+              result.errors,
+            );
+          case "not_found":
+            return problem(
+              404,
+              "Not found",
+              problemType("not-found"),
+              "No such objective.",
+            );
+          case "not_active":
+            return problem(
+              422,
+              "This objective is not active",
+              problemType("objective-not-active"),
+              "Ended or completed objectives accept no new effort.",
+            );
+          case "outside_plan":
+            return problem(
+              422,
+              "Outside the plan",
+              problemType("date-outside-plan"),
+              "local_date falls outside every plan segment for this objective.",
+            );
+        }
+      } catch {
         return problem(
-          422,
-          "Outside the plan",
-          problemType("date-outside-plan"),
-          "local_date falls outside every plan segment for this objective.",
+          503,
+          "Couldn't reach your log",
+          problemType("unavailable"),
+          "The database could not be reached.",
         );
-    }
-  } catch {
-    return problem(
-      503,
-      "Couldn't reach your log",
-      problemType("unavailable"),
-      "The database could not be reached.",
-    );
-  }
+      }
+    },
+  );
 }
