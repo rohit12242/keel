@@ -1,24 +1,59 @@
+import { getConfig } from "@/config/env";
+import type { EffortEntry, ProblemError } from "@/shared/contract";
+import { validateEffortEntryWrite } from "./domain/validateWrite";
+import {
+  checkObjectiveForEffort,
+  insertEffortEntry,
+  type EffortEntryRow,
+} from "./repo";
+
 /**
- * effort/service — one function per use case (ADR-001). Wires the pure domain
- * to the repository. May import both domain/ and repo.ts; domain/ may import
- * neither of these back.
- *
- * SCAFFOLDING STUB. A single illustrative use case so the layer exists and the
- * dependency direction is real. Real use cases land with the feature.
+ * effort/service — the log-effort use case (ADR-001). Validates the body,
+ * enforces the 404/422 rules, then inserts. The current user is the seeded
+ * user until auth (E-06).
  */
-import { adherence } from "@/modules/effort/domain/adherence";
-import { entriesForDay } from "@/modules/effort/repo";
-import { isErr, ok, type Result } from "@/shared/result";
+export type CreateEffortResult =
+  | { ok: true; entry: EffortEntry }
+  | { ok: false; kind: "validation"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "not_active" }
+  | { ok: false; kind: "outside_plan" };
 
-export type DayAdherenceError = { readonly kind: "not_implemented" };
+function present(row: EffortEntryRow): EffortEntry {
+  const entry: EffortEntry = {
+    id: row.id,
+    objective_id: row.objective_id,
+    local_date: row.local_date,
+    tz: row.tz,
+    minutes: row.minutes,
+    note: row.note,
+    link: row.link,
+    logged_at: row.logged_at,
+    extra: row.extra,
+  };
+  if (row.occurred_at_local) entry.occurred_at_local = row.occurred_at_local;
+  return entry;
+}
 
-export async function dayAdherence(
-  localDate: string,
-  targetDays: number,
-): Promise<Result<number, DayAdherenceError>> {
-  const entries = await entriesForDay(localDate);
-  if (isErr(entries)) return { ok: false, error: { kind: "not_implemented" } };
+export async function createEffortEntry(
+  objectiveId: string,
+  body: unknown,
+): Promise<CreateEffortResult> {
+  const validated = validateEffortEntryWrite(body);
+  if (!validated.ok) {
+    return { ok: false, kind: "validation", errors: validated.errors };
+  }
 
-  const workedDays = entries.value.length > 0 ? 1 : 0;
-  return ok(adherence(targetDays, workedDays));
+  const { seedUserId } = getConfig();
+  const check = await checkObjectiveForEffort(
+    seedUserId,
+    objectiveId,
+    validated.value.local_date,
+  );
+  if (!check) return { ok: false, kind: "not_found" };
+  if (check.status !== "active") return { ok: false, kind: "not_active" };
+  if (!check.date_covered) return { ok: false, kind: "outside_plan" };
+
+  const row = await insertEffortEntry(objectiveId, validated.value);
+  return { ok: true, entry: present(row) };
 }
