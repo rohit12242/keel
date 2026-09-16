@@ -1,5 +1,6 @@
 import { getDay } from "@/modules/today/service";
 import { jsonResponse, problem, problemType } from "@/shared/http";
+import { withRequestLog } from "@/shared/log";
 
 // Reads the database per request; never prerendered.
 export const dynamic = "force-dynamic";
@@ -21,25 +22,27 @@ export async function GET(
 ): Promise<Response> {
   const { date } = await ctx.params;
 
-  if (!isIsoDate(date)) {
-    return problem(
-      400,
-      "Invalid date",
-      problemType("invalid"),
-      "The date must be a valid calendar date in YYYY-MM-DD form.",
-      [{ field: "date", message: "Must be YYYY-MM-DD." }],
-    );
-  }
+  return withRequestLog("GET /day/[date]", { date }, async () => {
+    if (!isIsoDate(date)) {
+      return problem(
+        400,
+        "Invalid date",
+        problemType("invalid"),
+        "The date must be a valid calendar date in YYYY-MM-DD form.",
+        [{ field: "date", message: "Must be YYYY-MM-DD." }],
+      );
+    }
 
-  try {
-    return jsonResponse(200, await getDay(date));
-  } catch {
-    // The database could not be reached (NFR-07 / contract 503).
-    return problem(
-      503,
-      "Couldn't reach your log",
-      problemType("unavailable"),
-      "The database could not be reached.",
-    );
-  }
+    try {
+      return jsonResponse(200, await getDay(date));
+    } catch {
+      // The database could not be reached (NFR-07 / contract 503).
+      return problem(
+        503,
+        "Couldn't reach your log",
+        problemType("unavailable"),
+        "The database could not be reached.",
+      );
+    }
+  });
 }
