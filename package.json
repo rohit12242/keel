@@ -15,16 +15,22 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "contract": "node scripts/validate-contract.mjs",
-    "commitlint": "node scripts/check-commits.mjs"
+    "commitlint": "node scripts/check-commits.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "migrate:down": "node scripts/migrate.mjs down",
+    "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
     "next": "16.3.5",
+    "node-pg-migrate": "^9.0.0",
+    "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@seriousme/openapi-schema-validator": "^2.9.1",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
