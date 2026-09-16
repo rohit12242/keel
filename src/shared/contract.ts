@@ -21,6 +21,15 @@ export type PlanSlot = {
   target_days: number | null;
 };
 
+export type EffortEntryWrite = {
+  local_date: string;
+  tz: string;
+  minutes: number;
+  note: string;
+  occurred_at_local?: string;
+  link?: string | null;
+};
+
 export type EffortEntry = {
   id: string;
   objective_id: string;
