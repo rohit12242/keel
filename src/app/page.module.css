@@ -1,30 +1,148 @@
+/* Today — thin, legible only. Not design work (W3-15). */
 .page {
-  max-width: 40rem;
+  max-width: 44rem;
   margin: 0 auto;
   padding: var(--space-8) var(--space-6);
+}
+
+.header {
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 .title {
   font-family: var(--font-serif);
   font-size: 1.75rem;
   font-weight: 600;
-  color: var(--color-ink);
 }
 
-.lede {
-  margin-top: var(--space-3);
+.date {
   color: var(--color-text-muted);
-  line-height: 1.5;
-}
-
-.note {
-  margin-top: var(--space-6);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-line);
-  border-left: 3px solid var(--color-accent);
-  border-radius: var(--radius);
-  background: var(--color-surface);
   font-family: var(--font-mono);
   font-size: 0.8125rem;
+  margin-top: var(--space-1);
+}
+
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+}
+.totals dt {
+  color: var(--color-text-faint);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.totals dd {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.objectives {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.objective {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  background: var(--color-surface);
+}
+
+.objectiveHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.objectiveTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.schedule {
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.03em;
+}
+
+.plan {
   color: var(--color-text-muted);
+  font-size: 0.875rem;
+  margin-top: var(--space-2);
+}
+
+.entries {
+  list-style: none;
+  margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.entry {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-line-soft);
+  font-size: 0.9375rem;
+}
+
+.entryMinutes {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  min-width: 4rem;
+}
+
+.entryTime {
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.entryNote {
+  flex: 1;
+}
+
+.badge {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-deviation);
+  border: 1px solid var(--color-deviation);
+  border-radius: 999px;
+  padding: 0 var(--space-2);
+}
+
+.empty,
+.error {
+  color: var(--color-text-muted);
+}
+
+.retry {
+  font: inherit;
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.error {
+  border: 1px solid var(--color-line-strong);
+  border-left: 3px solid var(--color-deviation);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-3) var(--space-4);
 }
