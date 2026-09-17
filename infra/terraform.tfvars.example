@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars (gitignored). STEP 1 placeholder secret.
+session_secret = "generate-with: openssl rand -hex 32"
