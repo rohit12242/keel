@@ -118,10 +118,12 @@ data "aws_iam_policy_document" "deploy_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
+    # Only the deploy workflow on the main branch may assume this role — not
+    # arbitrary branches, PRs, tags, or (being a different repo) any fork.
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
     }
   }
 }
