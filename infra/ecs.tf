@@ -67,6 +67,13 @@ resource "aws_ecs_service" "app" {
   health_check_grace_period_seconds = 60
   wait_for_steady_state             = true
 
+  # If a new deployment's tasks fail to become healthy, ECS rolls back to the
+  # last good task set automatically (ADR-004 rollback).
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
   depends_on = [aws_lb_listener.http]
 }
 

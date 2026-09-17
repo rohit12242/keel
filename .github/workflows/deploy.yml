@@ -1,0 +1,97 @@
+name: Deploy
+
+# ADR-004: merge to main deploys. Build once (tagged with the commit), run the
+# migration, roll the ECS service, smoke-check. Authenticates via the GitHub
+# OIDC role — no long-lived AWS keys. main is protected (CI must pass to merge),
+# so this runs only on already-reviewed, CI-green commits.
+on:
+  push:
+    branches: [main]
+
+# One deploy at a time; never cancel a deploy in flight.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # assume the AWS role via OIDC
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPO: 925513250944.dkr.ecr.us-east-1.amazonaws.com/keel
+  CLUSTER: keel
+  SERVICE: keel
+  MIGRATE_TASK: keel-migrate
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # native amd64 — matches the ECS task platform, no emulation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::925513250944:role/keel-deploy-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images (app + migrate)
+        run: |
+          set -euo pipefail
+          SHA="${GITHUB_SHA::12}"
+          docker build -f Dockerfile -t "$ECR_REPO:$SHA" -t "$ECR_REPO:latest" .
+          docker push "$ECR_REPO:$SHA"
+          docker push "$ECR_REPO:latest"
+          docker build -f Dockerfile.migrate -t "$ECR_REPO:migrate-$SHA" -t "$ECR_REPO:migrate" .
+          docker push "$ECR_REPO:migrate-$SHA"
+          docker push "$ECR_REPO:migrate"
+
+      - name: Run migration (one-off Fargate task in the VPC)
+        run: |
+          set -euo pipefail
+          SUBNETS=$(aws ec2 describe-subnets \
+            --filters Name=tag:Name,Values=keel-public-1,keel-public-2 \
+            --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
+          SG=$(aws ec2 describe-security-groups \
+            --filters Name=group-name,Values=keel-task \
+            --query 'SecurityGroups[0].GroupId' --output text)
+          TASK=$(aws ecs run-task --cluster "$CLUSTER" --task-definition "$MIGRATE_TASK" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SG],assignPublicIp=ENABLED}" \
+            --query 'tasks[0].taskArn' --output text)
+          echo "migrate task: $TASK"
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK"
+          EXIT=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "migration exit code: $EXIT"
+          test "$EXIT" = "0"
+
+      - name: Deploy (roll the service to the new image)
+        run: |
+          set -euo pipefail
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
+            --force-new-deployment >/dev/null
+          # Fails (non-zero) if the deployment doesn't stabilise — the circuit
+          # breaker rolls back a bad task set automatically.
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+
+      - name: Smoke check (/health app + database)
+        run: |
+          set -euo pipefail
+          ALB=$(aws elbv2 describe-load-balancers --names keel \
+            --query 'LoadBalancers[0].DNSName' --output text)
+          for i in $(seq 1 10); do
+            BODY=$(curl -s --max-time 10 "http://$ALB/health" || true)
+            echo "attempt $i: $BODY"
+            if echo "$BODY" | grep -q '"app":"ok"' && echo "$BODY" | grep -q '"database":"ok"'; then
+              echo "smoke check passed"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "smoke check failed: /health did not report app+database ok"
+          exit 1
