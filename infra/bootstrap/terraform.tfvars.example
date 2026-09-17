@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+alert_email = "you@example.com"
+github_repo = "owner/repo"
+region      = "us-east-1"

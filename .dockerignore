@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.github
+infra
+docs
+coverage
+npm-debug.log*
+.env
+.env.*
+!.env.example
+*.md
+.DS_Store
+Dockerfile
+.dockerignore
