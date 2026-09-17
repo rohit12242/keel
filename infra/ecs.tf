@@ -18,16 +18,20 @@ resource "aws_ecs_task_definition" "app" {
 
   container_definitions = jsonencode([
     {
-      name      = "keel"
-      image     = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
-      essential = true
+      name         = "keel"
+      image        = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
+      essential    = true
       portMappings = [{ containerPort = 3000, protocol = "tcp" }]
       environment = [
-        { name = "DATABASE_URL", value = var.database_url },
         { name = "APP_BASE_URL", value = var.app_base_url },
         { name = "LOG_LEVEL", value = "info" },
         { name = "SEED_DATA", value = "false" },
-        { name = "SESSION_SECRET", value = var.session_secret },
+      ]
+      # DATABASE_URL and SESSION_SECRET injected from SSM at launch (never in
+      # the task definition as plaintext).
+      secrets = [
+        { name = "DATABASE_URL", valueFrom = aws_ssm_parameter.database_url.arn },
+        { name = "SESSION_SECRET", valueFrom = aws_ssm_parameter.session_secret.arn },
       ]
       logConfiguration = {
         logDriver = "awslogs"
@@ -64,4 +68,40 @@ resource "aws_ecs_service" "app" {
   wait_for_steady_state             = true
 
   depends_on = [aws_lb_listener.http]
+}
+
+# One-off task to run the W3-12 migration against RDS. Not a service; launched
+# with `aws ecs run-task` (and by CI in STEP 3).
+resource "aws_ecs_task_definition" "migrate" {
+  family                   = "keel-migrate"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = var.ecs_execution_role_arn
+  task_role_arn            = var.ecs_task_role_arn
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "X86_64"
+  }
+
+  container_definitions = jsonencode([
+    {
+      name      = "migrate"
+      image     = "${aws_ecr_repository.app.repository_url}:${var.migrate_image_tag}"
+      essential = true
+      secrets = [
+        { name = "DATABASE_URL", valueFrom = aws_ssm_parameter.database_url.arn },
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.app.name
+          "awslogs-region"        = var.region
+          "awslogs-stream-prefix" = "migrate"
+        }
+      }
+    }
+  ])
 }

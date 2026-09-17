@@ -23,19 +23,14 @@ variable "image_tag" {
   default = "latest"
 }
 
-# STEP 1 placeholders (no database yet). Provided via gitignored terraform.tfvars.
-# STEP 2 moves database_url and session_secret into SSM Parameter Store.
-variable "database_url" {
+variable "migrate_image_tag" {
   type    = string
-  default = "postgres://placeholder:placeholder@localhost:5432/keel"
+  default = "migrate"
 }
 
+# Used by the Today page's internal fetch to /day; localhost works inside the
+# container. Public URL is the ALB.
 variable "app_base_url" {
   type    = string
   default = "http://localhost:3000"
-}
-
-variable "session_secret" {
-  type      = string
-  sensitive = true
 }

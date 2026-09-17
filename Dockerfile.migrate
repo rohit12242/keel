@@ -1,0 +1,11 @@
+# One-off migration runner (W3-17 STEP 2). Runs node-pg-migrate against RDS
+# from inside the VPC. No Next build — just pg + node-pg-migrate + the
+# migrations and the migrate script. Runs as a non-root user.
+FROM node:26-alpine
+WORKDIR /app
+RUN npm install --no-save --omit=dev pg@^8.23.0 node-pg-migrate@^9.0.0
+COPY migrations ./migrations
+COPY scripts/migrate.mjs ./scripts/migrate.mjs
+RUN addgroup -g 1001 -S nodejs && adduser -S migrate -u 1001 && chown -R migrate:nodejs /app
+USER migrate
+CMD ["node", "scripts/migrate.mjs"]
