@@ -5,19 +5,21 @@ import { withRequestLog } from "@/shared/log";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /health — two distinct answers (W3-16):
- *   - the app is alive: if this responds at all, the process is up. An app
- *     crash shows as no response / a connection error, never a JSON body.
- *   - the database is reachable: a real round trip (SELECT 1).
+ * GET /health — a liveness check that also reports database reachability
+ * (W3-16, adjusted for W3-17 / ADR-006).
  *
- * `app` and `database` are reported separately, and the HTTP status differs:
- * 200 when the database answers, 503 when only the app is up. That is how a
- * database outage is told apart from an app crash.
+ * Returns HTTP 200 whenever the app process is serving (so a load balancer
+ * routes to a live task even before a database exists — STEP 1 has none). The
+ * two answers stay distinguishable in the body: `app` is "ok" whenever this
+ * responds at all (an app crash yields no body), and `database` is the result
+ * of a real round trip (SELECT 1) — "ok" or "unreachable", with `status`
+ * "ok"/"degraded" summarising. Callers that require the DB (the deploy smoke
+ * check) assert on `database`, not just the HTTP status.
  */
 export async function GET(): Promise<Response> {
   return withRequestLog("GET /health", {}, async () => {
     const dbOk = await pingDatabase();
-    return jsonResponse(dbOk ? 200 : 503, {
+    return jsonResponse(200, {
       status: dbOk ? "ok" : "degraded",
       app: "ok",
       database: dbOk ? "ok" : "unreachable",

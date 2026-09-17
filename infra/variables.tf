@@ -8,14 +8,14 @@ variable "deploy_role_arn" {
   default = "arn:aws:iam::925513250944:role/keel-deploy-role"
 }
 
-variable "apprunner_ecr_role_arn" {
+variable "ecs_execution_role_arn" {
   type    = string
-  default = "arn:aws:iam::925513250944:role/keel-apprunner-ecr-access"
+  default = "arn:aws:iam::925513250944:role/keel-ecs-execution"
 }
 
-variable "apprunner_instance_role_arn" {
+variable "ecs_task_role_arn" {
   type    = string
-  default = "arn:aws:iam::925513250944:role/keel-apprunner-instance"
+  default = "arn:aws:iam::925513250944:role/keel-ecs-task"
 }
 
 variable "image_tag" {

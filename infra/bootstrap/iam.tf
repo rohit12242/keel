@@ -17,50 +17,66 @@ resource "aws_iam_openid_connect_provider" "github" {
 }
 
 # ---------------------------------------------------------------------------
-# App Runner roles (created here so the deploy role never needs iam:CreateRole
-# — it only PassRoles these two specific ARNs).
+# ECS roles (created here so the deploy role never needs iam:CreateRole — it
+# only PassRoles these two ARNs). ECS Fargate needs a task EXECUTION role
+# (pull image from ECR, write logs, read SSM secrets at launch) and a TASK
+# role (the app's own runtime identity).
 # ---------------------------------------------------------------------------
-
-# Access role: lets App Runner pull the image from ECR.
-data "aws_iam_policy_document" "apprunner_ecr_assume" {
+data "aws_iam_policy_document" "ecs_assume" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
-      identifiers = ["build.apprunner.amazonaws.com"]
+      identifiers = ["ecs-tasks.amazonaws.com"]
     }
   }
 }
 
-resource "aws_iam_role" "apprunner_ecr" {
-  name               = "keel-apprunner-ecr-access"
-  assume_role_policy = data.aws_iam_policy_document.apprunner_ecr_assume.json
+resource "aws_iam_role" "ecs_execution" {
+  name               = "keel-ecs-execution"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
 }
 
-resource "aws_iam_role_policy_attachment" "apprunner_ecr" {
-  role       = aws_iam_role.apprunner_ecr.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
+resource "aws_iam_role_policy_attachment" "ecs_execution_managed" {
+  role       = aws_iam_role.ecs_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Instance role: the running app's identity — reads its config from SSM.
-data "aws_iam_policy_document" "apprunner_instance_assume" {
+# Let the execution role read Keel's SSM parameters at task launch (STEP 2
+# injects DATABASE_URL / SESSION_SECRET as container `secrets`).
+data "aws_iam_policy_document" "ecs_execution_ssm" {
   statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["tasks.apprunner.amazonaws.com"]
+    sid       = "ReadKeelParameters"
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter", "ssm:GetParameters"]
+    resources = ["arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/keel/*"]
+  }
+  statement {
+    sid       = "DecryptSecureStrings"
+    effect    = "Allow"
+    actions   = ["kms:Decrypt"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["ssm.${var.region}.amazonaws.com"]
     }
   }
 }
 
-resource "aws_iam_role" "apprunner_instance" {
-  name               = "keel-apprunner-instance"
-  assume_role_policy = data.aws_iam_policy_document.apprunner_instance_assume.json
+resource "aws_iam_role_policy" "ecs_execution_ssm" {
+  name   = "keel-ecs-execution-ssm"
+  role   = aws_iam_role.ecs_execution.id
+  policy = data.aws_iam_policy_document.ecs_execution_ssm.json
 }
 
-data "aws_iam_policy_document" "apprunner_instance" {
+resource "aws_iam_role" "ecs_task" {
+  name               = "keel-ecs-task"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
+}
+
+data "aws_iam_policy_document" "ecs_task_ssm" {
   statement {
     sid       = "ReadKeelParameters"
     effect    = "Allow"
@@ -69,15 +85,15 @@ data "aws_iam_policy_document" "apprunner_instance" {
   }
 }
 
-resource "aws_iam_role_policy" "apprunner_instance" {
-  name   = "keel-instance-ssm-read"
-  role   = aws_iam_role.apprunner_instance.id
-  policy = data.aws_iam_policy_document.apprunner_instance.json
+resource "aws_iam_role_policy" "ecs_task_ssm" {
+  name   = "keel-ecs-task-ssm"
+  role   = aws_iam_role.ecs_task.id
+  policy = data.aws_iam_policy_document.ecs_task_ssm.json
 }
 
 # ---------------------------------------------------------------------------
 # The scoped deploy role — assumable by the local keel-deploy user and by
-# GitHub Actions via OIDC. Scoped to the ADR-006 services, NOT admin.
+# GitHub Actions via OIDC. Scoped to the ADR-006 (rev 2) services, NOT admin.
 # ---------------------------------------------------------------------------
 data "aws_iam_policy_document" "deploy_assume" {
   statement {
@@ -117,17 +133,30 @@ resource "aws_iam_role" "deploy" {
 }
 
 data "aws_iam_policy_document" "deploy" {
-  # The ADR-006 services.
+  # The ADR-006 (rev 2) services: ECS Fargate, ALB, CloudFront (TLS), ECR,
+  # RDS, CloudWatch. Scoped to these services, not AdministratorAccess.
   statement {
     sid    = "CoreServices"
     effect = "Allow"
     actions = [
-      "apprunner:*",
+      "ecs:*",
       "ecr:*",
       "rds:*",
       "logs:*",
       "cloudwatch:*",
+      "elasticloadbalancing:*",
+      "cloudfront:*",
+      "application-autoscaling:*",
     ]
+    resources = ["*"]
+  }
+
+  # VPC / networking for the cluster, subnets, ALB and RDS. No NAT gateway is
+  # ever created (ADR-006). ec2:* here is the networking service in use.
+  statement {
+    sid       = "Ec2Networking"
+    effect    = "Allow"
+    actions   = ["ec2:*"]
     resources = ["*"]
   }
 
@@ -156,34 +185,15 @@ data "aws_iam_policy_document" "deploy" {
     resources = ["*"]
   }
 
-  # EC2 read + security-group/tag management for the VPC connector and RDS
-  # networking. No NAT gateway is ever created (ADR-006).
+  # Pass ONLY the two ECS roles created above.
   statement {
-    sid    = "Ec2Networking"
-    effect = "Allow"
-    actions = [
-      "ec2:Describe*",
-      "ec2:CreateSecurityGroup",
-      "ec2:DeleteSecurityGroup",
-      "ec2:AuthorizeSecurityGroupIngress",
-      "ec2:AuthorizeSecurityGroupEgress",
-      "ec2:RevokeSecurityGroupIngress",
-      "ec2:RevokeSecurityGroupEgress",
-      "ec2:CreateTags",
-      "ec2:DeleteTags",
-    ]
-    resources = ["*"]
-  }
-
-  # Pass ONLY the two App Runner roles created above.
-  statement {
-    sid       = "PassAppRunnerRoles"
+    sid       = "PassEcsRoles"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
-    resources = [aws_iam_role.apprunner_ecr.arn, aws_iam_role.apprunner_instance.arn]
+    resources = [aws_iam_role.ecs_execution.arn, aws_iam_role.ecs_task.arn]
   }
 
-  # Service-linked roles App Runner / RDS create on first use.
+  # Service-linked roles ECS / ELB / RDS create on first use.
   statement {
     sid       = "ServiceLinkedRoles"
     effect    = "Allow"
@@ -192,16 +202,20 @@ data "aws_iam_policy_document" "deploy" {
     condition {
       test     = "StringEquals"
       variable = "iam:AWSServiceName"
-      values   = ["apprunner.amazonaws.com", "rds.amazonaws.com"]
+      values = [
+        "ecs.amazonaws.com",
+        "elasticloadbalancing.amazonaws.com",
+        "rds.amazonaws.com",
+      ]
     }
   }
 
-  # Read the App Runner roles (Terraform refresh of data sources / references).
+  # Read the ECS roles (Terraform refresh / references).
   statement {
-    sid       = "ReadAppRunnerRoles"
+    sid       = "ReadEcsRoles"
     effect    = "Allow"
     actions   = ["iam:GetRole", "iam:ListRolePolicies", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies"]
-    resources = [aws_iam_role.apprunner_ecr.arn, aws_iam_role.apprunner_instance.arn]
+    resources = [aws_iam_role.ecs_execution.arn, aws_iam_role.ecs_task.arn]
   }
 
   # Terraform state backend access.

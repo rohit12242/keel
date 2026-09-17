@@ -14,12 +14,12 @@ output "github_oidc_provider_arn" {
   value = aws_iam_openid_connect_provider.github.arn
 }
 
-output "apprunner_ecr_role_arn" {
-  value = aws_iam_role.apprunner_ecr.arn
+output "ecs_execution_role_arn" {
+  value = aws_iam_role.ecs_execution.arn
 }
 
-output "apprunner_instance_role_arn" {
-  value = aws_iam_role.apprunner_instance.arn
+output "ecs_task_role_arn" {
+  value = aws_iam_role.ecs_task.arn
 }
 
 output "budget_name" {
