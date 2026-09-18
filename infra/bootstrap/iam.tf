@@ -6,14 +6,16 @@ data "aws_iam_user" "local_deployer" {
 # GitHub Actions OIDC provider (no long-lived keys — the deploy role is
 # assumed via web identity from the repo's workflows).
 # ---------------------------------------------------------------------------
-data "tls_certificate" "github" {
-  url = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
-}
-
 resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.github.certificates[length(data.tls_certificate.github.certificates) - 1].sha1_fingerprint]
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+  # GitHub Actions' well-known intermediate CA thumbprints. (AWS also keeps a
+  # trusted-CA library for this IdP, but an invalid thumbprint — e.g. a root
+  # CA's — can make the token untrusted and STS returns AccessDenied.)
+  thumbprint_list = [
+    "6938fd4d98bab03faadb97b34396831e3780aea1",
+    "1c58a3a8518e8759bf075b76b750d4f2df264fcd",
+  ]
 }
 
 # ---------------------------------------------------------------------------
@@ -118,12 +120,19 @@ data "aws_iam_policy_document" "deploy_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
-    # Only the deploy workflow on the main branch may assume this role — not
-    # arbitrary branches, PRs, tags, or (being a different repo) any fork.
+    # Scoped to this repository. A fork's token names a different repo in its
+    # sub, so forks can never assume this role.
+    #
+    # This account emits GitHub's *immutable* subject claim, which embeds the
+    # owner and repo numeric database IDs (rohit12242 = 21074263, keel =
+    # 1370088699) rather than the plain repo:owner/repo path. That mismatch —
+    # not the thumbprint or aud — is why "repo:rohit12242/keel:*" never matched
+    # and STS returned AccessDenied. Numeric IDs are stable across renames, so
+    # this form is if anything more robust than the path form.
     condition {
-      test     = "StringEquals"
+      test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
+      values   = [var.github_oidc_sub_prefix]
     }
   }
 }
