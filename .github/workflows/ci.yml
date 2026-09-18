@@ -72,6 +72,49 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 
+  # Integration tests (ADR-003 integration stage) — the date-storage suite
+  # against a real Postgres, run once per timezone (NFR-12, W3-19 follow-up).
+  # This is where the pg DATE parser actually bites. Postgres pinned to 18 to
+  # match RDS's major (ADR-006). A separate job so it owns the service container
+  # and the unit job stays database-free.
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: keel
+          POSTGRES_PASSWORD: keel_local_dev
+          POSTGRES_DB: keel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U keel -d keel"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Matches docker-compose.yml's local throwaway credentials. Not a secret:
+      # a localhost service container that holds no real data.
+      DATABASE_URL: postgres://keel:keel_local_dev@localhost:5432/keel
+      APP_BASE_URL: http://localhost:3000
+      LOG_LEVEL: info
+      SEED_DATA: "false"
+      SESSION_SECRET: ci-integration-session-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Migrate
+        run: npm run migrate
+      - name: Seed
+        run: npm run seed
+      - name: Integration tests (multi-timezone)
+        run: npm run test:integration:tz
+
   # Stage 9 — dependency audit. ADVISORY: it is the one check whose failures
   # are not caused by the commit under review, so it must never block a merge.
   # Kept a separate job, not added to the required checks, and allowed to be

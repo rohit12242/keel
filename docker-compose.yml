@@ -6,7 +6,11 @@
 
 services:
   db:
-    image: postgres:17.6 # pinned; bump deliberately, never float to :latest
+    # Pinned to Postgres 18 to match RDS's major (ADR-006). Bump deliberately,
+    # never float to :latest. A major bump like 17→18 is NOT in-place: the old
+    # data dir won't load, so recreate the volume — `docker compose down -v`,
+    # then `up` and re-run migrate + seed.
+    image: postgres:18
     container_name: keel-db
     restart: unless-stopped
     environment:

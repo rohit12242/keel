@@ -9,10 +9,18 @@
  * app does. This is a build/ops script, not app code, so it reads the
  * environment directly.
  */
+import pg from "pg";
 import { runner } from "node-pg-migrate";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+// NFR-12: DATE columns come back as 'YYYY-MM-DD' strings, never a JS Date at
+// local midnight (the off-by-one). pg's type registry is process-global, so
+// this covers node-pg-migrate's own connection too. Inlined here rather than
+// importing src/shared/db-types.ts because the migrate container ships only
+// this script and the migrations — no src/. Keep in step with that module.
+pg.types.setTypeParser(pg.types.builtins.DATE, (value) => value);
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 
