@@ -49,9 +49,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # Stage 5 — unit tests (domain only: no database, no server).
-      - name: Unit tests
-        run: npm run test
+      # Stage 5 — unit tests (domain only: no database, no server), run once per
+      # timezone (NFR-12, kept half). Same suite under UTC, Asia/Kolkata,
+      # Pacific/Kiritimati and America/Los_Angeles; a difference between zones is
+      # a date bug. This is the one stage run four times, not a new stage.
+      - name: Unit tests (multi-timezone)
+        run: npm run test:tz
 
       # Stage 6 — contract validation: keel-api.yaml is valid OpenAPI 3.1 AND
       # every operation declares a 4xx/5xx response (NFR-07).
