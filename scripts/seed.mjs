@@ -10,6 +10,11 @@ import { existsSync } from "node:fs";
 import pg from "pg";
 import { generateSlots } from "../src/modules/objectives/domain/generateSlots.ts";
 import { weekdaysToBitmask } from "../src/modules/objectives/domain/weekdays.ts";
+import { configureDbDateParsing } from "../src/shared/db-types.ts";
+
+// NFR-12: register the DATE-as-string parser before any query (the seed only
+// writes dates today, but this keeps every entry point consistent).
+configureDbDateParsing();
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 
