@@ -176,3 +176,12 @@ private folder. They contain personal notes.
 **Never copy tracking material into this repository**, and keep `docs/build-log/`
 technical — it is public too. `.gitignore` blocks `*.xlsx` and `*.numbers` as a
 backstop, but the real guard is knowing which folder a file belongs in.
+
+## Delegating a story
+
+One story, one command: `/story W4-07`. It reads the brief in
+`../Keel_doc/stories/`, runs the **spec-checker** before any code, implements,
+runs the checks, runs the **reviewer**, and opens the PR with the handover in
+its body. The hooks in `.claude/hooks/` refuse the things this file says not to
+do; `.claude/README.md` explains each piece and why. When a PR needs rework, the
+fix goes into the harness before the next story is delegated.
