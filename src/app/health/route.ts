@@ -23,6 +23,7 @@ export async function GET(): Promise<Response> {
       status: dbOk ? "ok" : "degraded",
       app: "ok",
       database: dbOk ? "ok" : "unreachable",
+      version: "0.1.0",
       checked_at: new Date().toISOString(),
     });
   });

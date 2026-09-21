@@ -422,6 +422,50 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /objectives/{objectiveId}/schedule:
+    get:
+      tags: [Objectives]
+      summary: The schedule grid — one row per day, five states
+      description: |
+        The day-by-day grid the objective overview draws. Its own endpoint,
+        not a field on `GET /objectives/{objectiveId}`, because the grid is the
+        largest thing that response could carry and most callers do not want it
+        (G-03). A future calendar view reads the same shape.
+
+        The grid is computed on the server from the segment's slots and the
+        logged entries, so the client never fans out per day — the read that
+        NFR-03 exists to prevent. Spans plan segments; each day names the
+        segment it falls in, so an extension with a different schedule renders
+        correctly. `off_day_worked` is a genuine day state, not an error: effort
+        logged on a day the plan did not ask for.
+      operationId: getObjectiveSchedule
+      parameters:
+        - { $ref: '#/components/parameters/objectiveId' }
+        - name: from
+          in: query
+          required: false
+          description: First day to return, inclusive. Defaults to the objective's start.
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: false
+          description: Last day to return, inclusive. Defaults to the latest segment's end.
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: The requested days, in date order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleGrid' }
+        '400':
+          description: '`to` is before `from`, or a date is malformed.'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   /objectives/{objectiveId}/status-changes:
     post:
       tags: [Objectives]
@@ -545,18 +589,31 @@ paths:
         Idempotent for a period. Called twice it returns the same draft, with
         `201` the first time and `200` afterwards — which is what makes "Start
         review" and "Resume draft" the same button.
+
+        The body is optional (G-05). With **no body**, the server starts or
+        resumes the period that is currently due — the client never has to name
+        one, so it cannot name a wrong one across an extension boundary, where
+        the cadence-to-window rule is easy to get wrong client-side. A body is
+        accepted only to resume a specific earlier draft; the server rejects a
+        `period_start`/`period_end` that is not a real review window for this
+        objective rather than inventing a review for it.
       operationId: startReview
       parameters: [{ $ref: '#/components/parameters/objectiveId' }]
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
               type: object
-              required: [period_start, period_end]
+              description: |
+                Omit entirely to let the server pick the due period. Both dates
+                are required together when present.
               properties:
                 period_start: { type: string, format: date }
                 period_end: { type: string, format: date }
+              dependentRequired:
+                period_start: [period_end]
+                period_end: [period_start]
       responses:
         '200':
           description: An existing draft for this period.
@@ -573,6 +630,14 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: A saved review already covers this period.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: |
+            No body was sent and no review is currently due, so there is no
+            period to open. The client should not offer "Start review" in this
+            state — the same signal `next_review_on` carries on the objective.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -981,11 +1046,12 @@ components:
   schemas:
     Health:
       type: object
-      required: [status, app, database, checked_at]
+      required: [status, app, database, version, checked_at]
       properties:
         status: { type: string, enum: [ok, degraded] }
         app: { type: string, enum: [ok], description: 'Alive if this body was produced at all.' }
         database: { type: string, enum: [ok, unreachable] }
+        version: { type: string, example: '0.1.0' }
         checked_at: { type: string, format: date-time }
 
     Problem:
@@ -1123,6 +1189,39 @@ components:
         planned_days_worked: { type: integer }
         target_met_days: { type: integer }
         extra_off_day_minutes: { type: integer }
+
+    ScheduleGrid:
+      type: object
+      required: [objective_id, from, to, days]
+      properties:
+        objective_id: { type: string, format: uuid }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        days:
+          type: array
+          items: { $ref: '#/components/schemas/ScheduleDay' }
+
+    ScheduleDay:
+      type: object
+      required: [date, state, segment_id]
+      properties:
+        date: { type: string, format: date }
+        state:
+          type: string
+          enum: [target_met, worked_short, planned_no_log, off_day, off_day_worked]
+          description: |
+            The five states the overview grid renders.
+            `target_met` — a planned day whose logged effort met its target.
+            `worked_short` — a planned day worked, but under target.
+            `planned_no_log` — a planned day with nothing logged.
+            `off_day` — not a planned day, nothing logged.
+            `off_day_worked` — not a planned day, but effort was logged anyway.
+        segment_id:
+          type: string
+          format: uuid
+          description: The plan segment this day falls in. Extensions carry their own schedule.
+        logged_minutes: { type: integer, description: 'Effort logged on the day. 0 when none.' }
+        target_minutes: { type: integer, description: 'The day''s target. 0 on an off day.' }
 
     ObjectiveSummary:
       type: object
