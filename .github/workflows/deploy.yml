@@ -1,12 +1,26 @@
 name: Deploy
 
-# ADR-004: merge to main deploys. Build once (tagged with the commit), run the
-# migration, roll the ECS service, smoke-check. Authenticates via the GitHub
-# OIDC role — no long-lived AWS keys. main is protected (CI must pass to merge),
-# so this runs only on already-reviewed, CI-green commits.
+# ADR-004 (R4, W4-07): a deliberate release deploys — merging to main does not.
+# Agents merge PRs autonomously, so a merge must not reach production until
+# Rohit decides it should. Two ways in:
+#
+#   - Push a `v*` tag  → forward release. Build once from the tagged commit
+#     (image keel:<sha>), migrate, roll the service, smoke-check.
+#   - Run it manually (workflow_dispatch) with a `ref` → rollback / redeploy of
+#     an EXISTING image. No build, no migrate: the artifact already exists and
+#     expand-migrate-contract (ADR-004) keeps older code safe on the newer schema.
+#
+# Both paths refuse a commit that is not on main, so a tag on a stray branch
+# cannot ship. Authenticates via the GitHub OIDC role — no long-lived AWS keys.
 on:
   push:
-    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag or commit SHA to redeploy (e.g. the previous release tag). Its image must already exist in ECR."
+        required: true
+        type: string
 
 # One deploy at a time; never cancel a deploy in flight.
 concurrency:
@@ -20,6 +34,7 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REPO: 925513250944.dkr.ecr.us-east-1.amazonaws.com/keel
+  ECR_REPO_NAME: keel
   CLUSTER: keel
   SERVICE: keel
   MIGRATE_TASK: keel-migrate
@@ -29,6 +44,23 @@ jobs:
     runs-on: ubuntu-latest # native amd64 — matches the ECS task platform, no emulation
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The tag that was pushed, or the ref asked for on a manual run.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+          fetch-depth: 0 # full history, so the ancestry check below can see main
+
+      - name: Refuse a commit that is not on main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          SHA=$(git rev-parse 'HEAD^{commit}')
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::$SHA is not on main. Only commits merged to main can be released or redeployed — refusing to deploy."
+            exit 1
+          fi
+          echo "Deploying ${SHA::12} (${{ github.event_name }})"
+          # The 12-char tag every image is pushed under (build once, ADR-004).
+          echo "SHORT_SHA=${SHA::12}" >> "$GITHUB_ENV"
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -36,21 +68,25 @@ jobs:
           role-to-assume: arn:aws:iam::925513250944:role/keel-deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
+      # --- forward release (tag push): build, push, migrate --------------------
+
       - name: Log in to ECR
+        if: github.event_name == 'push'
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push images (app + migrate)
+        if: github.event_name == 'push'
         run: |
           set -euo pipefail
-          SHA="${GITHUB_SHA::12}"
-          docker build -f Dockerfile -t "$ECR_REPO:$SHA" -t "$ECR_REPO:latest" .
-          docker push "$ECR_REPO:$SHA"
+          docker build -f Dockerfile -t "$ECR_REPO:$SHORT_SHA" -t "$ECR_REPO:latest" .
+          docker push "$ECR_REPO:$SHORT_SHA"
           docker push "$ECR_REPO:latest"
-          docker build -f Dockerfile.migrate -t "$ECR_REPO:migrate-$SHA" -t "$ECR_REPO:migrate" .
-          docker push "$ECR_REPO:migrate-$SHA"
+          docker build -f Dockerfile.migrate -t "$ECR_REPO:migrate-$SHORT_SHA" -t "$ECR_REPO:migrate" .
+          docker push "$ECR_REPO:migrate-$SHORT_SHA"
           docker push "$ECR_REPO:migrate"
 
       - name: Run migration (one-off Fargate task in the VPC)
+        if: github.event_name == 'push'
         run: |
           set -euo pipefail
           SUBNETS=$(aws ec2 describe-subnets \
@@ -69,6 +105,40 @@ jobs:
             --query 'tasks[0].containers[0].exitCode' --output text)
           echo "migration exit code: $EXIT"
           test "$EXIT" = "0"
+
+      # --- rollback / redeploy (manual): reuse the existing image --------------
+
+      - name: Point :latest at the existing image (no build, no migrate)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          # The service runs :latest (infra/ecs.tf), so redeploying an earlier
+          # release means moving :latest back onto that release's image.
+          if ! IMAGE=$(aws ecr batch-get-image --repository-name "$ECR_REPO_NAME" \
+              --image-ids imageTag="$SHORT_SHA" \
+              --query 'images[0].[imageManifest,imageManifestMediaType]' --output json); then
+            echo "::error::Could not read image keel:$SHORT_SHA from ECR."
+            exit 1
+          fi
+          if [ "$IMAGE" = "null" ] || [ -z "$IMAGE" ]; then
+            echo "::error::No image keel:$SHORT_SHA in ECR — that commit was never released, so there is nothing to redeploy. Release it with a tag instead."
+            exit 1
+          fi
+          MANIFEST=$(echo "$IMAGE" | jq -r '.[0]')
+          MEDIA_TYPE=$(echo "$IMAGE" | jq -r '.[1]')
+          if ! OUT=$(aws ecr put-image --repository-name "$ECR_REPO_NAME" --image-tag latest \
+              --image-manifest "$MANIFEST" --image-manifest-media-type "$MEDIA_TYPE" 2>&1); then
+            # :latest already on this image (e.g. redeploying what is live) is fine.
+            if echo "$OUT" | grep -q ImageAlreadyExistsException; then
+              echo ":latest already points at keel:$SHORT_SHA"
+            else
+              echo "$OUT"
+              exit 1
+            fi
+          fi
+          echo ":latest -> keel:$SHORT_SHA"
+
+      # --- both paths -----------------------------------------------------------
 
       - name: Deploy (roll the service to the new image)
         run: |
