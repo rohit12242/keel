@@ -6,8 +6,8 @@ A non-functional requirement says how well the system must work, under what cond
 
 ## Scope changes
 
-- **NFR-06 — out of scope for v1.** Offline logging, decided at D-04. No sync queue, no client-generated ids, no conflict rule. The two-devices-same-day question is closed *by scope, not by design*.
-- **NFR-12 — split, not dropped.** Deferred to v2: the timezone matrix, DST boundaries, travel. Kept in v1: the `local_date` column and the client sending the day it means — the midnight boundary is real for one user in one zone, and storing only a UTC timestamp now means backfilling a year of rows in v2 by guessing.
+- **NFR-06 — out of scope for v1.** Offline logging, decided at D-04. No sync queue, no client-generated ids, no conflict rule.
+- **NFR-12 — split, not dropped.** Deferred to v2: DST boundaries, a user changing timezone, and the offline-queue clause (which belongs to NFR-06). Kept in v1: the `local_date` column, the client sending the day it means, and the four-timezone server-independence test running in the pipeline since W3-19.
 
 ---
 
@@ -150,8 +150,8 @@ A non-functional requirement says how well the system must work, under what cond
 
 **An entry belongs to the calendar day it was logged in the user's local time, and it never moves afterwards.**
 
-- **Measure and number** — An entry logged at 23:55 stays on that date after a timezone change, after a daylight-saving shift, and after syncing from an offline queue. Zero entries change day across a test matrix of four zones crossed with a DST boundary.
-- **How it is checked** — An automated matrix test; plus one manual check at each DST change in the first year.
+- **Measure and number** — **v1, in force:** the date an entry is stored under depends only on what the client sent — not on the server's timezone, the database session timezone, or when the request arrived. The suite passes identically under TZ=UTC, Asia/Kolkata (a half-hour offset), Pacific/Kiritimati (UTC+14) and America/Los_Angeles (UTC−8): zero differences across the four. **v2, deferred:** an entry logged at 23:55 keeps its date across a daylight-saving shift and across a user changing timezone — zero entries changing day across four zones crossed with a DST boundary. The offline-queue clause moves with NFR-06.
+- **How it is checked** — **v1:** the unit suite runs four times in the pipeline, once per timezone above; a difference between runs is the failure. Chosen so a break is caught in either direction — a UTC+14 run catches a day gained, a UTC−8 run a day lost, and the half-hour offset catches hour-only arithmetic. **v2:** the DST matrix, plus one manual check at each DST change.
 - **What it costs** — You must store the local date **as a date**, alongside the instant and the zone — not a UTC timestamp you convert on the way out. **This is a schema decision, and it is the half of this requirement that v1 keeps.**
 - **Why this one exists** — Streaks, adherence, and every review figure are counted in days. If a day boundary can move, every number Keel shows you can move with it. **Deferred in part for v1** — see the note below.
 
