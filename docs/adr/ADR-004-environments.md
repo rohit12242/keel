@@ -89,15 +89,33 @@ with its SHA. The thing deployed is the thing the pipeline tested.
 
 | Event | What happens |
 |---|---|
-| Push to a branch | Pipeline runs (ADR-003). No deploy. |
-| Pull request | Full pipeline. No deploy, no secrets — fork safety. |
-| Merge to `main` | Pipeline runs. **No deploy.** |
+| Push to a branch (no PR) | Nothing runs. The pipeline runs on the pull request. |
+| Pull request | Full pipeline (ADR-003). No deploy, no secrets — fork safety. |
+| Merge to `main` | Nothing runs — the pipeline already ran on the PR. **No deploy.** |
 | **Push a `v*` tag (release)** | Build artifact → migrate → deploy → smoke check |
-| Smoke check fails | Automatic rollback to the previous artifact, and a notification |
+| New tasks fail their health checks | ECS's deployment circuit breaker returns the service to its last healthy deployment |
+| Smoke check fails | The run goes red. Nothing else is automatic — no rollback, no notification. Roll back by hand (below). |
 | Manual run with a `ref` | Rollback / redeploy of an **existing** artifact. No build, no migrate. |
 
-Both deploy paths refuse a commit that is not on `main`, so a tag on a stray
-branch cannot ship.
+Both deploy paths refuse a commit that is not an ancestor of `main`.
+
+**Known limits (W4-07 review), recorded rather than solved:**
+
+- **The ancestry check is only as honest as the workflow file that runs it.** A
+  tag push runs the `deploy.yml` *at the tagged commit*, and a manual run uses the
+  copy on the branch it is started from. A branch that edits the check out and is
+  then tagged could deploy, because the OIDC trust accepts any ref (`:*`). The
+  check stops an honest mistake, not a deliberate bypass. The server-side guards —
+  a tag ruleset on `v*` restricting who may create release tags, a GitHub
+  `production` environment, and narrowing the OIDC subject to it — are open.
+- **Rollback moves a mutable tag.** The task definition runs `:latest`; a
+  rollback re-points `:latest` at an earlier `keel:<sha>`. ECR keeps five images
+  and a release pushes two, so only **one** previous release is reliably
+  available to roll back to.
+- **A release moves `:latest` before its migration runs.** If the migration
+  fails the run stops, but `:latest` already names the new image, so a task
+  replacement would pick it up. Recover by rolling back to the previous tag,
+  which moves `:latest` back.
 
 **A release tag deploys** (R4). This record originally said merge to `main`
 deploys, because a deploy that needs a human to remember it stops happening in a

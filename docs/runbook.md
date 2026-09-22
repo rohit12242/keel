@@ -6,10 +6,12 @@ back is running the deploy again against the previous release's tag — no
 rebuild, no migration. Both are deliberate: an agent can merge a PR, but only you
 put something in production (ADR-004, W4-07).
 
-Most important thing to remember when tired: **a failed deploy cannot take the
-site down** — ECS keeps the old version running and rolls back on its own. So if
-a deploy goes red, the live site is still fine; breathe, then read *Roll back*.
-Copy commands exactly as written.
+Most important thing to remember when tired: **a release whose new tasks fail
+their health checks does not replace the running site** — ECS's circuit breaker
+returns the service to its last healthy deployment. What is *not* automatic: a
+release that starts healthy but is wrong stays live until you roll it back, and a
+red smoke check only turns the run red. So if a deploy goes red, check
+`/health` first; then read *Roll back*. Copy commands exactly as written.
 
 ## At a glance
 
@@ -162,10 +164,18 @@ rule is what makes this rollback safe. If a migration ever did break the previou
 release, the schema has to be rolled back separately and deliberately
 (`npm run migrate:down`, one step, against production).
 
-**How far back you can go.** ECR keeps only the last 5 images (`infra/ecr.tf`),
-and every release pushes two (app + migrate) — so roughly the previous two
-releases. An older tag's image has expired, and the run refuses it with "No image
+**How far back you can go: one release.** ECR keeps only the last 5 images
+(`infra/ecr.tf`) and every release pushes two (app, then migrate), so after a
+release only the **previous** release's app image is guaranteed to still exist.
+An older tag's image has expired, and the run refuses it with "No image
 keel:<sha> in ECR". In that case, revert on `main` and cut a new release instead.
+
+**If a release's migration failed.** The run stops, but it had already moved
+`:latest` to the new image. Roll back to the previous tag straight away so
+`:latest` points at code that matches the schema.
+
+The `ref` must be a **tag or a full 40-character SHA** — a short SHA fails at
+checkout. Redeploying the release that is already live is allowed and harmless.
 
 ## Roll back — when GitHub Actions is down
 

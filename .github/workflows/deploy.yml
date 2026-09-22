@@ -10,15 +10,17 @@ name: Deploy
 #     an EXISTING image. No build, no migrate: the artifact already exists and
 #     expand-migrate-contract (ADR-004) keeps older code safe on the newer schema.
 #
-# Both paths refuse a commit that is not on main, so a tag on a stray branch
-# cannot ship. Authenticates via the GitHub OIDC role — no long-lived AWS keys.
+# Both paths refuse a commit that is not an ancestor of main. That stops an
+# honest mistake, not a deliberate bypass: this file runs from the tagged commit
+# (or the dispatched branch), so the server-side guard is a tag ruleset on v*
+# (ADR-004, known limits). Authenticates via the GitHub OIDC role — no keys.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       ref:
-        description: "Tag or commit SHA to redeploy (e.g. the previous release tag). Its image must already exist in ECR."
+        description: "Release tag (e.g. the previous one) or FULL 40-char commit SHA to redeploy. Its image must already exist in ECR."
         required: true
         type: string
 

@@ -47,7 +47,7 @@ several contributors on a schedule. One developer, no release train.
 |---|---|
 | Separate secrets per environment | GitHub Environments: `staging`, `production` |
 | A record of what is deployed where | Environment deployment history |
-| A human gate before production | Required reviewer on the `production` environment |
+| A human gate before production | A human pushes the `v*` release tag (W4-07). A required reviewer on a `production` environment is the stronger, server-side form — not configured yet. |
 | Hold a feature back | Feature flag, or do not merge it yet |
 | Know what production is running | The `v*` tag the last Deploy run shipped (its run history) |
 
