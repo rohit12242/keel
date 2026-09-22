@@ -31,7 +31,7 @@ v1, but neither endpoint was in the contract.
 
 ## Open — decide before Sprint 01
 
-### G-03 — The objective overview's schedule grid has no endpoint · OPEN
+### G-03 — The objective overview's schedule grid has no endpoint · CLOSED
 **Found by:** Rohit
 The overview screen draws **THE SCHEDULE** — a day-by-day grid across the whole
 run, with five states per day: target met, worked but short, planned and nothing
@@ -42,11 +42,17 @@ None of that is the grid. Computing it client-side would need every slot and
 every entry for the whole run, which for a 112-day objective is the fan-out
 NFR-03 exists to prevent.
 
-**The decision:** add a `schedule_grid` array to `GET /objectives/{id}`, or give it
-its own endpoint (`GET /objectives/{id}/schedule?from=&to=`) so the overview and a
-future calendar view share one read. The second is probably right — the grid is
-the largest thing on that response and not every caller wants it.
-**Blocks:** the objective overview screen.
+**Fixed (W3-20):** its own endpoint — `GET /objectives/{objectiveId}/schedule?from=&to=`
+— returning a `ScheduleGrid` of one `ScheduleDay` per day, each with one of the
+five states (`target_met`, `worked_short`, `planned_no_log`, `off_day`,
+`off_day_worked`). A separate read, not a field on `GET /objectives/{objectiveId}`:
+the grid is the largest thing that response would carry and most callers do not
+want it, and a future calendar view reads the same shape. Each day names its plan
+segment, so an extension with a different schedule renders correctly. Computed
+server-side, so no per-day fan-out (NFR-03).
+
+**Status (W3-21):** the contract change merged in PR #17, bundled into the W3-21
+commit. The endpoint has no code yet — W4-20 implements it.
 
 ### G-04 — Saving a review may commit a stale draft · OPEN
 **Found by:** Rohit
@@ -63,7 +69,7 @@ get right every time.
 here it is *never silently dropped*.
 **Blocks:** the review screen.
 
-### G-05 — Nothing tells the client which review period is due · OPEN
+### G-05 — Nothing tells the client which review period is due · CLOSED
 **Found by:** Rohit
 `POST /objectives/{id}/reviews` requires `period_start` and `period_end`, but
 nothing in the contract tells the client what they are. The client would have to
@@ -73,11 +79,23 @@ that belongs on the server, and getting it wrong across an extension boundary.
 The screen says "Start review — due today", so the server already knows. The
 contract just never says so.
 
-**The decision:** `GET /objectives/{id}` returns a `next_review` object with
-`period_start`, `period_end`, `kind` and `due_on`; the client posts those back, or
-posts nothing at all and lets the server pick. Prefer the latter — a client that
-cannot name a wrong period cannot start a review for one.
-**Blocks:** the review screen and the "due today" flag on the objectives list.
+**Fixed (W3-20):** the body of `POST /objectives/{objectiveId}/reviews` is now
+**optional**. With no body, the server starts or resumes the period that is
+currently due — a client that cannot name a period cannot name a wrong one across
+an extension boundary. A body is still accepted, but only to resume a specific
+earlier draft, and the server rejects a window that is not a real review period
+rather than inventing a review for it. A new `422` covers "nothing is due".
+
+The "due today" flag keeps using `next_review_on`, already on `ObjectiveSummary`
+(and so on `GET /objectives/{id}` too). That field was never the gap — it answers
+*whether* a review is due. The gap was the forced `period_start`/`period_end` on
+the *write*, which a single date cannot supply. The write no longer needs them.
+**Note:** the underlying cadence-to-window rule this leans on is still **G-06**,
+which stays open — G-05 removes the client's need to reimplement it, G-06 is where
+the server's own version gets specified.
+
+**Status (W3-21):** the contract change merged in PR #17. `startReview`'s optional
+body and its `422` have no code yet — E-05 implements them.
 
 ### G-06 — No rule computes a review due date from a cadence · OPEN
 `next_review_on` appears in `ObjectiveSummary`, and the objectives list shows
@@ -85,6 +103,9 @@ cannot name a wrong period cannot start a review for one.
 dates: from the start date or from calendar weeks, what happens to the partial
 week at the end, and whether a paused stretch shifts everything.
 **Related to G-05** — same missing rule, two symptoms.
+
+**Spec written (W3-20):** `docs/domain/review-windows.md` defines the rule. This gap
+closes when W4-15 implements it.
 
 ### G-07 — Nothing states how `previous_review_id` is set · OPEN
 The review screen quotes "last week you said this needed improvement", which
@@ -121,6 +142,21 @@ consequences visible immediately rather than in Sprint 03.
 **Provider:** Cognito, conditional on D-06 landing on AWS — so `POST /session`
 becomes an OIDC callback. If D-06 falls back off AWS, this gap's fix changes shape
 and should not be written until that is settled.
+
+### G-14 — `/health` never returns the 503 the contract declares · OPEN
+**Found by:** the W3-21 reviewer (PR #17)
+The contract says `/health` answers 200 when the database responds and 503 when only
+the app is up. `src/app/health/route.ts` always calls `jsonResponse(200, …)`, so a
+database outage reads as HTTP 200 with `database: "unreachable"` in the body.
+Pre-existing from W3-16, where the route returned 200 on purpose so the load balancer
+keeps routing to a live task before a database exists.
+
+**The decision:** either the route returns 503 when the database is unreachable (the
+contract is right), or the contract drops the 503 and callers assert on the
+`database` field (the code is right). The load-balancer health check decides it: if
+the ALB probes `/health`, a 503 during a database outage pulls a healthy app task out
+of rotation — which an app-alive check should not do.
+**Blocks:** nothing now. It matters for NFR-07 and the E-06 uptime check.
 
 ---
 
@@ -160,9 +196,10 @@ v1 — it is a feature, not a gap in plumbing, and it needs its own thinking.
 
 | Status | Count |
 |---|---|
-| Closed | 2 |
-| Open | 8 |
+| Closed | 4 |
+| Open | 7 |
 | Accepted | 3 |
 
-**Two of the seven block Sprint 01's first screens: G-03 and G-05.**
-G-04 does not block, but it is the one that would ship as a silent data-loss bug.
+**G-03 and G-05, which blocked Sprint 01's first screens, are both closed (W3-20).**
+Of what remains, G-04 does not block, but it is the one that would ship as a silent
+data-loss bug — the next one worth taking.
