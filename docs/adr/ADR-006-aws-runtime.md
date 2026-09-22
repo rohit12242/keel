@@ -186,7 +186,9 @@ design went wrong, not a cost to accept.
    HTTPS listener as soon as the domain and ACM certificate exist. Stop and report.
 3. RDS in a private subnet, security group allowing only the task, secrets in
    Parameter Store, the migration step. Stop and report.
-4. Deploy from GitHub Actions on merge to main.
+4. Deploy from GitHub Actions on a release — a pushed `v*` tag, or a manual
+   redeploy of an existing image (amended W4-07; ADR-004 R4). Merge to main
+   no longer deploys.
 
 **Do not make RDS publicly accessible** as a shortcut at any point. With ECS the
 task and the database sit in the same VPC, so there is no reason to.

@@ -2,7 +2,7 @@ name: CI
 
 # ADR-003: the pipeline that gates a merge. Runs on pull_request (never
 # pull_request_target), so a fork's code executes with no secrets — every
-# stage below is designed to pass without any. Deploy lives in W3-17, on main.
+# stage below is designed to pass without any. Deploy is deploy.yml, on a v* release tag (W4-07).
 on:
   pull_request:
 

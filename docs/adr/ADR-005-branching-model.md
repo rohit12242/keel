@@ -49,16 +49,21 @@ several contributors on a schedule. One developer, no release train.
 | A record of what is deployed where | Environment deployment history |
 | A human gate before production | Required reviewer on the `production` environment |
 | Hold a feature back | Feature flag, or do not merge it yet |
-| Know what production is running | Git tag on the promoted commit |
+| Know what production is running | The `v*` tag the last Deploy run shipped (its run history) |
 
 **A gate belongs on the environment, not on a branch.** It gives the same control
 without letting two lines of history exist.
+
+**Note (W4-07):** `main` is *released by tag*, not deployed on merge (ADR-004 R4).
+A `v*` tag on a commit already on `main` is the one release step — still one line
+of history, no release branch. Merged-but-unreleased work is simply the commits
+after the last tag.
 
 ## Consequences
 
 **Good**
 
-- One line of history. What is on `main` is what is deployed or about to be.
+- One line of history. What is on `main` is what is released or about to be.
 - Build-once-promote stays intact.
 - No merge-back, no hotfix exception, no drift.
 

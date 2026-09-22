@@ -1,11 +1,15 @@
-# Keel Runbook — Deploy & Roll Back
+# Keel Runbook — Release, Deploy & Roll Back
 
-**Two things, both safe. Deploying is merging to `main`. Rolling back is
-reverting on `main`.** You almost never need the manual paths. Most important
-thing to remember when tired: **a failed deploy cannot take the site down** —
-ECS keeps the old version running and rolls back on its own. So if a deploy goes
-red, the live site is still fine; breathe, then read *Roll back*. Copy commands
-exactly as written.
+**Merging to `main` does not deploy. Releasing does.** A release is a `v*` tag
+you push on a commit that is already on `main`, and that tag deploys it. Rolling
+back is running the deploy again against the previous release's tag — no
+rebuild, no migration. Both are deliberate: an agent can merge a PR, but only you
+put something in production (ADR-004, W4-07).
+
+Most important thing to remember when tired: **a failed deploy cannot take the
+site down** — ECS keeps the old version running and rolls back on its own. So if
+a deploy goes red, the live site is still fine; breathe, then read *Roll back*.
+Copy commands exactly as written.
 
 ## At a glance
 
@@ -20,28 +24,56 @@ exactly as written.
 | Deploy role | `arn:aws:iam::925513250944:role/keel-deploy-role` |
 | Health check | `http://keel-438695349.us-east-1.elb.amazonaws.com/health` |
 
-The service always runs the image tagged `:latest`. A deploy just pushes a new
-`:latest` and forces a fresh pull.
+The service always runs the image tagged `:latest`. A release builds
+`keel:<sha>` (the commit's first 12 characters), pushes it as `:latest` too, and
+forces a fresh pull. A rollback moves `:latest` back onto an earlier
+`keel:<sha>`.
 
-## Deploy — the normal way (merge to main)
+## What is merged but not released yet
 
-Merging a PR into `main` is the deploy. GitHub Actions does the rest: OIDC login
-→ build → run pending migrations → roll the service → smoke-check `/health`.
+Merges collect on `main` until you release them. To see what the next release
+would ship:
 
-1. Merge the PR into `main` (the required `ci` check must be green first).
-2. Watch it from the terminal:
+```
+git fetch origin --tags
+LAST=$(git describe --tags --abbrev=0 --match 'v*' origin/main)
+git log --oneline "$LAST"..origin/main
+```
+
+Empty output means production already runs everything on `main`. If there is no
+release tag yet, `git describe` fails — the first release ships all of `main`.
+
+## Release — the normal way (tag a commit on main)
+
+1. Pick the commit — normally the tip of `main`. PRs are squash-merged, so
+   release the squash commit **on `main`**, never a commit from a PR branch: the
+   deploy refuses any commit that is not on `main`.
     ```
+    git fetch origin
+    git log --oneline -5 origin/main
+    ```
+2. Tag it and push the tag (bump the patch for a fix, the minor for new
+   behaviour):
+    ```
+    git tag vX.Y.Z <sha>
+    git push origin vX.Y.Z
+    ```
+3. The tag push starts the deploy. GitHub Actions does the rest: OIDC login →
+   build `keel:<sha>` → run pending migrations → roll the service → smoke-check
+   `/health`. Watch it:
+    ```
+    gh run list --workflow=deploy.yml --limit 1
     gh run watch --exit-status
     ```
-    Or open the run in the browser:
-    ```
-    gh run list --workflow=deploy.yml --branch main --limit 1
-    ```
-3. Wait for it to finish. Green = done; the smoke check already confirmed
-   `/health` is `app:ok, database:ok`.
-4. If it goes red, **the site is still up on the old version.** Go to *Check it
-   worked* to see which step failed, then decide between retrying and rolling
-   back. Do not panic-push more commits.
+4. Green = done; the smoke check already confirmed `/health` is `app:ok,
+   database:ok`.
+5. If it goes red, **the site is still up on the old version.** Go to *Check it
+   worked* to see which step failed, then decide between re-running and rolling
+   back. Do not push more tags in a panic.
+
+A run that fails with "is not on main" means the tag is on the wrong commit.
+Remove it (`git push origin :refs/tags/vX.Y.Z && git tag -d vX.Y.Z`) and tag the
+squash commit on `main`.
 
 ## Deploy — when GitHub Actions is down
 
@@ -49,12 +81,13 @@ Merging a PR into `main` is the deploy. GitHub Actions does the rest: OIDC login
 transient failures:
 
 ```
-gh run list --workflow=deploy.yml --branch main --limit 1   # get the run id
+gh run list --workflow=deploy.yml --limit 1   # get the run id
 gh run rerun <run-id> --failed
 ```
 
 **Only if Actions itself is down**, deploy by hand from your machine. This needs
-Docker/colima running (8 GB) and builds for `linux/amd64`.
+Docker/colima running (8 GB) and builds for `linux/amd64`. Check out the commit
+you are releasing first — it must be on `main`.
 
 1. Get deploy credentials (the `keel-deploy` user can't do this work directly —
    assume the role):
@@ -71,10 +104,12 @@ Docker/colima running (8 GB) and builds for `linux/amd64`.
     ```
     aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 925513250944.dkr.ecr.us-east-1.amazonaws.com
     ```
-3. Build and push both images (amd64), tagged `:latest` and `:migrate`:
+3. Build and push both images (amd64). Tag the app image with its SHA as well as
+   `:latest`, so this release can be rolled back to later:
     ```
     ECR=925513250944.dkr.ecr.us-east-1.amazonaws.com/keel
-    docker buildx build --platform linux/amd64 -f Dockerfile -t "${ECR}:latest" --push .
+    SHA=$(git rev-parse --short=12 HEAD)
+    docker buildx build --platform linux/amd64 -f Dockerfile -t "${ECR}:${SHA}" -t "${ECR}:latest" --push .
     docker buildx build --platform linux/amd64 -f Dockerfile.migrate -t "${ECR}:migrate" --push .
     ```
 4. Run the migration as a one-off task and wait for it:
@@ -92,44 +127,53 @@ Docker/colima running (8 GB) and builds for `linux/amd64`.
     aws ecs update-service --cluster keel --service keel --force-new-deployment
     aws ecs wait services-stable --cluster keel --services keel
     ```
-6. Confirm with the health check in the last section.
+6. Confirm with the health check in the last section, then push the release tag
+   for that commit so the record matches what is live.
 
-## Roll back — the normal way (revert on main)
+## Roll back — the normal way (redeploy the previous release)
 
-Roll back the same way you deploy: put the previous good code back on `main` and
-let the pipeline redeploy it. This is the right choice for a deploy that went out
-healthy but is behaving wrong.
+Rolling back is redeploying the previous release's image — the artifact that was
+live before. No rebuild, no migration.
 
-1. Find the bad commit:
+1. Find the previous release tag:
     ```
-    git log --oneline -5 main
+    git fetch origin --tags
+    git tag --list 'v*' --sort=-v:refname | head -3
     ```
-2. Revert it (this makes a new commit that undoes it — nothing is erased, which
-   fits Keel's append-only rule):
+2. Redeploy it:
     ```
-    git revert <bad-commit-sha>
+    gh workflow run deploy.yml -f ref=vX.Y.Z
+    gh run list --workflow=deploy.yml --limit 1
+    gh run watch --exit-status
     ```
-    If a whole PR merge is bad, revert the merge commit: `git revert -m 1 <merge-sha>`.
-3. Open a PR for the revert, let `ci` go green, and merge it.
-4. The merge triggers a normal deploy of the previous code. Watch it with
-   `gh run watch --exit-status` and confirm `/health`.
+    Or in GitHub: **Actions → Deploy → Run workflow**, and enter the tag. The run
+    checks the tag is on `main`, confirms `keel:<sha>` still exists in ECR,
+    points `:latest` at it, rolls the service and smoke-checks.
+3. **Then fix `main`.** A rollback changes what is live, not what is on `main`.
+   Revert the bad change through a PR (`git revert <sha>`, or
+   `git revert -m 1 <merge-sha>` for a merge commit) so the next release does not
+   ship it again. The revert deploys nothing by itself — it goes live with the
+   next tag.
 
-If a migration shipped with the bad change, reverting the code does **not** undo
-the schema change. Roll the schema back separately with `npm run migrate:down`
-(one step) before or after, depending on whether the old code can run against the
-new schema.
+**Why no migration on rollback.** The older code runs against the newer schema.
+That is safe only because migrations are expand-migrate-contract (ADR-004): a
+release never removes or narrows anything the previous release still reads. That
+rule is what makes this rollback safe. If a migration ever did break the previous
+release, the schema has to be rolled back separately and deliberately
+(`npm run migrate:down`, one step, against production).
 
-## Roll back — the emergency way (site is wrong right now)
+**How far back you can go.** ECR keeps only the last 5 images (`infra/ecr.tf`),
+and every release pushes two (app + migrate) — so roughly the previous two
+releases. An older tag's image has expired, and the run refuses it with "No image
+keel:<sha> in ECR". In that case, revert on `main` and cut a new release instead.
 
-**You probably don't need this.** A deploy that fails its health check is
-auto-rolled-back by the ECS circuit breaker — the old version keeps serving. Use
-this only when a *healthy* deploy is live, actively wrong, and you cannot wait
-~5 minutes for the revert pipeline.
+## Roll back — when GitHub Actions is down
 
-It re-points `:latest` at a known-good earlier image and forces a redeploy. Get
-deploy credentials first (step 1 of the manual deploy above), then:
+The same thing the rollback run does, by hand: re-point `:latest` at a known-good
+earlier image and force a redeploy. Get deploy credentials first (step 1 of the
+manual deploy above), then:
 
-1. Pick the last good image tag — every deploy also tags the image with its
+1. Pick the last good image tag — every release tags the image with its
    12-char commit SHA. List recent ones, newest first:
     ```
     aws ecr describe-images --repository-name keel \
@@ -147,9 +191,8 @@ deploy credentials first (step 1 of the manual deploy above), then:
     aws ecs update-service --cluster keel --service keel --force-new-deployment
     aws ecs wait services-stable --cluster keel --services keel
     ```
-4. Confirm with the health check below. **Then also do the git revert** (previous
-   section) so `main` matches what is live — otherwise the next merge re-ships the
-   bad version.
+4. Confirm with the health check below. **Then fix `main`** (step 3 of the
+   previous section) so the next release does not re-ship the bad version.
 
 ## Check it worked — and where to look if not
 
