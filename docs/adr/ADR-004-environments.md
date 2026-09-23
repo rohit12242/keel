@@ -10,6 +10,11 @@
 > Three revisions in one day is worth noticing at the retro: the decision was
 > genuinely close, and the deciding factor in the end was operating cost, not
 > correctness.
+>
+> **R4 (W4-07, 2026-09-22) changes the deploy trigger, not the topology.** Merge
+> to `main` no longer deploys; **a release tag does.** Agents now merge pull
+> requests autonomously, so a merge must not reach production until a human
+> decides it should. See *Deploy triggers*.
 
 ## Context
 
@@ -79,24 +84,56 @@ discipline moves into the migration itself.
 
 ## Deploy triggers
 
-**Build once.** One artifact per merge, tagged with the commit. The thing deployed
-is the thing the pipeline tested.
+**Build once.** One artifact per release, built from the tagged commit and tagged
+with its SHA. The thing deployed is the thing the pipeline tested.
 
 | Event | What happens |
 |---|---|
-| Push to a branch | Pipeline runs (ADR-003). No deploy. |
-| Pull request | Full pipeline. No deploy, no secrets — fork safety. |
-| **Merge to `main`** | Pipeline → build artifact → migrate → deploy → smoke check |
-| Smoke check fails | Automatic rollback to the previous artifact, and a notification |
-| Manual | Rollback only |
+| Push to a branch (no PR) | Nothing runs. The pipeline runs on the pull request. |
+| Pull request | Full pipeline (ADR-003). No deploy, no secrets — fork safety. |
+| Merge to `main` | Nothing runs — the pipeline already ran on the PR. **No deploy.** |
+| **Push a `v*` tag (release)** | Build artifact → migrate → deploy → smoke check |
+| New tasks fail their health checks | ECS's deployment circuit breaker returns the service to its last healthy deployment |
+| Smoke check fails | The run goes red. Nothing else is automatic — no rollback, no notification. Roll back by hand (below). |
+| Manual run with a `ref` | Rollback / redeploy of an **existing** artifact. No build, no migrate. |
 
-Merge to `main` deploys. Guardrail 06 says an increment that is not deployed is
-not done, and a deploy that needs a human to remember it stops happening in a busy
-week.
+Both deploy paths refuse a commit that is not an ancestor of `main`.
 
-Migrations run as their own step, before the application deploys, and the deploy
-stops if they fail. That ordering is only safe because of the
-backward-compatibility rule above.
+**Known limits (W4-07 review), recorded rather than solved:**
+
+- **The ancestry check is only as honest as the workflow file that runs it.** A
+  tag push runs the `deploy.yml` *at the tagged commit*, and a manual run uses the
+  copy on the branch it is started from. A branch that edits the check out and is
+  then tagged could deploy, because the OIDC trust accepts any ref (`:*`). The
+  check stops an honest mistake, not a deliberate bypass. The server-side guards —
+  a tag ruleset on `v*` restricting who may create release tags, a GitHub
+  `production` environment, and narrowing the OIDC subject to it — are open.
+- **Rollback moves a mutable tag.** The task definition runs `:latest`; a
+  rollback re-points `:latest` at an earlier `keel:<sha>`. ECR keeps five images
+  and a release pushes two, so only **one** previous release is reliably
+  available to roll back to.
+- **A release moves `:latest` before its migration runs.** If the migration
+  fails the run stops, but `:latest` already names the new image, so a task
+  replacement would pick it up. Recover by rolling back to the previous tag,
+  which moves `:latest` back.
+
+**A release tag deploys** (R4). This record originally said merge to `main`
+deploys, because a deploy that needs a human to remember it stops happening in a
+busy week. That changed when agents started merging pull requests on their own:
+an autonomous merge reaching production with no one deciding it should is a
+bigger risk than a forgotten release, and `git log <last-tag>..origin/main` makes
+a forgotten release visible (docs/runbook.md). A release tag also replaces the
+path filter first proposed for docs-only merges — when merge never deploys, a
+docs or `.claude/` merge cannot either.
+
+Guardrail 06 still holds with one word changed: an increment that is not
+*released* is not done. W3-21's definition of done — the walking-skeleton deploy
+— therefore becomes **merge, tag, watch it reach production.**
+
+Migrations run as their own step on a release, before the application deploys,
+and the deploy stops if they fail. That ordering is only safe because of the
+backward-compatibility rule above. A rollback runs no migration: the previous
+artifact runs against the newer schema, which the same rule makes safe.
 
 ## Configuration: what differs, and what may not
 
