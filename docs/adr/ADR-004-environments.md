@@ -217,3 +217,7 @@ that box is how a spike becomes a lost week, which Week 1 already demonstrated.
   That is the evidence that buys staging, and it should be recorded as such rather
   than treated as bad luck.
 - A migration causes real data loss despite the rule.
+- **You need AWS alone to answer "what SHA is live?"**, or two deploys can
+  overlap, or you want to roll back more than one release. All three are the same
+  fix: pin the task definition to `keel:<sha>` instead of running the mutable
+  `:latest`, and keep more images in ECR. Recorded under *Known limits* above.
