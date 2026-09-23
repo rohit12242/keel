@@ -158,6 +158,29 @@ the ALB probes `/health`, a 503 during a database outage pulls a healthy app tas
 of rotation — which an app-alive check should not do.
 **Blocks:** nothing now. It matters for NFR-07 and the E-06 uptime check.
 
+### G-15 — The contract states slots as stored rows · OPEN
+**Found by:** W4-09 (ADR-008)
+ADR-008 drops `plan_slot`: a slot is a value computed by
+`generateSlots(segment, statusEvents)`, never a row. The contract says otherwise in
+two ways.
+
+- `PlanSlot` **requires `id: uuid`** (`keel-api.yaml:1120-1129`), returned inside
+  `DayObjective.slot`. A derived slot has no row id to give.
+- The prose describes generation as persistence: "generates that segment's slots"
+  (`:360`), "Pausing stops plan-slot generation; resuming starts it again" (`:475`),
+  "New segment created and its slots generated" (`:541`).
+
+**The decision:** drop `PlanSlot.id` (a slot is identified by its segment and
+`period_start`, which was already its uniqueness rule), or keep an id and let the
+server mint a stable synthetic one. Dropping is the honest option — an id the
+client cannot use to address anything is an invitation to store it. The prose
+changes either way, from generation-as-writing to generation-as-computing.
+
+**Not fixed here on purpose.** W4-09 is the decision and the ERD; it writes no
+contract change and no code. **Blocks:** nothing yet — no code serves `slot`
+today. It must land with W4-10's migration, or the contract will describe a table
+that no longer exists.
+
 ---
 
 ## Accepted for v1
@@ -197,7 +220,7 @@ v1 — it is a feature, not a gap in plumbing, and it needs its own thinking.
 | Status | Count |
 |---|---|
 | Closed | 4 |
-| Open | 7 |
+| Open | 8 |
 | Accepted | 3 |
 
 **G-03 and G-05, which blocked Sprint 01's first screens, are both closed (W3-20).**

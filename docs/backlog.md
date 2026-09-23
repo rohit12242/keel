@@ -45,6 +45,20 @@ correct schedule.
 15. Screen: Objectives list and its empty state
 16. Tests: slot generation across month boundaries, week starts, a pause and resume, and a flexible week that straddles the end date
 
+**Changed by ADR-008 (W4-09).** `plan_slot` is dropped and `status_event` moves
+into this epic, because slot generation now depends on it. Story 1's migration
+creates `status_event` and removes `plan_slot` and `objective.status` (W4-10).
+Stories 3 and 4 change shape: `generateSlots` takes `(segment, statusEvents)` and
+returns values that are never written down. Story 11 stops being "suppression and
+resumption" as write-time bookkeeping — pausing suppresses nothing, it is simply an
+event the generator reads — so it shrinks to test coverage of that case.
+
+Already-merged code reads `plan_slot` and `objective.status` and has to change with
+the migration: `src/modules/today/repo.ts` (the day query joins slots),
+`src/modules/effort/domain/adherence.ts`, `src/modules/effort/repo.ts` (the derived
+`extra` flag) and `scripts/seed.mjs` (seeds 20 slot rows). **Open:** whether that
+rework rides along with W4-10 or is its own story — Rohit's call at merge.
+
 **Not in this epic:** extensions. `canExtend` needs a plan-end review to authorise
 it, so it lives in E-05 with the review lifecycle.
 
