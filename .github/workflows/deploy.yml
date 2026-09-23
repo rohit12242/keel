@@ -26,7 +26,7 @@ on:
 
 # One deploy at a time; never cancel a deploy in flight.
 concurrency:
-  group: deploy-main
+  group: deploy-production
   cancel-in-progress: false
 
 permissions:

@@ -6,6 +6,7 @@
 //   - pushing to main, or force-pushing anything   (contributing.md, D-09)
 //   - --no-verify                                  (the checks are the point)
 //   - git reset --hard / git clean / git checkout -- .   (his uncommitted files)
+//   - creating, pushing or deleting a tag           (a tag is a release, W4-07)
 //   - installing a package                         (CLAUDE.md, dependencies)
 //   - terraform apply / destroy                    (infrastructure is a human decision)
 //   - shell writes into docs/build-log/            (same rule as guard-edit)
@@ -80,6 +81,17 @@ if (
 }
 if (has(/\bgit\s+(branch\s+-D|push\s+[^|&;]*--delete)\b/))
   refuse("Branches are deleted by Rohit after merge, not by the agent.");
+
+// --- tags are releases (W4-07) ---------------------------------------------
+// A `v*` tag is what deploys to production. Cutting, moving or deleting one is
+// Rohit's call, never the agent's. Reading tags is fine.
+const TAG_MSG =
+  "A tag is a release — pushing or deleting one deploys or rewrites what production ran (ADR-004). Only Rohit cuts releases. Say in your handover that a tag is needed.";
+if (has(/\bgit\s+tag\b/) && !has(/\bgit\s+tag\b[^|&;]*(\s-l\b|--list\b|--sort\b|\s-n\d*\b|--contains\b|--points-at\b)/))
+  refuse(TAG_MSG);
+if (has(/\bgit\s+push\b[^|&;]*(--tags\b|--follow-tags\b|refs\/tags\/)/)) refuse(TAG_MSG);
+// `git push origin v1.2.3` — a bare tag-shaped refspec.
+if (has(/\bgit\s+push\b[^|&;]*\s:?v\d+\.\d+/)) refuse(TAG_MSG);
 
 // --- dependencies ----------------------------------------------------------
 if (process.env.KEEL_ALLOW_DEPS !== "1") {

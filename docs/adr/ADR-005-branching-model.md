@@ -59,6 +59,13 @@ A `v*` tag on a commit already on `main` is the one release step — still one l
 of history, no release branch. Merged-but-unreleased work is simply the commits
 after the last tag.
 
+**Version numbers (W4-28).** `docs/runbook.md` set an interim convention when
+W4-07 landed: bump the **patch** for a fix, the **minor** for new behaviour. It is
+a habit, not a settled decision — nothing enforces it and no changelog depends on
+it yet. **D-16** (versioning and changelog convention, Sprint 07) is where it gets
+decided properly; until then this line is the record that a convention exists and
+where it came from.
+
 ## Consequences
 
 **Good**
@@ -78,3 +85,7 @@ after the last tag.
 - A second contributor joins and work needs to be held back from production while
   other work ships.
 - A release has to be prepared over several days rather than promoted on merge.
+- A required reviewer on a `production` environment becomes worth configuring —
+  the "human gate" row above describes a server-side gate this repo does not have
+  yet; today the gate is that a human pushes the tag.
+- D-16 is taken up, which replaces the interim version-number convention above.
