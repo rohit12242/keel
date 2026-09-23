@@ -1,6 +1,6 @@
 # Keel — entity model and invariants
 
-Sprint 00 · Story W2-09 · **Revision 3** · 10 entities, 16 invariants, 0 stored aggregates
+Sprint 00 · Story W2-09 · **Revision 3** · 10 entities, 17 invariants, 0 stored aggregates
 
 Built against the current 15 screens. **NFR-06 (offline logging) is out of scope for v1.**
 
@@ -15,8 +15,10 @@ them.** Two entries in this model were derivations pretending to be facts.
   stored. Invariants 9 and 10 now talk about generated slots as *values*.
 - **`objective.status` is gone.** The current status is the latest status event.
   A column plus a history is two authorities on one truth.
-- `status_event` was already in this model; it is unchanged, but it is now
-  load-bearing rather than a history panel's source.
+- `status_event` was already in this model and its shape is unchanged; what
+  changed is its weight. It was the history panel's source; it is now where the
+  objective's status lives and half the input to slot generation, so its
+  local-date and append-only rules are written down here for the first time.
 - The entity count went from 11 to 10. It was never a target.
 
 **The schema does not match this yet** — `plan_slot` and `objective.status` still
@@ -325,7 +327,13 @@ lives, and it is half the input to slot generation (ADR-008).
 | reason | text null | Optional — some rows on the screen are blank. |
 
 **Append-only.** Nothing updates or deletes a row: a correction is another event
-(NFR-01). Every objective has a `created` event — without one it has no status.
+(NFR-01). Every objective has a `created` event (invariant 17).
+
+**Why no `tz` here, when `effort_entry` has one.** An effort entry records two
+different things — the day you meant (`local_date`) and the instant it was written
+(`logged_at`) — so it needs `tz` to relate them. A status change records only the
+day it happened on. There is no second timestamp to reconcile it with, so a zone
+would be stored and never read.
 
 ### User — `user`
 
@@ -353,7 +361,8 @@ lives, and it is half the input to slot generation (ADR-008).
 13. **Verdicts accumulate, they do not overwrite.** A parked idea's verdict history is append-only. The current verdict is the latest row; the verdict a review shows is the latest row on or before that review's period end. Reviving a dropped idea adds a row, it does not edit one. *(NFR-01)*
 14. **One draft, and it holds no figures.** At most one draft review per objective and period; saving replaces it. A draft stores answers only — adherence, totals, the per-day bars and deviation costs are recomputed every time the review is opened.
 15. **Nothing is ever counted twice.** No adherence, total, streak, extension count or sequence number is stored anywhere. Every figure on every screen — including "longest streak", "review 7 of the plan" and "the sentence that repeats" — is computed at read time. *(NFR-09)*
-16. **Nothing is deleted.** There is no delete for an objective, a review, a deviation or a parked idea. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
+16. **Every objective starts with a `created` event.** An objective's status is the latest status event, so an objective with no events has no status rather than a default one. The `created` event is written in the same transaction as the objective, and the W4-10 migration backfills one for every objective that predates `status_event`. *(ADR-008)*
+17. **Nothing is deleted.** There is no delete for an objective, a review, a deviation or a parked idea. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
 
 ## Modelling calls worth challenging
 

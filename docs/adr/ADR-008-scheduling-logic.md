@@ -29,7 +29,7 @@ agree.
 
 **Store the facts; compute everything that follows from them.**
 
-The facts are:
+The facts scheduling reads are:
 
 - **commitments** — `objective`, `plan_segment`;
 - **effort** — `effort_entry`;
@@ -64,17 +64,24 @@ Dropping generated rows does not mean dropping integrity. It moves the line, and
 the line is worth stating so nobody looks for a rule in the wrong layer.
 
 **The database still enforces** — these are cheap, total, and cannot be bypassed
-by a bug in a service:
+by a bug in a service. In the schema today
+(`migrations/1789536602458_initial-schema.cjs`):
 
 - ownership, through foreign keys (`user` → `objective` → `plan_segment`,
-  `effort_entry`, `status_event`), so no row is reachable without a user (NFR-10);
-- presence — `plan_segment.reason` NOT NULL, and the rest of the NOT NULLs;
-- domains — the enum types (`schedule_mode`, `review_cadence`, the status-event
-  `change`);
-- ranges — a segment's `end_date` is not before its `start_date`;
-- **non-overlap** — the `EXCLUDE` constraint that stops two segments of one
-  objective covering the same date (invariant 4);
-- uniqueness — one draft review per objective and period, one user per email.
+  `effort_entry`), so no row is reachable without a user (NFR-10);
+- presence — `plan_segment.reason` NOT NULL (invariant 5), and the rest of the
+  NOT NULLs;
+- domains — the `schedule_mode` and `review_cadence` enum types;
+- ranges — `plan_segment_dates`, so a segment's `end_date` is not before its
+  `start_date`; `effort_entry_minutes`;
+- **non-overlap** — `plan_segment_no_overlap`, the `EXCLUDE` constraint that stops
+  two segments of one objective covering the same date (invariant 4);
+- coherence within a row — `plan_segment_mode`, so a fixed segment has weekdays
+  and a flexible one a day count;
+- uniqueness — `plan_segment_seq_unique`, and one user per email.
+
+And, once W4-10 and E-05 have built them: the `status_event` foreign key and its
+`change` enum, and one draft review per objective and period.
 
 **Only code can enforce** — each of these is a rule over a *sequence*, which a
 row constraint cannot see:
@@ -138,11 +145,11 @@ own decision. It is not a reason to keep generated rows.
   per year) is passed, so recomputation is no longer free.
 - **A screen's computed read misses NFR-03's budget** (p95 300 ms for the day
   fetch, 1 s to interactive).
+- **A reason appears to freeze the past deliberately** — an audit, or a review
+  that must be a statement rather than a query. That is a decision about reviews,
+  not about slots.
 
-At that point caching a derivation becomes a measured trade rather than a guess.
-And what gets added is **a cache** — invalidated, rebuildable, and never consulted
-when the facts and the cache disagree. It is never a second source of truth.
-
-- Also revisit if a reason appears to freeze the past deliberately (audit, or a
-  review that must be a statement rather than a query). That is a decision about
-  reviews, not about slots.
+On the first two, caching a derivation becomes a measured trade rather than a
+guess. And what gets added is **a cache** — invalidated, rebuildable, and never
+consulted when the facts and the cache disagree. It is never a second source of
+truth.

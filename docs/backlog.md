@@ -26,7 +26,7 @@ Stories reference the artifacts that already exist: `erd.md` invariants (INV-n),
 commitments. Done when you can create an objective through the API and get back a
 correct schedule.
 
-**Decisions this epic must settle:** D-10 (where scheduling logic lives).
+**Decisions this epic must settle:** none — D-10 (where scheduling logic lives) was settled by **ADR-008** (W4-09). See the note below for what it changed.
 
 1. Migration: `objective`, `plan_segment`, `plan_slot` with their constraints
 2. Domain: schedule value types, and validation that a fixed schedule has weekdays and a flexible one has a day count
@@ -43,7 +43,7 @@ correct schedule.
 13. Seed the known deviation patterns as reference data
 14. Screen: New objective, against the live API
 15. Screen: Objectives list and its empty state
-16. Tests: slot generation across month boundaries, week starts, a pause and resume, and a flexible week that straddles the end date
+16. Tests: slot generation across month boundaries, week starts, a pause and resume, and a flexible week that straddles the end date — plus the two rules that left the database with `plan_slot` (INV-9): no two generated slots cover the same day or week, and a segment yields day slots or week slots, never both
 
 **Changed by ADR-008 (W4-09).** `plan_slot` is dropped and `status_event` moves
 into this epic, because slot generation now depends on it. Story 1's migration
@@ -54,9 +54,10 @@ resumption" as write-time bookkeeping — pausing suppresses nothing, it is simp
 event the generator reads — so it shrinks to test coverage of that case.
 
 Already-merged code reads `plan_slot` and `objective.status` and has to change with
-the migration: `src/modules/today/repo.ts` (the day query joins slots),
-`src/modules/effort/domain/adherence.ts`, `src/modules/effort/repo.ts` (the derived
-`extra` flag) and `scripts/seed.mjs` (seeds 20 slot rows). **Open:** whether that
+the migration: `src/modules/today/repo.ts` (the day query joins slots and returns `slot_id`),
+`src/modules/today/domain/assembleDay.ts` (emits `slot.id`),
+`src/modules/effort/repo.ts` (the derived `extra` flag) and `scripts/seed.mjs`
+(seeds 20 slot rows). See **G-15**. **Open:** whether that
 rework rides along with W4-10 or is its own story — Rohit's call at merge.
 
 **Not in this epic:** extensions. `canExtend` needs a plan-end review to authorise
@@ -214,6 +215,7 @@ Everything already known to be owed, and where it lands.
 | G-03 schedule grid endpoint | E-02 |
 | G-06 review due-date rule | E-02 |
 | G-09 preview duplicating slot generation | E-02 |
+| G-15 contract states slots as stored rows | E-02, with W4-10's migration |
 | Q7 off-day logging: silent or confirmed | E-03 |
 | G-04 save may commit a stale draft | E-05 |
 | G-05 which review period is due | E-05 |
@@ -223,7 +225,7 @@ Everything already known to be owed, and where it lands.
 | G-10 sidebar counts | accepted, revisit only if a screen needs it |
 | G-11 deviation date range | accepted |
 | G-12 "the sentence that repeats" | v2 candidate, E-08 |
-| D-10, D-12, D-13, D-14, D-15, D-16 | E-02, E-03, E-05, E-06, E-06, E-07 |
+| ~~D-10~~ (settled, ADR-008), D-12, D-13, D-14, D-15, D-16 | E-02, E-03, E-05, E-06, E-06, E-07 |
 
 ## Sizing signals
 
@@ -231,7 +233,7 @@ Not estimates. The evidence you would use to form your own view at planning.
 
 | Epic | New tables | New endpoints | New screens | Open decisions | Gaps to close |
 |---|---:|---:|---:|---:|---:|
-| E-02 | 3 | 5 | 2 | 1 | 3 |
+| E-02 | 2 | 5 | 2 | 0 | 4 |
 | E-03 | 1 | 5 | 4 | 2 | 1 |
 | E-04 | 4 | 6 | 3 | 1 | 0 |
 | E-05 | 1 | 8 | 3 | 2 | 4 |
