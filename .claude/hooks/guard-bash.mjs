@@ -87,9 +87,15 @@ if (has(/\bgit\s+(branch\s+-D|push\s+[^|&;]*--delete)\b/))
 // Rohit's call, never the agent's. Reading tags is fine.
 const TAG_MSG =
   "A tag is a release — pushing or deleting one deploys or rewrites what production ran (ADR-004). Only Rohit cuts releases. Say in your handover that a tag is needed.";
-if (has(/\bgit\s+tag\b/) && !has(/\bgit\s+tag\b[^|&;]*(\s-l\b|--list\b|--sort\b|\s-n\d*\b|--contains\b|--points-at\b)/))
+if (
+  has(/\bgit\s+tag\b/) &&
+  !has(
+    /\bgit\s+tag\b[^|&;]*(\s-l\b|--list\b|--sort\b|\s-n\d*\b|--contains\b|--points-at\b)/,
+  )
+)
   refuse(TAG_MSG);
-if (has(/\bgit\s+push\b[^|&;]*(--tags\b|--follow-tags\b|refs\/tags\/)/)) refuse(TAG_MSG);
+if (has(/\bgit\s+push\b[^|&;]*(--tags\b|--follow-tags\b|refs\/tags\/)/))
+  refuse(TAG_MSG);
 // `git push origin v1.2.3` — a bare tag-shaped refspec.
 if (has(/\bgit\s+push\b[^|&;]*\s:?v\d+\.\d+/)) refuse(TAG_MSG);
 
