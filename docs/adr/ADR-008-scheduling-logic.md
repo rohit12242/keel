@@ -84,14 +84,24 @@ constraint name:
 - uniqueness — `plan_segment_seq_unique` (one segment per objective and `seq`),
   and `email citext NOT NULL UNIQUE`.
 
-**Enforced after W4-10** — the migration this ADR requires:
+**Enforced after W4-10** — the expand migration this ADR requires. All of this
+now exists (`migrations/1790236127275_add-status-event.cjs`):
 
 - the `status_event` foreign key to `objective`, so status history cannot orphan;
 - the status-event `change` enum (`created`, `paused`, `resumed`, `completed`,
   `ended`);
-- and dropping what stops being true: `plan_slot` with its `plan_slot_unique` and
-  `plan_slot_period` constraints, `objective.status`, and the `objective_status`
-  and `period_kind` enum types.
+- `status_event_one_created_idx`, a partial unique index giving at most one
+  `created` event per objective — half of invariant 16, and the half a constraint
+  can hold;
+- `plan_segment_days_per_week`, `plan_segment_planned_weekdays`,
+  `plan_segment_minutes_positive`, `plan_segment_seq_non_negative` — ranges the
+  ERD names in words and W3-12 missed;
+- `plan_segment_contiguous`, the exception below.
+
+**What is dropped later, not by W4-10.** `plan_slot` and its constraints,
+`objective.status`, and the `objective_status` and `period_kind` types stay until
+**W4-29** moves the readers and **W4-30** drops them — `GET /day/{date}` is
+deployed and still reads both (G-15). Expand, migrate, contract (ADR-004).
 
 Invariant 9 is the one that loses a database constraint in that trade —
 `plan_slot_unique` goes and nothing replaces it, because a value cannot carry a
@@ -107,9 +117,36 @@ row constraint cannot see:
   flexible segment produces;
 - suppression while paused, and resumption — a function of the status timeline,
   not of any one row;
-- contiguity, the "no gaps" half of invariant 4: the `EXCLUDE` constraint refuses
-  an overlap but cannot require that segment *n* starts the day after *n−1* ends;
 - review windows from a cadence, and every figure computed in one.
+
+### Amendment (W4-10): contiguity is enforced by a constraint trigger
+
+This record first listed contiguity — the "no gaps" half of invariant 4 — as
+code-only, on the grounds that a rule over a sequence cannot be a row constraint.
+That much is still true: it is not expressible as a `CHECK`. The conclusion drawn
+from it was wrong.
+
+W4-10 adds `plan_segment_contiguous`, a `DEFERRABLE INITIALLY DEFERRED`
+constraint trigger that re-checks one objective's segments at COMMIT and refuses a
+gap. **This is a deliberate exception to "no rule lives in a trigger", and the
+only one.** The reasoning:
+
+- The rule is an *integrity* rule, not a scheduling rule. It says the stored facts
+  are well-formed, which is the database's job. It computes nothing and it is not
+  a rule any screen reads — so it does not create a second implementation of
+  anything in `domain/`.
+- The half-enforced alternative is worse. `plan_segment_no_overlap` already stops
+  two segments covering one date; leaving the gap case to a service means the
+  database guarantees half an invariant, which is the kind of split that reads as
+  enforced and is not.
+- A gap is silent and unrecoverable by inspection: the objective simply has a
+  stretch with no plan, and every figure over that window is quietly wrong.
+
+The boundary this keeps: a trigger may refuse a write that would make the facts
+inconsistent. **A trigger may never compute a derivation, fill a column, or hold a
+rule a screen reads.** Slot generation, pause suppression, review windows and
+every figure stay pure functions in `domain/`. If a second trigger is ever
+proposed, it has to clear that same line and be recorded here.
 
 A rule in the second list is tested as a pure function, because that is the only
 place it exists.

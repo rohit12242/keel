@@ -189,8 +189,10 @@ real row id.
 **Order matters: this fix lands _before_ `plan_slot` is dropped, not after.**
 Drop the table first and the query has no `cover_slot.id` to select, so a live
 endpoint breaks — and it breaks by omitting a field the contract marks required,
-which is the silent kind. So within W4-10: change the contract, the query and the
-assembler to stop carrying a slot id, ship that, and only then drop the table.
+which is the silent kind. W4-10 (the expand step) therefore drops nothing. The
+order across the remaining two: **W4-29** changes the contract, the query and the
+assembler to stop carrying a slot id and closes this gap; **W4-30** drops the
+table once nothing reads it.
 
 ---
 

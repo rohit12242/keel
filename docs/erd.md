@@ -327,7 +327,7 @@ lives, and it is half the input to slot generation (ADR-008).
 | reason | text null | Optional — some rows on the screen are blank. |
 
 **Append-only.** Nothing updates or deletes a row: a correction is another event
-(NFR-01). Every objective has a `created` event (invariant 17).
+(NFR-01). Every objective has a `created` event (invariant 16).
 
 **Why no `tz` here, when `effort_entry` has one.** An effort entry records two
 different things — the day you meant (`local_date`) and the instant it was written
