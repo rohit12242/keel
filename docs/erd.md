@@ -1,8 +1,28 @@
 # Keel — entity model and invariants
 
-Sprint 00 · Story W2-09 · **Revision 2** · 11 entities, 16 invariants, 0 stored aggregates
+Sprint 00 · Story W2-09 · **Revision 3** · 10 entities, 17 invariants, 0 stored aggregates
 
 Built against the current 15 screens. **NFR-06 (offline logging) is out of scope for v1.**
+
+## What revision 3 changed
+
+ADR-008 settled D-10: **store the facts; compute everything that follows from
+them.** Two entries in this model were derivations pretending to be facts.
+
+- **`plan_slot` is gone.** It held `generateSlots` output. It was defensible only
+  while pause history was unrecoverable — `status_event` makes slots re-derivable
+  from `(segment, status events)`, so they are computed at read time and never
+  stored. Invariants 9 and 10 now talk about generated slots as *values*.
+- **`objective.status` is gone.** The current status is the latest status event.
+  A column plus a history is two authorities on one truth.
+- `status_event` was already in this model and its shape is unchanged; what
+  changed is its weight. It was the history panel's source; it is now where the
+  objective's status lives and half the input to slot generation, so its
+  local-date and append-only rules are written down here for the first time.
+- The entity count went from 11 to 10. It was never a target.
+
+**The schema does not match this yet** — `plan_slot` and `objective.status` still
+exist in `migrations/`. W4-10 is the migration.
 
 ## What revision 2 changed
 
@@ -26,7 +46,6 @@ erDiagram
     USER ||--o{ PARKED_IDEA : parks
     USER ||--o{ DEVIATION_PATTERN : names
     OBJECTIVE ||--|{ PLAN_SEGMENT : "is planned over"
-    PLAN_SEGMENT ||--o{ PLAN_SLOT : generates
     OBJECTIVE ||--o{ EFFORT_ENTRY : receives
     OBJECTIVE ||--o{ REVIEW : "is reviewed by"
     OBJECTIVE ||--o{ STATUS_EVENT : "changes through"
@@ -37,6 +56,9 @@ erDiagram
     PARKED_IDEA ||--o{ PARKED_IDEA_VERDICT : "is judged by"
     PARKED_IDEA |o--o| OBJECTIVE : becomes
 ```
+
+Plan slots are **not** here: a segment plus its status events generates them at
+read time (ADR-008).
 
 ## Full model
 ```mermaid
@@ -56,7 +78,6 @@ erDiagram
         text success_criteria
         text plan_link
         enum review_cadence
-        enum status
         uuid from_parked_idea_id FK
     }
     PLAN_SEGMENT {
@@ -71,15 +92,6 @@ erDiagram
         date end_date
         text reason
         uuid created_by_review_id FK
-    }
-    PLAN_SLOT {
-        uuid id PK
-        uuid plan_segment_id FK
-        enum period_kind
-        date period_start
-        date period_end
-        int target_minutes
-        int2 target_days
     }
     EFFORT_ENTRY {
         uuid id PK
@@ -157,7 +169,6 @@ erDiagram
     USER ||--o{ PARKED_IDEA : parks
     USER ||--o{ DEVIATION_PATTERN : names
     OBJECTIVE ||--|{ PLAN_SEGMENT : "is planned over"
-    PLAN_SEGMENT ||--o{ PLAN_SLOT : generates
     OBJECTIVE ||--o{ EFFORT_ENTRY : receives
     OBJECTIVE ||--o{ REVIEW : "is reviewed by"
     OBJECTIVE ||--o{ STATUS_EVENT : "changes through"
@@ -182,9 +193,8 @@ What you committed to. Note what is *not* here: no schedule, no end date. Those 
 | title / description / why_now / success_criteria | text | From the New objective screen. |
 | plan_link | text null | The external spreadsheet. Keel stores the link, never the plan. |
 | review_cadence | enum('weekly','monthly') | A plan-end review is always created regardless of cadence. |
-| status | enum('active','paused','completed','ended') | No 'deleted'. Ending is possible; deleting is not. |
 | from_parked_idea_id | uuid null FK | Drives the "FROM PARKING LOT" badge on the objectives list. |
-| — not stored — |  | **Current end date** is the latest segment's end. **Original end date** is segment 0's end. **Extension count** is a row count. All derived. |
+| — not stored — |  | **Current status** is the latest status event — there is no status column (ADR-008). **Current end date** is the latest segment's end. **Original end date** is segment 0's end. **Extension count** is a row count. **The plan slots** for any date range. All derived. |
 
 ### Plan segment — `plan_segment`
 
@@ -203,19 +213,14 @@ What you committed to. Note what is *not* here: no schedule, no end date. Those 
 | reason | text | **NOT NULL.** The Continue dialog marks "why extend rather than complete?" as required, so the schema should too. Segment 0's reason is the objective's creation reason. |
 | created_by_review_id | uuid null FK | Null on segment 0. Set by the plan-end review that extended. |
 
-### Plan slot — `plan_slot`
+### Plan slots — not an entity
 
-One row per planned unit, generated from its segment. Fixed schedules make day rows; flexible ones make week rows.
-
-| Column | Type | Why |
-|---|---|---|
-| id | uuid PK |  |
-| plan_segment_id | uuid FK | **Belongs to the segment, not the objective** — that is how a slot inherits the schedule that was in force when it was made. |
-| period_kind | enum('day','week') |  |
-| period_start / period_end | date | Equal for a day row. Monday to Sunday for a week row. |
-| target_minutes | int | minutes_per_planned_day for a day; days_per_week × that for a week. |
-| target_days | int2 null | Week rows only. What "4 of 5 days done" counts against. |
-| unique | (plan_segment_id, period_start, period_kind) |  |
+**Dropped in revision 3 (ADR-008).** A planned unit — a day for a fixed segment, a
+week for a flexible one — is a *value* computed by
+`generateSlots(segment, statusEvents)` in `domain/`, never a row. It carries the
+same fields it always did (`period_kind`, `period_start`/`period_end`,
+`target_minutes`, `target_days`), and it belongs to a segment, which is how it
+inherits the schedule in force at the time. Nothing writes it down.
 
 ### Effort entry — `effort_entry`
 
@@ -310,13 +315,25 @@ A named shape you recognise — "Planning instead of doing". The "3 before" coun
 ### Status event — `status_event`
 
 Created, paused, resumed, completed, ended — with the reason given at the time.
+**Load-bearing since revision 3:** this is where the objective's current status
+lives, and it is half the input to slot generation (ADR-008).
 
 | Column | Type | Why |
 |---|---|---|
+| id | uuid PK |  |
 | objective_id | uuid FK |  |
-| occurred_on | date |  |
+| occurred_on | date | **A local date**, the day the change happened in the user's zone — the same discipline as `effort_entry.local_date`, set by the client and never moved (NFR-12). |
 | change | enum('created','paused','resumed','completed','ended') | **No 'extended'.** An extension is a plan segment; the history panel is the two lists merged by date. Storing it twice is how the panel grows duplicate rows. |
 | reason | text null | Optional — some rows on the screen are blank. |
+
+**Append-only.** Nothing updates or deletes a row: a correction is another event
+(NFR-01). Every objective has a `created` event (invariant 17).
+
+**Why no `tz` here, when `effort_entry` has one.** An effort entry records two
+different things — the day you meant (`local_date`) and the instant it was written
+(`logged_at`) — so it needs `tz` to relate them. A status change records only the
+day it happened on. There is no second timestamp to reconcile it with, so a zone
+would be stored and never read.
 
 ### User — `user`
 
@@ -329,7 +346,7 @@ Created, paused, resumed, completed, ended — with the reason given at the time
 
 ## Invariants
 
-1. **Ownership.** Every plan segment, plan slot, effort entry, review and status event belongs to exactly one objective, and every objective, deviation, parked idea and pattern belongs to exactly one user. No row is reachable without passing through a user. *(NFR-10)*
+1. **Ownership.** Every plan segment, effort entry, review and status event belongs to exactly one objective, and every objective, deviation, parked idea and pattern belongs to exactly one user. No row is reachable without passing through a user. *(NFR-10)*
 2. **The day never moves.** An effort entry's `local_date` is set when it is written and never changes — not when the user travels, not across a daylight-saving boundary, not when the row is edited. *(NFR-12)*
 3. **The schedule lives on the segment.** An objective has no schedule and no end date of its own. Its current end date is the end date of its latest segment; its original end date is segment 0's. Neither is stored, so neither can disagree with the segments.
 4. **Segments are contiguous and never overlap.** Segment *n* starts the day after segment *n−1* ends. No two segments of one objective cover the same date, and there are no gaps.
@@ -337,19 +354,20 @@ Created, paused, resumed, completed, ended — with the reason given at the time
 6. **An extension must reach into the future.** A new segment's end date is strictly after the day it is created. An extension that would end in the past is refused, not silently adjusted. *(Your answer, Q5)*
 7. **Only the plan-end review decides.** Only a review of kind `plan_end` may carry an outcome, a criteria verdict, or create a plan segment. Weekly and monthly reviews record and judge; they never change the plan. *(Your answer, Q8)*
 8. **Criteria are judged once, at the end.** `criteria_assessment` and `criteria_verdict` are null on every weekly and monthly review. The screen says so in words; the schema should say it in constraints.
-9. **One plan per period.** An objective never has two plan slots covering the same day or week. A fixed segment produces day slots; a flexible one produces week slots; never both within one segment.
-10. **Slots follow the status.** A plan slot exists only for dates inside its segment and only for time the objective was active. Pausing stops slot creation; resuming starts it again. Effort logged while paused has no slot, and therefore counts as extra.
+9. **One plan per period.** Generating an objective's slots never yields two covering the same day or week. A fixed segment produces day slots; a flexible one produces week slots; never both within one segment. Nothing enforces this in the database — slots are values now, so this is a property of `generateSlots` and is tested as one *(ADR-008)*.
+10. **Slots follow the status.** A generated slot exists only for dates inside its segment and only for stretches the objective was active, according to its status events. Pausing suppresses slots for the paused stretch; resuming produces them again. Effort logged while paused is covered by no slot and therefore counts as extra. Because slots are derived, this can no longer drift from the status history — it *is* the status history *(ADR-008)*.
 11. **A deviation belongs to a day, not an objective.** A deviation has no objective. A review shows every deviation whose `local_date` falls inside its period, so one deviation may appear in three objectives' reviews at once. That is correct: you did not go off one objective, you went off. *(Your answer)*
 12. **Only chosen deviations are judged.** A verdict may exist only on a deviation of kind `chosen`, and must name the review that gave it. Verdict and `verdict_review_id` are null together or set together. Once saved, a later review never changes it. *(NFR-01)*
 13. **Verdicts accumulate, they do not overwrite.** A parked idea's verdict history is append-only. The current verdict is the latest row; the verdict a review shows is the latest row on or before that review's period end. Reviving a dropped idea adds a row, it does not edit one. *(NFR-01)*
 14. **One draft, and it holds no figures.** At most one draft review per objective and period; saving replaces it. A draft stores answers only — adherence, totals, the per-day bars and deviation costs are recomputed every time the review is opened.
 15. **Nothing is ever counted twice.** No adherence, total, streak, extension count or sequence number is stored anywhere. Every figure on every screen — including "longest streak", "review 7 of the plan" and "the sentence that repeats" — is computed at read time. *(NFR-09)*
-16. **Nothing is deleted.** There is no delete for an objective, a review, a deviation or a parked idea. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
+16. **Every objective starts with a `created` event.** An objective's status is the latest status event, so an objective with no events has no status rather than a default one. The `created` event is written in the same transaction as the objective, and the W4-10 migration backfills one for every objective that predates `status_event`. *(ADR-008)*
+17. **Nothing is deleted.** There is no delete for an objective, a review, a deviation or a parked idea. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
 
 ## Modelling calls worth challenging
 
-- **Plan slots are stored rows, not derived.** Deriving them looks cheaper — the segment already says which days are planned. But pause and resume mean the planned days are not a function of the schedule alone; they depend on the status timeline. Storing makes history stable, which NFR-01 wants, and 780 rows a year is inside NFR-09's budget. The cost is that pause, resume and extend must each generate or stop generating slots correctly.
-- **Effort entries carry no link to a plan slot.** An entry is "extra" when its objective's segment is fixed-schedule and no day slot covers its date. Deriving this rather than storing a foreign key removes a way for the two to disagree. One consequence to accept deliberately: **effort logged while an objective is paused reads as extra**, because no slot exists for those days.
+- **Plan slots are derived, not stored** — *reversed in revision 3.* Revision 2 argued for storing them: pause and resume mean planned days are not a function of the schedule alone, so a slot could not be re-derived and had to be frozen. `status_event` removes that objection, and storing the generator's output left two copies of one rule. ADR-008 has the full argument and the cost: with nothing frozen, fixing a bug in `generateSlots` changes what the past *was*.
+- **Effort entries carry no link to a plan slot.** An entry is "extra" when its objective's segment is fixed-schedule and no generated day slot covers its date. Deriving this rather than storing a foreign key removes a way for the two to disagree. One consequence to accept deliberately: **effort logged while an objective is paused reads as extra**, because no slot is generated for those days.
 - **The status history panel is a merge, not a table.** It shows created, paused, resumed, completed and ended from `status_event`, interleaved by date with extensions from `plan_segment`. Neither table stores the other's rows. If an extension were also written as a status event, the panel would eventually show it twice and no constraint would catch it.
 
 ## What changed because NFR-06 is out of scope
@@ -358,4 +376,4 @@ Removed: a sync queue table, a client-created timestamp distinct from the server
 
 ## Ready for the API contract
 
-The Today query is one read: objectives joined through their current plan segment to slots and entries for a single `local_date`, filtered by user. That is the query NFR-03 constrains. Remaining open item: Q7 (does off-day logging need confirming) — a UI question, not a data one.
+The Today query is one read: objectives joined through their current plan segment to that date's entries, plus the status events the slot generator needs, filtered by user. The day's planned slot is computed from those rows, not joined to. That is still one round trip, which is what NFR-03 constrains — with revision 3 part of the budget moves from the query into a pure function. Remaining open item: Q7 (does off-day logging need confirming) — a UI question, not a data one.

@@ -158,6 +158,40 @@ the ALB probes `/health`, a 503 during a database outage pulls a healthy app tas
 of rotation — which an app-alive check should not do.
 **Blocks:** nothing now. It matters for NFR-07 and the E-06 uptime check.
 
+### G-15 — The contract states slots as stored rows · OPEN
+**Found by:** W4-09 (ADR-008)
+ADR-008 drops `plan_slot`: a slot is a value computed by
+`generateSlots(segment, statusEvents)`, never a row. The contract says otherwise in
+two ways.
+
+- `PlanSlot` **requires `id: uuid`** (`keel-api.yaml:1120-1129`), returned inside
+  `DayObjective.slot`. A derived slot has no row id to give.
+- The prose describes generation as persistence: "generates that segment's slots"
+  (`:360`), "Pausing stops plan-slot generation; resuming starts it again" (`:475`),
+  "New segment created and its slots generated" (`:541`).
+
+**The decision:** drop `PlanSlot.id` (a slot is identified by its segment and
+`period_start`, which was already its uniqueness rule), or keep an id and let the
+server mint a stable synthetic one. Dropping is the honest option — an id the
+client cannot use to address anything is an invitation to store it. The prose
+changes either way, from generation-as-writing to generation-as-computing.
+
+**Not fixed here on purpose.** W4-09 is the decision and the ERD; it writes no
+contract change and no code.
+
+**Blocks: `GET /day/{date}`, which serves a slot id today.**
+`src/modules/today/repo.ts:84` selects `cover_slot.id AS slot_id`,
+`src/modules/today/domain/assembleDay.ts:47-49` emits it as `slot.id`, and the
+contract requires it (`keel-api.yaml:1120-1129`, reached through
+`DayObjective.slot` at `:1283-1295`). This is a deployed endpoint returning a
+real row id.
+
+**Order matters: this fix lands _before_ `plan_slot` is dropped, not after.**
+Drop the table first and the query has no `cover_slot.id` to select, so a live
+endpoint breaks — and it breaks by omitting a field the contract marks required,
+which is the silent kind. So within W4-10: change the contract, the query and the
+assembler to stop carrying a slot id, ship that, and only then drop the table.
+
 ---
 
 ## Accepted for v1
@@ -197,7 +231,7 @@ v1 — it is a feature, not a gap in plumbing, and it needs its own thinking.
 | Status | Count |
 |---|---|
 | Closed | 4 |
-| Open | 7 |
+| Open | 8 |
 | Accepted | 3 |
 
 **G-03 and G-05, which blocked Sprint 01's first screens, are both closed (W3-20).**
