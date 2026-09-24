@@ -12,8 +12,9 @@ export type Schedule = {
   label: string;
 };
 
+/** Computed from the segment and the status events (ADR-008) — no id: a slot
+ * is a value, not a row. */
 export type PlanSlot = {
-  id: string;
   period_kind: "day" | "week";
   period_start: string;
   period_end: string;

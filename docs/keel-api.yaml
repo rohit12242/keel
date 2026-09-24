@@ -228,7 +228,7 @@ paths:
       description: |
         This is the read NFR-03 constrains: p95 under 300 ms, and one request
         rather than one per objective. It returns every active objective, the
-        plan slot covering `date` if there is one, that date's entries, and the
+        plan slot computed for `date` if the plan asks for one, that date's entries, and the
         totals the sidebar shows.
 
         An objective with `slot: null` is not scheduled for this date. Logging
@@ -357,7 +357,7 @@ paths:
     post:
       tags: [Objectives]
       summary: Create an objective
-      description: Creates the objective and its first plan segment, and generates that segment's slots.
+      description: Creates the objective and its first plan segment. Slots are computed on read, never written (ADR-008).
       operationId: createObjective
       requestBody:
         required: true
@@ -432,7 +432,7 @@ paths:
         largest thing that response could carry and most callers do not want it
         (G-03). A future calendar view reads the same shape.
 
-        The grid is computed on the server from the segment's slots and the
+        The grid is computed on the server from the segment's schedule and the
         logged entries, so the client never fans out per day — the read that
         NFR-03 exists to prevent. Spans plan segments; each day names the
         segment it falls in, so an extension with a different schedule renders
@@ -472,7 +472,7 @@ paths:
       summary: Pause, resume, complete or end
       description: |
         Append-only. Nothing is ever deleted, and a status change never edits an
-        earlier one. Pausing stops plan-slot generation; resuming starts it again.
+        earlier one. A paused stretch produces no slots; resuming produces them again.
       operationId: createStatusChange
       parameters: [{ $ref: '#/components/parameters/objectiveId' }]
       requestBody:
@@ -538,7 +538,7 @@ paths:
                 schedule: { $ref: '#/components/schemas/ScheduleWrite' }
       responses:
         '201':
-          description: New segment created and its slots generated.
+          description: New segment created. Its slots follow from it on the next read.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PlanSegment' }
@@ -648,7 +648,7 @@ paths:
       tags: [Reviews]
       summary: One review, with its figures recomputed
       description: |
-        Every figure in the response is computed now, from entries and slots.
+        Every figure in the response is computed now, from entries and the plan.
         None of it was stored when the review was saved, so a review opened today
         and the same review opened next year show the same numbers only because
         the underlying rows have not changed.
@@ -1119,9 +1119,13 @@ components:
 
     PlanSlot:
       type: object
-      required: [id, period_kind, period_start, period_end, target_minutes]
+      description: |
+        One planned unit — a day for a fixed segment, a week for a flexible one.
+        **Computed, not stored** (ADR-008): the server derives it from the plan
+        segment and the objective's status events, so it has no id. A slot is a
+        value; two reads of the same day produce equal slots, not the same row.
+      required: [period_kind, period_start, period_end, target_minutes]
       properties:
-        id: { type: string, format: uuid }
         period_kind: { type: string, enum: [day, week] }
         period_start: { type: string, format: date }
         period_end: { type: string, format: date }
