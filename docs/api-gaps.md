@@ -180,12 +180,17 @@ changes either way, from generation-as-writing to generation-as-computing.
 contract change and no code.
 
 **Blocks: `GET /day/{date}`, which serves a slot id today.**
-`src/modules/today/repo.ts:84` selects `cover_slot.id AS slot_id` and
-`src/modules/today/domain/assembleDay.ts:47-49` emits it as `slot.id`. When
-`plan_slot` goes there is no id to emit, so the contract, the query and the
-assembler change together with W4-10's migration — otherwise the contract
-describes a table that no longer exists and the response drops a required
-field.
+`src/modules/today/repo.ts:84` selects `cover_slot.id AS slot_id`,
+`src/modules/today/domain/assembleDay.ts:47-49` emits it as `slot.id`, and the
+contract requires it (`keel-api.yaml:1120-1129`, reached through
+`DayObjective.slot` at `:1283-1295`). This is a deployed endpoint returning a
+real row id.
+
+**Order matters: this fix lands _before_ `plan_slot` is dropped, not after.**
+Drop the table first and the query has no `cover_slot.id` to select, so a live
+endpoint breaks — and it breaks by omitting a field the contract marks required,
+which is the silent kind. So within W4-10: change the contract, the query and the
+assembler to stop carrying a slot id, ship that, and only then drop the table.
 
 ---
 

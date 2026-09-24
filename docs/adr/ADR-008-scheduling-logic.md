@@ -63,25 +63,42 @@ generated column or a view. **The service persists; the database constrains.**
 Dropping generated rows does not mean dropping integrity. It moves the line, and
 the line is worth stating so nobody looks for a rule in the wrong layer.
 
-**The database still enforces** — these are cheap, total, and cannot be bypassed
-by a bug in a service. In the schema today
-(`migrations/1789536602458_initial-schema.cjs`):
+These are cheap, total, and cannot be bypassed by a bug in a service. Two lists,
+because half of this schema does not exist yet and a record that blurs the two is
+a wish rather than a statement.
+
+**Enforced now** — in `migrations/1789536602458_initial-schema.cjs`, by
+constraint name:
 
 - ownership, through foreign keys (`user` → `objective` → `plan_segment`,
   `effort_entry`), so no row is reachable without a user (NFR-10);
 - presence — `plan_segment.reason` NOT NULL (invariant 5), and the rest of the
   NOT NULLs;
 - domains — the `schedule_mode` and `review_cadence` enum types;
-- ranges — `plan_segment_dates`, so a segment's `end_date` is not before its
-  `start_date`; `effort_entry_minutes`;
+- ranges — `plan_segment_dates` (`end_date >= start_date`) and
+  `effort_entry_minutes`;
 - **non-overlap** — `plan_segment_no_overlap`, the `EXCLUDE` constraint that stops
   two segments of one objective covering the same date (invariant 4);
 - coherence within a row — `plan_segment_mode`, so a fixed segment has weekdays
   and a flexible one a day count;
-- uniqueness — `plan_segment_seq_unique`, and one user per email.
+- uniqueness — `plan_segment_seq_unique` (one segment per objective and `seq`),
+  and `email citext NOT NULL UNIQUE`.
 
-And, once W4-10 and E-05 have built them: the `status_event` foreign key and its
-`change` enum, and one draft review per objective and period.
+**Enforced after W4-10** — the migration this ADR requires:
+
+- the `status_event` foreign key to `objective`, so status history cannot orphan;
+- the status-event `change` enum (`created`, `paused`, `resumed`, `completed`,
+  `ended`);
+- and dropping what stops being true: `plan_slot` with its `plan_slot_unique` and
+  `plan_slot_period` constraints, `objective.status`, and the `objective_status`
+  and `period_kind` enum types.
+
+Invariant 9 is the one that loses a database constraint in that trade —
+`plan_slot_unique` goes and nothing replaces it, because a value cannot carry a
+unique index. It becomes a tested property of `generateSlots` instead.
+
+Later still, with the review table (E-05): one draft review per objective and
+period.
 
 **Only code can enforce** — each of these is a rule over a *sequence*, which a
 row constraint cannot see:
