@@ -145,7 +145,7 @@ If it touched code, additionally:
 | `docs/adr/` | Decision records. ADR-001 architecture, ADR-002 auth. |
 | `docs/keel-api.yaml` | The API contract. |
 | `docs/api-gaps.md` | Known contract gaps, open and closed. |
-| `docs/erd.md` | Entity model — 11 entities, 16 invariants. |
+| `docs/erd.md` | Entity model — 10 entities, 17 invariants (revision 3, ADR-008). |
 | `docs/design/` | Screen designs — 15 artboards. |
 | `docs/spikes/` | Spike write-ups. |
 | `docs/nfrs.md` | 13 non-functional requirements, with scope changes noted. |

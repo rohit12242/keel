@@ -145,8 +145,31 @@ only one.** The reasoning:
 The boundary this keeps: a trigger may refuse a write that would make the facts
 inconsistent. **A trigger may never compute a derivation, fill a column, or hold a
 rule a screen reads.** Slot generation, pause suppression, review windows and
-every figure stay pure functions in `domain/`. If a second trigger is ever
-proposed, it has to clear that same line and be recorded here.
+every figure stay pure functions in `domain/`. Any further trigger has to clear
+that same line and be recorded here — nothing automated enforces that, so this
+paragraph is the whole guard.
+
+**What the trigger does not cover**, so it is not mistaken for the whole of
+invariant 4:
+
+- It orders by `start_date`, so it enforces that the *dates* leave no gap. It does
+  not tie `seq` order to date order: seq 0 covering October with seq 1 covering
+  September passes every constraint in the schema. Invariant 4's wording
+  ("segment *n* starts the day after segment *n−1* ends") is therefore still
+  half a code rule.
+- `seq` is checked as `>= 0`, not as gapless from 0. Extension count is
+  `count(*)`, so a gap in `seq` would make "Extension 2" and "extended 3 times"
+  disagree. Also code's job.
+
+**Append-only on `status_event` is a convention, not a constraint** (W4-10). The
+table has no trigger and no revoked grant; nothing stops an `UPDATE` or `DELETE`.
+The recommendation, when it is worth enforcing: **revoke the grants**
+(`REVOKE UPDATE, DELETE ON status_event FROM <app role>`) rather than add a second
+trigger. It is declarative, it costs nothing at write time, and it does not put a
+rule in a trigger — the exception above stays the only one. It needs a distinct
+application role first, which Keel does not have yet (one connection string, the
+owner), so it lands with E-06's hardening. The same argument will apply to
+`effort_entry` and `parked_idea_verdict` (invariant 13).
 
 A rule in the second list is tested as a pure function, because that is the only
 place it exists.
