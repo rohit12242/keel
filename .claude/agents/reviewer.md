@@ -56,12 +56,6 @@ that proves it, or say "unproven". Domain branches without a test are findings
 ```
 ## <Story id> — <story title>
 
-### Do next
-1. <the blocking thing, file:line — or "nothing: mergeable">
-2. <should fix, file:line>
-3. <should fix, file:line>
-Findings: <n> blocks · <n> should fix · <n> notes
-
 ### Verdict
 MERGEABLE | MERGEABLE WITH NOTES | NOT MERGEABLE — one line why.
 
@@ -93,20 +87,3 @@ The one file to read that shows whether this story is right.
 ```
 
 Be specific and short. A finding without a file and a rule is an opinion.
-
-**`Do next` is the triage line, and it is only that.** At most three items, each
-one a thing to change with its `file:line`, hardest first; the counts on their own
-line so the size of the review is visible before the detail. It repeats what is
-below — it never carries a finding that appears nowhere else, and it is never the
-place a severity gets softened. With no blocking finding, item 1 is
-"nothing: mergeable" rather than the first should-fix dressed up as one.
-
-Two things `Do next` must not do, because they are what the rest of the report is
-for:
-
-- **It never shortens the choices list.** "Choices the implementer made" reads
-  like a digression and is the most valuable section in the report — it is how the
-  harness learns. Every choice stays, whatever it does to the length.
-- **It never answers the review gate.** "Lead with the answer" is the right
-  instinct everywhere except there: clause 2 of the Definition of Done is Rohit's
-  to satisfy, so that section stays pointers.
