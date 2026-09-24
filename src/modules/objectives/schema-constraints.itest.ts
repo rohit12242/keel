@@ -261,12 +261,19 @@ describe("W4-10 schema constraints (real Postgres)", () => {
   });
 
   it("left plan_slot and objective.status in place (expand only, ADR-004)", async () => {
-    const res = await client.query<{ slots: string; status_columns: string }>(
-      `SELECT (SELECT count(*) FROM plan_slot) AS slots,
+    // W4-10 added; W4-29 stopped reading and seeding; W4-30 drops. So the table
+    // is empty now — what must still be true is that it EXISTS, along with
+    // objective.status, until the drop story.
+    const res = await client.query<{
+      slot_table: string;
+      status_columns: string;
+    }>(
+      `SELECT (SELECT count(*) FROM information_schema.tables
+               WHERE table_name = 'plan_slot') AS slot_table,
               (SELECT count(*) FROM information_schema.columns
                WHERE table_name = 'objective' AND column_name = 'status') AS status_columns`,
     );
-    expect(Number(res.rows[0].slots)).toBeGreaterThan(0);
+    expect(Number(res.rows[0].slot_table)).toBe(1);
     expect(Number(res.rows[0].status_columns)).toBe(1);
   });
 });
