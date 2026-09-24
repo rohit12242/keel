@@ -17,6 +17,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.itest.ts"],
+    // Registers NFR-12's DATE-as-string parser for every suite, including ones
+    // that build their own pg client and never import shared/db (W3-19).
+    setupFiles: ["./vitest.integration.setup.ts"],
     // Real database: run files one at a time so they don't race on shared rows.
     fileParallelism: false,
     testTimeout: 15000,

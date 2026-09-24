@@ -19,7 +19,9 @@
  * row was written. Neither is derived from the other.
  *
  * Append-only (ERD status_event) is a CONVENTION here, not a constraint: nothing
- * in this migration prevents an UPDATE or DELETE. See the handover.
+ * in this migration prevents an UPDATE or DELETE. ADR-008's amendment says why,
+ * and recommends revoking grants over adding a second trigger (needs a distinct
+ * application role, so E-06).
  */
 
 exports.shorthands = undefined;
@@ -46,8 +48,8 @@ exports.up = (pgm) => {
     -- Half of invariant 16, and the half a constraint can hold: at most one
     -- 'created' event per objective. (The at-least-one half needs code — it is
     -- asserted below for existing rows, and belongs to the create-objective
-    -- service from E-02 onward.) This is also what stops a re-run of the
-    -- backfill below from doubling the rows.
+    -- service from E-02 onward.) It also makes a re-run of the backfill below
+    -- FAIL rather than double the rows — refused, not silently duplicated.
     CREATE UNIQUE INDEX status_event_one_created_idx
       ON status_event (objective_id) WHERE change = 'created';
 

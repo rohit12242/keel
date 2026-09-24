@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 import { getConfig } from "@/config/env";
-import { configureDbDateParsing } from "@/shared/db-types";
 
 /**
  * W4-10 — every constraint the migration adds, proved by violating it.
@@ -43,6 +42,35 @@ async function attempt(
   return err;
 }
 
+/**
+ * Run statements and COMMIT, with the trigger left DEFERRED — so the verdict
+ * arrives from COMMIT, not from the INSERT. Returns the error, if any; a failed
+ * COMMIT has already rolled the transaction back.
+ */
+async function attemptCommit(
+  statements: readonly { sql: string; params?: readonly unknown[] }[],
+): Promise<PgError | undefined> {
+  await client.query("BEGIN");
+  try {
+    for (const s of statements) {
+      await client.query(s.sql, (s.params ?? []) as unknown[]);
+    }
+    await client.query("COMMIT");
+    return undefined;
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    return e as PgError;
+  }
+}
+
+const SEG = (seq: number, start: string, end: string) => ({
+  sql: `INSERT INTO plan_segment
+          (objective_id, seq, schedule_mode, planned_weekdays,
+           minutes_per_planned_day, start_date, end_date, reason)
+        VALUES ($1, $2, 'fixed', 31, 120, $3, $4, 'W4-10 itest')`,
+  params: [OBJECTIVE_ID, seq, start, end],
+});
+
 /** A second segment on the seeded objective. Contiguous unless `start` says otherwise. */
 function insertSegment(
   columns: string,
@@ -60,11 +88,8 @@ function insertSegment(
 
 describe("W4-10 schema constraints (real Postgres)", () => {
   beforeAll(async () => {
-    // This suite talks to pg directly rather than through shared/db, so the
-    // DATE-as-string parser is not registered for it (NFR-12, W3-19). Without
-    // this, occurred_on comes back as a JS Date at LOCAL midnight — under
-    // TZ=Asia/Kolkata that is 2026-09-13T18:30Z, the off-by-one itself.
-    configureDbDateParsing();
+    // This suite talks to pg directly, not through shared/db. NFR-12's
+    // DATE-as-string parser comes from vitest.integration.setup.ts.
     client = new pg.Client({ connectionString: getConfig().databaseUrl });
     await client.connect();
   });
@@ -193,6 +218,46 @@ describe("W4-10 schema constraints (real Postgres)", () => {
   it("accepts a contiguous segment, so the trigger is not refusing everything", async () => {
     const { sql, params } = insertSegment("planned_weekdays", "31", ADJACENT);
     expect(await attempt(sql, params)).toBeUndefined();
+  });
+
+  // --- the deferral itself, which is why the trigger is DEFERRABLE ----------
+
+  it("accepts segments written out of order in one transaction, judged at COMMIT", async () => {
+    // Later segment first: at no single statement is the objective contiguous,
+    // which is exactly what INITIALLY DEFERRED buys.
+    const err = await attemptCommit([
+      SEG(2, "2026-10-19", "2026-10-25"),
+      SEG(1, "2026-10-12", "2026-10-18"),
+    ]);
+    expect(err).toBeUndefined();
+    // Committed for real, so put the fixture back.
+    const cleanup = await attemptCommit([
+      {
+        sql: `DELETE FROM plan_segment WHERE objective_id = $1 AND seq IN (1, 2)`,
+        params: [OBJECTIVE_ID],
+      },
+    ]);
+    expect(cleanup).toBeUndefined();
+  });
+
+  it("reports a gap at COMMIT when the trigger is left deferred", async () => {
+    const err = await attemptCommit([SEG(1, AFTER_A_GAP, "2026-10-18")]);
+    expect(err?.code).toBe("23514");
+    expect(err?.message).toContain("not contiguous");
+  });
+
+  it("refuses a DELETE that opens a gap (the trigger's OLD branch)", async () => {
+    // Build 0 → 1 → 2 contiguous, then remove the middle one.
+    const err = await attemptCommit([
+      SEG(1, "2026-10-12", "2026-10-18"),
+      SEG(2, "2026-10-19", "2026-10-25"),
+      {
+        sql: `DELETE FROM plan_segment WHERE objective_id = $1 AND seq = 1`,
+        params: [OBJECTIVE_ID],
+      },
+    ]);
+    expect(err?.code).toBe("23514");
+    expect(err?.message).toContain("not contiguous");
   });
 
   it("left plan_slot and objective.status in place (expand only, ADR-004)", async () => {

@@ -60,6 +60,19 @@ try {
     ],
   );
 
+  // W4-10: an objective without a `created` status event has no status at all
+  // (ERD invariant 16, ADR-008). The migration backfills existing rows; a seed
+  // that creates an objective has to write one too, or it produces data that
+  // violates the invariant this schema just introduced. objective.status stays
+  // as it is until W4-29 moves the readers — this is additive.
+  // Idempotent against status_event_one_created_idx, the partial unique index.
+  await client.query(
+    `INSERT INTO status_event (objective_id, occurred_on, change)
+     VALUES ($1, $2, 'created')
+     ON CONFLICT (objective_id) WHERE change = 'created' DO NOTHING`,
+    [OBJECTIVE_ID, START],
+  );
+
   await client.query(
     `INSERT INTO plan_segment
        (id, objective_id, seq, schedule_mode, planned_weekdays,
