@@ -158,7 +158,7 @@ the ALB probes `/health`, a 503 during a database outage pulls a healthy app tas
 of rotation — which an app-alive check should not do.
 **Blocks:** nothing now. It matters for NFR-07 and the E-06 uptime check.
 
-### G-15 — The contract states slots as stored rows · OPEN
+### G-15 — The contract states slots as stored rows · CLOSED
 **Found by:** W4-09 (ADR-008)
 ADR-008 drops `plan_slot`: a slot is a value computed by
 `generateSlots(segment, statusEvents)`, never a row. The contract says otherwise in
@@ -176,8 +176,18 @@ server mint a stable synthetic one. Dropping is the honest option — an id the
 client cannot use to address anything is an invitation to store it. The prose
 changes either way, from generation-as-writing to generation-as-computing.
 
-**Not fixed here on purpose.** W4-09 is the decision and the ERD; it writes no
-contract change and no code.
+**Fixed (W4-29).** `PlanSlot.id` is gone from the schema — both the property and
+its `required` entry — and the schema now says a slot is computed, not stored. The
+prose that described generation as persistence was corrected in the same commit
+(the six places: the day read, `createObjective`, the schedule grid,
+`createStatusChange`, `extendPlan`, and the review figures). `GET /day/{date}`
+computes the covering slot from the segment and the status events and emits no id,
+so the contract and the code agree again.
+
+The ordering held: this landed **before** anything dropped `plan_slot`. W4-30 now
+drops the table with no reader left.
+
+**Originally raised as:**
 
 **Blocks: `GET /day/{date}`, which serves a slot id today.**
 `src/modules/today/repo.ts:84` selects `cover_slot.id AS slot_id`,
@@ -260,8 +270,8 @@ v1 — it is a feature, not a gap in plumbing, and it needs its own thinking.
 
 | Status | Count |
 |---|---|
-| Closed | 4 |
-| Open | 9 |
+| Closed | 5 |
+| Open | 8 |
 | Accepted | 3 |
 
 **G-03 and G-05, which blocked Sprint 01's first screens, are both closed (W3-20).**

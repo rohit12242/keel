@@ -100,8 +100,10 @@ now exists (`migrations/1790236127275_add-status-event.cjs`):
 
 **What is dropped later, not by W4-10.** `plan_slot` and its constraints,
 `objective.status`, and the `objective_status` and `period_kind` types stay until
-**W4-29** moves the readers and **W4-30** drops them — `GET /day/{date}` is
-deployed and still reads both (G-15). Expand, migrate, contract (ADR-004).
+they can go. **W4-29 moved the readers** — Today and the effort write compute the
+covering slot and read the status from `status_event`, nothing writes `plan_slot`,
+and `PlanSlot.id` left the contract (G-15, closed). **W4-30 drops them**, with no
+reader left to break. Expand, migrate, contract (ADR-004).
 
 Invariant 9 is the one that loses a database constraint in that trade —
 `plan_slot_unique` goes and nothing replaces it, because a value cannot carry a
