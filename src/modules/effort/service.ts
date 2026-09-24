@@ -6,9 +6,7 @@ import {
   isDateInPlan,
 } from "@/modules/objectives/domain/coveringSlot";
 import { currentStatus } from "@/modules/objectives/domain/statusTimeline";
-import { bitmaskToWeekdays } from "@/modules/objectives/domain/weekdays";
-import type { SegmentForSlots } from "@/modules/objectives/domain/generateSlots";
-import type { DaySegmentRow } from "@/modules/today/domain/rows";
+import { toSegment } from "@/modules/objectives/domain/segmentRows";
 import {
   getObjectiveForEffort,
   insertEffortEntry,
@@ -26,16 +24,6 @@ export type CreateEffortResult =
   | { ok: false; kind: "not_found" }
   | { ok: false; kind: "not_active" }
   | { ok: false; kind: "outside_plan" };
-
-function toSegment(row: DaySegmentRow): SegmentForSlots {
-  return {
-    scheduleMode: row.schedule_mode,
-    plannedWeekdays: bitmaskToWeekdays(row.planned_weekdays ?? 0),
-    minutesPerPlannedDay: row.minutes_per_planned_day,
-    startDate: row.start_date,
-    endDate: row.end_date,
-  };
-}
 
 function present(row: EffortEntryRow, extra: boolean): EffortEntry {
   const entry: EffortEntry = {

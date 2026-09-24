@@ -1,6 +1,6 @@
 import { query } from "@/shared/db";
 import type { EffortEntryWrite } from "@/shared/contract";
-import type { DaySegmentRow } from "@/modules/today/domain/rows";
+import type { PlanSegmentRow } from "@/modules/objectives/domain/segmentRows";
 import type { StatusEventRow } from "@/modules/objectives/domain/statusTimeline";
 
 /**
@@ -8,7 +8,7 @@ import type { StatusEventRow } from "@/modules/objectives/domain/statusTimeline"
  */
 
 export type ObjectiveForEffort = {
-  segments: DaySegmentRow[];
+  segments: PlanSegmentRow[];
   status_events: StatusEventRow[];
 };
 

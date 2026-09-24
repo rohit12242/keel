@@ -1,4 +1,5 @@
 import type { StatusEventRow } from "@/modules/objectives/domain/statusTimeline";
+import type { PlanSegmentRow } from "@/modules/objectives/domain/segmentRows";
 
 /**
  * The row shape the Today query returns and the domain assembler consumes.
@@ -23,20 +24,10 @@ export type DayEntryRow = {
   logged_at: string;
 };
 
-export type DaySegmentRow = {
-  seq: number;
-  schedule_mode: "fixed" | "flexible";
-  planned_weekdays: number | null;
-  days_per_week: number | null;
-  minutes_per_planned_day: number;
-  start_date: string;
-  end_date: string;
-};
-
 export type DayObjectiveRow = {
   id: string;
   title: string;
-  segments: DaySegmentRow[];
+  segments: PlanSegmentRow[];
   status_events: StatusEventRow[];
   entries: DayEntryRow[];
   /** This objective's minutes for the whole week the date falls in. */

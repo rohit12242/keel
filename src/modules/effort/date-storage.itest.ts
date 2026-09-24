@@ -14,8 +14,9 @@ import { getDayRows } from "@/modules/today/repo";
  *   - the database session timezone (asserted directly below), or
  *   - when the request arrived.
  *
- * Fixtures come from `npm run seed` (user, an active objective, Mon–Fri slots
- * covering 2026-09-18, a Friday). Run migrate + seed before this suite.
+ * Fixtures come from `npm run seed` (user, an objective created 2026-09-14 with
+ * a fixed Mon–Fri segment covering 2026-09-18, a Friday). Slots are computed,
+ * not seeded (W4-29). Run migrate + seed before this suite.
  */
 const USER_ID = "00000000-0000-0000-0000-000000000001";
 const OBJECTIVE_ID = "00000000-0000-0000-0000-0000000000a1";

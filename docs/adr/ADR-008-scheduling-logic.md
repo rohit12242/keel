@@ -206,6 +206,11 @@ own decision. It is not a reason to keep generated rows.
   bug where a pause forgets to suppress a slot cannot occur.
 - Two dual-source-of-truth pairs removed: slots against the generator, and
   `objective.status` against its history.
+- The effort write's `extra` flag is one implementation, not two. It was worked
+  out in SQL at insert time; since W4-29 the service asks `coveringSlot` — the
+  same function Today uses — so a fix to the slot rule reaches the write and the
+  read together (W4-29, Rohit's call over rewriting the SQL against
+  `plan_segment` + `status_event`).
 - Fewer rows, and NFR-09's budget gets quieter — 780 slot rows a year were the
   largest single source in the table.
 

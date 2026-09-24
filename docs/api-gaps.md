@@ -160,8 +160,8 @@ of rotation — which an app-alive check should not do.
 
 ### G-15 — The contract states slots as stored rows · CLOSED
 **Found by:** W4-09 (ADR-008)
-ADR-008 drops `plan_slot`: a slot is a value computed by
-`generateSlots(segment, statusEvents)`, never a row. The contract says otherwise in
+**What it was.** ADR-008 dropped `plan_slot`: a slot is a value computed by
+`generateSlots(segment, statusEvents)`, never a row. The contract said otherwise in
 two ways.
 
 - `PlanSlot` **requires `id: uuid`** (`keel-api.yaml:1120-1129`), returned inside
@@ -232,6 +232,32 @@ down until now:
 **Blocks:** E-02's status-change endpoint. Nothing today — the operation has no
 implementation.
 
+### G-17 — A flexible objective computes no slot at all · OPEN
+**Found by:** the W4-29 reviewer
+`coveringSlot` skips any segment that is not `fixed`, because `generateSlots`
+implements fixed schedules only (week rows are E-02's story). Since W4-29 slots
+are computed rather than read, a flexible objective would therefore render on
+Today as **unplanned, with every entry marked `extra`** — a wrong answer, not a
+missing feature, from a product whose claim is that the record decides.
+
+Returning null rather than throwing is deliberate and stays: `generateSlots`
+throws, and a throw inside the one-query assembler would turn a single flexible
+objective into a failed read for the whole of Today. The problem is the silence,
+not the null.
+
+**Nothing can hit it today.** No writer creates a flexible segment — there is no
+create-objective service yet and the seed writes a fixed one — so this is latent.
+
+**Expiry condition:** this must close **before `POST /objectives` accepts
+`flexible`** (E-02). Closing it means week rows in `generateSlots`, which is E-02
+story 4, not a contract change.
+
+Related, from the same review: the contract's 422 on the effort write says
+"Ended and completed objectives accept no new effort", but since W4-29 an
+objective with **no status events at all** is also refused as not-active (ERD
+invariant 16 — no events means no status, rather than a default of active). The
+wording should cover that case.
+
 ---
 
 ## Accepted for v1
@@ -271,7 +297,7 @@ v1 — it is a feature, not a gap in plumbing, and it needs its own thinking.
 | Status | Count |
 |---|---|
 | Closed | 5 |
-| Open | 8 |
+| Open | 9 |
 | Accepted | 3 |
 
 **G-03 and G-05, which blocked Sprint 01's first screens, are both closed (W3-20).**

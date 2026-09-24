@@ -21,8 +21,10 @@ them.** Two entries in this model were derivations pretending to be facts.
   local-date and append-only rules are written down here for the first time.
 - The entity count went from 11 to 10. It was never a target.
 
-**The schema does not match this yet** — `plan_slot` and `objective.status` still
-exist in `migrations/`. W4-10 is the migration.
+**Where the schema is** — `status_event` exists and every objective has a
+`created` event (W4-10, the expand step). `plan_slot` and `objective.status` still
+exist but **nothing reads or writes them** (W4-29 moved the readers); W4-30 drops
+them.
 
 ## What revision 2 changed
 

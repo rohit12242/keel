@@ -5,9 +5,12 @@ import {
   coveringSlot,
   nextPlannedDate,
 } from "@/modules/objectives/domain/coveringSlot";
-import type { SegmentForSlots } from "@/modules/objectives/domain/generateSlots";
 import { currentStatus } from "@/modules/objectives/domain/statusTimeline";
-import type { DayObjectiveRow, DayEntryRow, DaySegmentRow } from "./rows";
+import {
+  toSegment,
+  type PlanSegmentRow,
+} from "@/modules/objectives/domain/segmentRows";
+import type { DayObjectiveRow, DayEntryRow } from "./rows";
 
 /**
  * Shape the query rows into the Day the contract declares (ADR-001 domain:
@@ -18,30 +21,19 @@ import type { DayObjectiveRow, DayEntryRow, DaySegmentRow } from "./rows";
  * Totals are summed from the same rows — no extra read.
  */
 
-/** The repository's segment row, as `generateSlots` wants it. */
-function toSegment(row: DaySegmentRow): SegmentForSlots {
-  return {
-    scheduleMode: row.schedule_mode,
-    plannedWeekdays: bitmaskToWeekdays(row.planned_weekdays ?? 0),
-    minutesPerPlannedDay: row.minutes_per_planned_day,
-    startDate: row.start_date,
-    endDate: row.end_date,
-  };
-}
-
 /**
  * The segment whose range covers the date, else the latest by seq — so an
  * out-of-plan date still shows a schedule, with no slot.
  */
 function segmentInForce(
-  segments: DaySegmentRow[],
+  segments: PlanSegmentRow[],
   date: string,
-): DaySegmentRow | undefined {
+): PlanSegmentRow | undefined {
   const covering = segments.find(
     (s) => s.start_date <= date && date <= s.end_date,
   );
   if (covering) return covering;
-  return segments.reduce<DaySegmentRow | undefined>(
+  return segments.reduce<PlanSegmentRow | undefined>(
     (latest, s) => (latest === undefined || s.seq > latest.seq ? s : latest),
     undefined,
   );
