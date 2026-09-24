@@ -59,6 +59,20 @@ docker compose ps   # STATUS should show "healthy" for the db service
 This is an empty database — there is no schema yet (that is a later story). It
 just needs to be running and reachable.
 
+### If Postgres will not start after a version bump
+
+A major-version bump (17 → 18, W4-07) cannot read the old data directory, and
+Postgres 18+ images also expect the mount at `/var/lib/postgresql` rather than
+`/var/lib/postgresql/data`. Either shows up as the container restart-looping with
+"there appears to be PostgreSQL data in ...". The local database is throwaway, so
+recreate it:
+
+```
+docker compose down -v
+docker compose up -d
+npm run migrate && npm run seed
+```
+
 ## 5. Configure
 
 ```sh

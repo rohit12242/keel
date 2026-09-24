@@ -189,8 +189,38 @@ real row id.
 **Order matters: this fix lands _before_ `plan_slot` is dropped, not after.**
 Drop the table first and the query has no `cover_slot.id` to select, so a live
 endpoint breaks — and it breaks by omitting a field the contract marks required,
-which is the silent kind. So within W4-10: change the contract, the query and the
-assembler to stop carrying a slot id, ship that, and only then drop the table.
+which is the silent kind. W4-10 (the expand step) therefore drops nothing. The
+order across the remaining two: **W4-29** changes the contract, the query and the
+assembler to stop carrying a slot id and closes this gap; **W4-30** drops the
+table once nothing reads it.
+
+### G-16 — `createStatusChange` cannot say which day the change happened · OPEN
+**Found by:** W4-10, by building the column
+`POST /objectives/{objectiveId}/status-changes` takes `{change, reason}`
+(`keel-api.yaml:478-487`). W4-10 made `status_event.occurred_on` a `date NOT NULL`
+that the ERD says is "set by the client and never moved" (`docs/erd.md`,
+status_event). **The endpoint as specified cannot supply it**, so an implementer
+has one option left: derive the day from the server clock — the exact NFR-12
+failure `local_date` exists to prevent, and the one W3-19's tests were written to
+catch.
+
+**The decision:** add `occurred_on` (and the client's `tz`, as
+`POST /objectives/{id}/effort-entries` already does) to the request body. A status
+change at 00:30 belongs to the day the user means, the same as effort.
+
+Two smaller mismatches in the same operation, both deliberate and neither written
+down until now:
+
+- the contract's verbs are `pause | resume | complete | end`; the database enum is
+  `paused | resumed | completed | ended`. An intent on the way in, a fact on the
+  way out — fine, but the mapping belongs somewhere.
+- `StatusEvent.change` in the contract (`keel-api.yaml:1272`) includes `extended`,
+  which the database enum deliberately excludes: an extension is a plan segment,
+  and the history panel is the two lists merged (ERD status_event). The contract
+  should not offer a value the schema refuses.
+
+**Blocks:** E-02's status-change endpoint. Nothing today — the operation has no
+implementation.
 
 ---
 
@@ -231,7 +261,7 @@ v1 — it is a feature, not a gap in plumbing, and it needs its own thinking.
 | Status | Count |
 |---|---|
 | Closed | 4 |
-| Open | 8 |
+| Open | 9 |
 | Accepted | 3 |
 
 **G-03 and G-05, which blocked Sprint 01's first screens, are both closed (W3-20).**

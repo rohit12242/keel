@@ -23,7 +23,11 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - keel-pgdata:/var/lib/postgresql/data
+      # Postgres 18+ images expect the mount one level up, at
+      # /var/lib/postgresql, and keep the cluster in a major-version
+      # subdirectory below it (docker-library/postgres#1259). Mounting
+      # .../data instead is the 17-and-earlier layout and refuses to start.
+      - keel-pgdata:/var/lib/postgresql
     healthcheck:
       # `docker compose up` reports healthy only once Postgres accepts
       # connections, so "up and healthy" means "reachable".
