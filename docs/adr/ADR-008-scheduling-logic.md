@@ -100,8 +100,10 @@ now exists (`migrations/1790236127275_add-status-event.cjs`):
 
 **What is dropped later, not by W4-10.** `plan_slot` and its constraints,
 `objective.status`, and the `objective_status` and `period_kind` types stay until
-**W4-29** moves the readers and **W4-30** drops them — `GET /day/{date}` is
-deployed and still reads both (G-15). Expand, migrate, contract (ADR-004).
+they can go. **W4-29 moved the readers** — Today and the effort write compute the
+covering slot and read the status from `status_event`, nothing writes `plan_slot`,
+and `PlanSlot.id` left the contract (G-15, closed). **W4-30 drops them**, with no
+reader left to break. Expand, migrate, contract (ADR-004).
 
 Invariant 9 is the one that loses a database constraint in that trade —
 `plan_slot_unique` goes and nothing replaces it, because a value cannot carry a
@@ -204,6 +206,11 @@ own decision. It is not a reason to keep generated rows.
   bug where a pause forgets to suppress a slot cannot occur.
 - Two dual-source-of-truth pairs removed: slots against the generator, and
   `objective.status` against its history.
+- The effort write's `extra` flag is one implementation, not two. It was worked
+  out in SQL at insert time; since W4-29 the service asks `coveringSlot` — the
+  same function Today uses — so a fix to the slot rule reaches the write and the
+  read together (W4-29, Rohit's call over rewriting the SQL against
+  `plan_segment` + `status_event`).
 - Fewer rows, and NFR-09's budget gets quieter — 780 slot rows a year were the
   largest single source in the table.
 

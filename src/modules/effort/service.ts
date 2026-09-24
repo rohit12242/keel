@@ -2,7 +2,13 @@ import { getConfig } from "@/config/env";
 import type { EffortEntry, ProblemError } from "@/shared/contract";
 import { validateEffortEntryWrite } from "./domain/validateWrite";
 import {
-  checkObjectiveForEffort,
+  coveringSlot,
+  isDateInPlan,
+} from "@/modules/objectives/domain/coveringSlot";
+import { currentStatus } from "@/modules/objectives/domain/statusTimeline";
+import { toSegment } from "@/modules/objectives/domain/segmentRows";
+import {
+  getObjectiveForEffort,
   insertEffortEntry,
   type EffortEntryRow,
 } from "./repo";
@@ -19,7 +25,7 @@ export type CreateEffortResult =
   | { ok: false; kind: "not_active" }
   | { ok: false; kind: "outside_plan" };
 
-function present(row: EffortEntryRow): EffortEntry {
+function present(row: EffortEntryRow, extra: boolean): EffortEntry {
   const entry: EffortEntry = {
     id: row.id,
     objective_id: row.objective_id,
@@ -29,7 +35,7 @@ function present(row: EffortEntryRow): EffortEntry {
     note: row.note,
     link: row.link,
     logged_at: row.logged_at,
-    extra: row.extra,
+    extra,
   };
   if (row.occurred_at_local) entry.occurred_at_local = row.occurred_at_local;
   return entry;
@@ -45,15 +51,24 @@ export async function createEffortEntry(
   }
 
   const { seedUserId } = getConfig();
-  const check = await checkObjectiveForEffort(
-    seedUserId,
-    objectiveId,
-    validated.value.local_date,
-  );
-  if (!check) return { ok: false, kind: "not_found" };
-  if (check.status !== "active") return { ok: false, kind: "not_active" };
-  if (!check.date_covered) return { ok: false, kind: "outside_plan" };
+  const objective = await getObjectiveForEffort(seedUserId, objectiveId);
+  if (!objective) return { ok: false, kind: "not_found" };
+
+  // The rules are pure functions over the facts (ADR-008): the status is the
+  // latest status event, and "outside the plan" is outside every segment range.
+  const segments = objective.segments.map(toSegment);
+  const date = validated.value.local_date;
+
+  if (currentStatus(objective.status_events) !== "active") {
+    return { ok: false, kind: "not_active" };
+  }
+  if (!isDateInPlan(segments, date)) {
+    return { ok: false, kind: "outside_plan" };
+  }
+
+  // Derived, never stored: an entry is extra when no day slot covers its date.
+  const extra = coveringSlot(segments, objective.status_events, date) === null;
 
   const row = await insertEffortEntry(objectiveId, validated.value);
-  return { ok: true, entry: present(row) };
+  return { ok: true, entry: present(row, extra) };
 }

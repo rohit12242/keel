@@ -8,7 +8,6 @@
  */
 import { existsSync } from "node:fs";
 import pg from "pg";
-import { generateSlots } from "../src/modules/objectives/domain/generateSlots.ts";
 import { weekdaysToBitmask } from "../src/modules/objectives/domain/weekdays.ts";
 import { configureDbDateParsing } from "../src/shared/db-types.ts";
 
@@ -63,8 +62,8 @@ try {
   // W4-10: an objective without a `created` status event has no status at all
   // (ERD invariant 16, ADR-008). The migration backfills existing rows; a seed
   // that creates an objective has to write one too, or it produces data that
-  // violates the invariant this schema just introduced. objective.status stays
-  // as it is until W4-29 moves the readers — this is additive.
+  // violates the invariant this schema just introduced. The status column is no
+  // longer read by anything (W4-29); it is dropped by W4-30.
   // Idempotent against status_event_one_created_idx, the partial unique index.
   await client.query(
     `INSERT INTO status_event (objective_id, occurred_on, change)
@@ -90,33 +89,14 @@ try {
     ],
   );
 
-  const slots = generateSlots({
-    scheduleMode: "fixed",
-    plannedWeekdays: WEEKDAYS,
-    minutesPerPlannedDay: MINUTES,
-    startDate: START,
-    endDate: END,
-  });
-  for (const s of slots) {
-    await client.query(
-      `INSERT INTO plan_slot
-         (plan_segment_id, period_kind, period_start, period_end, target_minutes, target_days)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (plan_segment_id, period_start, period_kind) DO NOTHING`,
-      [
-        SEGMENT_ID,
-        s.periodKind,
-        s.periodStart,
-        s.periodEnd,
-        s.targetMinutes,
-        s.targetDays,
-      ],
-    );
-  }
+  // No plan_slot rows (W4-29). Slots are computed from the segment and the
+  // status events on every read (ADR-008), so seeding them would write a
+  // derivation and give the generator something to disagree with. The table
+  // still exists until W4-30 drops it; nothing writes to it and nothing reads it.
 
   await client.query("COMMIT");
   console.log(
-    `seed: user ${USER_ID}, objective "Ship Keel", 1 segment, ${slots.length} day slots (${START}..${END}).`,
+    `seed: user ${USER_ID}, objective "Ship Keel" (created ${START}), 1 segment (${START}..${END}). Slots are computed, not seeded.`,
   );
 } catch (e) {
   await client.query("ROLLBACK");

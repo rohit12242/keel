@@ -158,10 +158,10 @@ the ALB probes `/health`, a 503 during a database outage pulls a healthy app tas
 of rotation — which an app-alive check should not do.
 **Blocks:** nothing now. It matters for NFR-07 and the E-06 uptime check.
 
-### G-15 — The contract states slots as stored rows · OPEN
+### G-15 — The contract states slots as stored rows · CLOSED
 **Found by:** W4-09 (ADR-008)
-ADR-008 drops `plan_slot`: a slot is a value computed by
-`generateSlots(segment, statusEvents)`, never a row. The contract says otherwise in
+**What it was.** ADR-008 dropped `plan_slot`: a slot is a value computed by
+`generateSlots(segment, statusEvents)`, never a row. The contract said otherwise in
 two ways.
 
 - `PlanSlot` **requires `id: uuid`** (`keel-api.yaml:1120-1129`), returned inside
@@ -176,8 +176,18 @@ server mint a stable synthetic one. Dropping is the honest option — an id the
 client cannot use to address anything is an invitation to store it. The prose
 changes either way, from generation-as-writing to generation-as-computing.
 
-**Not fixed here on purpose.** W4-09 is the decision and the ERD; it writes no
-contract change and no code.
+**Fixed (W4-29).** `PlanSlot.id` is gone from the schema — both the property and
+its `required` entry — and the schema now says a slot is computed, not stored. The
+prose that described generation as persistence was corrected in the same commit
+(the six places: the day read, `createObjective`, the schedule grid,
+`createStatusChange`, `extendPlan`, and the review figures). `GET /day/{date}`
+computes the covering slot from the segment and the status events and emits no id,
+so the contract and the code agree again.
+
+The ordering held: this landed **before** anything dropped `plan_slot`. W4-30 now
+drops the table with no reader left.
+
+**Originally raised as:**
 
 **Blocks: `GET /day/{date}`, which serves a slot id today.**
 `src/modules/today/repo.ts:84` selects `cover_slot.id AS slot_id`,
@@ -222,6 +232,32 @@ down until now:
 **Blocks:** E-02's status-change endpoint. Nothing today — the operation has no
 implementation.
 
+### G-17 — A flexible objective computes no slot at all · OPEN
+**Found by:** the W4-29 reviewer
+`coveringSlot` skips any segment that is not `fixed`, because `generateSlots`
+implements fixed schedules only (week rows are E-02's story). Since W4-29 slots
+are computed rather than read, a flexible objective would therefore render on
+Today as **unplanned, with every entry marked `extra`** — a wrong answer, not a
+missing feature, from a product whose claim is that the record decides.
+
+Returning null rather than throwing is deliberate and stays: `generateSlots`
+throws, and a throw inside the one-query assembler would turn a single flexible
+objective into a failed read for the whole of Today. The problem is the silence,
+not the null.
+
+**Nothing can hit it today.** No writer creates a flexible segment — there is no
+create-objective service yet and the seed writes a fixed one — so this is latent.
+
+**Expiry condition:** this must close **before `POST /objectives` accepts
+`flexible`** (E-02). Closing it means week rows in `generateSlots`, which is E-02
+story 4, not a contract change.
+
+Related, from the same review: the contract's 422 on the effort write says
+"Ended and completed objectives accept no new effort", but since W4-29 an
+objective with **no status events at all** is also refused as not-active (ERD
+invariant 16 — no events means no status, rather than a default of active). The
+wording should cover that case.
+
 ---
 
 ## Accepted for v1
@@ -260,7 +296,7 @@ v1 — it is a feature, not a gap in plumbing, and it needs its own thinking.
 
 | Status | Count |
 |---|---|
-| Closed | 4 |
+| Closed | 5 |
 | Open | 9 |
 | Accepted | 3 |
 

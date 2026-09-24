@@ -1,35 +1,54 @@
 import { query } from "@/shared/db";
 import type { EffortEntryWrite } from "@/shared/contract";
+import type { PlanSegmentRow } from "@/modules/objectives/domain/segmentRows";
+import type { StatusEventRow } from "@/modules/objectives/domain/statusTimeline";
 
 /**
  * effort/repo — the only file in this module with SQL (ADR-001).
  */
 
-export type ObjectiveEffortCheck = {
-  status: "active" | "paused" | "completed" | "ended";
-  date_covered: boolean;
+export type ObjectiveForEffort = {
+  segments: PlanSegmentRow[];
+  status_events: StatusEventRow[];
 };
 
 /**
- * The objective's status and whether the date falls inside any of its plan
- * segments — the two things the 422 rule needs — for the current user. Null
- * when the objective does not exist or belongs to someone else (→ 404, NFR-10).
+ * The facts the write rules need: the objective's plan segments and its status
+ * events. Null when the objective does not exist or belongs to someone else
+ * (→ 404, NFR-10).
+ *
+ * Since W4-29 this reads no `objective.status` column and no `plan_slot`: the
+ * status is the latest status event and the covering slot is computed, both in
+ * `domain/` (ADR-008). One query, as before.
  */
-export async function checkObjectiveForEffort(
+export async function getObjectiveForEffort(
   userId: string,
   objectiveId: string,
-  date: string,
-): Promise<ObjectiveEffortCheck | null> {
-  const res = await query<ObjectiveEffortCheck>(
-    `SELECT o.status,
-       EXISTS (
-         SELECT 1 FROM plan_segment s
-         WHERE s.objective_id = o.id
-           AND s.start_date <= $3::date AND s.end_date >= $3::date
-       ) AS date_covered
+): Promise<ObjectiveForEffort | null> {
+  const res = await query<ObjectiveForEffort>(
+    `SELECT
+       COALESCE((
+         SELECT json_agg(json_build_object(
+           'seq', s.seq,
+           'schedule_mode', s.schedule_mode,
+           'planned_weekdays', s.planned_weekdays,
+           'days_per_week', s.days_per_week,
+           'minutes_per_planned_day', s.minutes_per_planned_day,
+           'start_date', to_char(s.start_date, 'YYYY-MM-DD'),
+           'end_date', to_char(s.end_date, 'YYYY-MM-DD')
+         ) ORDER BY s.seq)
+         FROM plan_segment s WHERE s.objective_id = o.id
+       ), '[]'::json) AS segments,
+       COALESCE((
+         SELECT json_agg(json_build_object(
+           'occurred_on', to_char(e.occurred_on, 'YYYY-MM-DD'),
+           'change', e.change
+         ) ORDER BY e.occurred_on, e.recorded_at)
+         FROM status_event e WHERE e.objective_id = o.id
+       ), '[]'::json) AS status_events
      FROM objective o
      WHERE o.id = $2 AND o.user_id = $1`,
-    [userId, objectiveId, date],
+    [userId, objectiveId],
   );
   return res.rows[0] ?? null;
 }
@@ -45,13 +64,13 @@ export type EffortEntryRow = {
   occurred_at_local: string | null;
   link: string | null;
   logged_at: string;
-  extra: boolean;
 };
 
 /**
  * Insert the entry. logged_at defaults to now() in the DB — never from the
- * client. `extra` is computed in the RETURNING (no day slot covers the date);
- * it is not a column and is never written.
+ * client. `extra` is NOT here: it is a derivation, computed by the domain from
+ * the segments and status events (ADR-008, W4-29), never stored and no longer
+ * worked out in SQL.
  */
 export async function insertEffortEntry(
   objectiveId: string,
@@ -66,13 +85,7 @@ export async function insertEffortEntry(
        to_char(local_date, 'YYYY-MM-DD') AS local_date,
        tz, minutes, note, link,
        to_char(occurred_at_local, 'HH24:MI') AS occurred_at_local,
-       to_char(logged_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS logged_at,
-       NOT EXISTS (
-         SELECT 1 FROM plan_slot ps
-         JOIN plan_segment s ON s.id = ps.plan_segment_id
-         WHERE s.objective_id = $1
-           AND ps.period_kind = 'day' AND ps.period_start = $2::date
-       ) AS extra`,
+       to_char(logged_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS logged_at`,
     [
       objectiveId,
       w.local_date,

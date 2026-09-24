@@ -1,16 +1,45 @@
 import type { Day, DayObjective, EffortEntry } from "@/shared/contract";
 import { bitmaskToWeekdays } from "@/modules/objectives/domain/weekdays";
 import { scheduleLabel } from "@/modules/objectives/domain/scheduleLabel";
+import {
+  coveringSlot,
+  nextPlannedDate,
+} from "@/modules/objectives/domain/coveringSlot";
+import { currentStatus } from "@/modules/objectives/domain/statusTimeline";
+import {
+  toSegment,
+  type PlanSegmentRow,
+} from "@/modules/objectives/domain/segmentRows";
 import type { DayObjectiveRow, DayEntryRow } from "./rows";
 
 /**
  * Shape the query rows into the Day the contract declares (ADR-001 domain:
- * pure). Totals are summed here from the same rows the query returned — no
- * extra read. `week_minutes` is carried on every row (the query's cross join);
- * with no rows there is nothing logged, so it is zero.
+ * pure). Since W4-29 this also *computes* what the query used to read from
+ * `plan_slot`: the covering slot, whether an entry is extra, the next planned
+ * date, and which objectives are active (ADR-008).
+ *
+ * Totals are summed from the same rows — no extra read.
  */
 
-function toEntry(row: DayEntryRow): EffortEntry {
+/**
+ * The segment whose range covers the date, else the latest by seq — so an
+ * out-of-plan date still shows a schedule, with no slot.
+ */
+function segmentInForce(
+  segments: PlanSegmentRow[],
+  date: string,
+): PlanSegmentRow | undefined {
+  const covering = segments.find(
+    (s) => s.start_date <= date && date <= s.end_date,
+  );
+  if (covering) return covering;
+  return segments.reduce<PlanSegmentRow | undefined>(
+    (latest, s) => (latest === undefined || s.seq > latest.seq ? s : latest),
+    undefined,
+  );
+}
+
+function toEntry(row: DayEntryRow, extra: boolean): EffortEntry {
   const entry: EffortEntry = {
     id: row.id,
     objective_id: row.objective_id,
@@ -20,54 +49,77 @@ function toEntry(row: DayEntryRow): EffortEntry {
     note: row.note,
     link: row.link,
     logged_at: row.logged_at,
-    extra: row.extra,
+    extra,
   };
   if (row.occurred_at_local) entry.occurred_at_local = row.occurred_at_local;
   return entry;
 }
 
-function toObjective(row: DayObjectiveRow): DayObjective {
-  const isFixed = row.schedule_mode === "fixed";
+function toObjective(row: DayObjectiveRow, date: string): DayObjective {
+  const segments = row.segments.map(toSegment);
+  const slot = coveringSlot(segments, row.status_events, date);
+  const inForce = segmentInForce(row.segments, date);
+  const isFixed = inForce?.schedule_mode === "fixed";
+
+  // Every entry here is for `date`, so one slot decides them all: an entry is
+  // extra when no day slot covers its date (contract wording, ERD invariant 10).
+  const extra = slot === null;
+
   return {
     id: row.id,
     title: row.title,
     schedule: {
-      mode: row.schedule_mode,
-      minutes_per_planned_day: row.minutes_per_planned_day,
+      mode: inForce?.schedule_mode ?? "fixed",
+      minutes_per_planned_day: inForce?.minutes_per_planned_day ?? 0,
       ...(isFixed
-        ? { planned_weekdays: bitmaskToWeekdays(row.planned_weekdays ?? 0) }
-        : { days_per_week: row.days_per_week ?? 0 }),
+        ? {
+            planned_weekdays: bitmaskToWeekdays(inForce?.planned_weekdays ?? 0),
+          }
+        : { days_per_week: inForce?.days_per_week ?? 0 }),
       label: scheduleLabel({
-        mode: row.schedule_mode,
-        plannedWeekdays: bitmaskToWeekdays(row.planned_weekdays ?? 0),
-        daysPerWeek: row.days_per_week ?? undefined,
-        minutesPerPlannedDay: row.minutes_per_planned_day,
+        mode: inForce?.schedule_mode ?? "fixed",
+        plannedWeekdays: bitmaskToWeekdays(inForce?.planned_weekdays ?? 0),
+        daysPerWeek: inForce?.days_per_week ?? undefined,
+        minutesPerPlannedDay: inForce?.minutes_per_planned_day ?? 0,
       }),
     },
-    slot: row.slot_id
+    // A computed slot has no id — it is a value, not a row (W4-29, G-15).
+    slot: slot
       ? {
-          id: row.slot_id,
-          period_kind: row.period_kind!,
-          period_start: row.period_start!,
-          period_end: row.period_end!,
-          target_minutes: row.target_minutes!,
-          target_days: row.target_days,
+          period_kind: slot.periodKind,
+          period_start: slot.periodStart,
+          period_end: slot.periodEnd,
+          target_minutes: slot.targetMinutes,
+          target_days: slot.targetDays,
         }
       : null,
-    next_planned_date: row.next_planned_date,
-    entries: row.entries.map(toEntry),
-    logged_minutes: row.logged_minutes,
+    next_planned_date: nextPlannedDate(segments, row.status_events, date),
+    entries: row.entries.map((e) => toEntry(e, extra)),
+    logged_minutes: row.entries.reduce((sum, e) => sum + e.minutes, 0),
   };
 }
 
 export function assembleDay(date: string, rows: DayObjectiveRow[]): Day {
+  // The status is the latest status event; the query no longer filters on a
+  // status column (ADR-008). Objectives that are paused, completed or ended —
+  // and any with no events at all — are not on Today.
+  const active = rows.filter(
+    (row) => currentStatus(row.status_events) === "active",
+  );
+
+  const objectives = active.map((row) => toObjective(row, date));
+
   return {
     date,
-    objectives: rows.map(toObjective),
+    objectives,
     totals: {
-      today_minutes: rows.reduce((sum, r) => sum + r.logged_minutes, 0),
-      week_minutes: rows[0]?.week_minutes ?? 0,
-      extra_off_day_minutes: rows.reduce((sum, r) => sum + r.extra_minutes, 0),
+      today_minutes: objectives.reduce((sum, o) => sum + o.logged_minutes, 0),
+      week_minutes: active.reduce((sum, r) => sum + r.week_minutes, 0),
+      extra_off_day_minutes: objectives.reduce(
+        (sum, o) =>
+          sum + o.entries.reduce((s, e) => s + (e.extra ? e.minutes : 0), 0),
+        0,
+      ),
     },
     last_deviation: null,
   };
