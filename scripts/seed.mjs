@@ -47,8 +47,8 @@ try {
 
   await client.query(
     `INSERT INTO objective
-       (id, user_id, title, why_now, success_criteria, review_cadence, status)
-     VALUES ($1, $2, $3, $4, $5, 'weekly', 'active')
+       (id, user_id, title, why_now, success_criteria, review_cadence)
+     VALUES ($1, $2, $3, $4, $5, 'weekly')
      ON CONFLICT (id) DO NOTHING`,
     [
       OBJECTIVE_ID,
@@ -62,8 +62,8 @@ try {
   // W4-10: an objective without a `created` status event has no status at all
   // (ERD invariant 16, ADR-008). The migration backfills existing rows; a seed
   // that creates an objective has to write one too, or it produces data that
-  // violates the invariant this schema just introduced. The status column is no
-  // longer read by anything (W4-29); it is dropped by W4-30.
+  // violates the invariant this schema just introduced. There is no status
+  // column (dropped by W4-30): this event IS the objective's status.
   // Idempotent against status_event_one_created_idx, the partial unique index.
   await client.query(
     `INSERT INTO status_event (objective_id, occurred_on, change)
@@ -89,10 +89,8 @@ try {
     ],
   );
 
-  // No plan_slot rows (W4-29). Slots are computed from the segment and the
-  // status events on every read (ADR-008), so seeding them would write a
-  // derivation and give the generator something to disagree with. The table
-  // still exists until W4-30 drops it; nothing writes to it and nothing reads it.
+  // No slots to seed: they are computed from the segment and the status events
+  // on every read (ADR-008), and there is no table to put them in (W4-30).
 
   await client.query("COMMIT");
   console.log(

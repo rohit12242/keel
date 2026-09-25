@@ -260,20 +260,24 @@ describe("W4-10 schema constraints (real Postgres)", () => {
     expect(err?.message).toContain("not contiguous");
   });
 
-  it("left plan_slot and objective.status in place (expand only, ADR-004)", async () => {
-    // W4-10 added; W4-29 stopped reading and seeding; W4-30 drops. So the table
-    // is empty now — what must still be true is that it EXISTS, along with
-    // objective.status, until the drop story.
+  it("has dropped plan_slot, objective.status and both types (contract step)", async () => {
+    // W4-10 added, W4-29 moved the readers, W4-30 dropped. This assertion
+    // described the expand step until then; it now pins the end state, so a
+    // down migration left applied by mistake shows up here.
     const res = await client.query<{
       slot_table: string;
       status_columns: string;
+      old_types: string;
     }>(
       `SELECT (SELECT count(*) FROM information_schema.tables
                WHERE table_name = 'plan_slot') AS slot_table,
               (SELECT count(*) FROM information_schema.columns
-               WHERE table_name = 'objective' AND column_name = 'status') AS status_columns`,
+               WHERE table_name = 'objective' AND column_name = 'status') AS status_columns,
+              (SELECT count(*) FROM pg_type
+               WHERE typname IN ('objective_status', 'period_kind')) AS old_types`,
     );
-    expect(Number(res.rows[0].slot_table)).toBe(1);
-    expect(Number(res.rows[0].status_columns)).toBe(1);
+    expect(Number(res.rows[0].slot_table)).toBe(0);
+    expect(Number(res.rows[0].status_columns)).toBe(0);
+    expect(Number(res.rows[0].old_types)).toBe(0);
   });
 });
