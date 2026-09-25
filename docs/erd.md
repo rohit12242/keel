@@ -21,10 +21,11 @@ them.** Two entries in this model were derivations pretending to be facts.
   local-date and append-only rules are written down here for the first time.
 - The entity count went from 11 to 10. It was never a target.
 
-**Where the schema is** — `status_event` exists and every objective has a
-`created` event (W4-10, the expand step). `plan_slot` and `objective.status` still
-exist but **nothing reads or writes them** (W4-29 moved the readers); W4-30 drops
-them.
+**The schema matches this revision** (W4-30). It took three stories, in the
+expand-migrate-contract order ADR-004 requires: W4-10 added `status_event` and gave
+every objective a `created` event; W4-29 moved every reader off `plan_slot` and
+`objective.status`; W4-30 dropped them, and the `objective_status` and
+`period_kind` types with them (`migrations/1790338443477_drop-plan-slot-and-objective-status.cjs`).
 
 ## What revision 2 changed
 
