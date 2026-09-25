@@ -98,12 +98,13 @@ now exists (`migrations/1790236127275_add-status-event.cjs`):
   ERD names in words and W3-12 missed;
 - `plan_segment_contiguous`, the exception below.
 
-**What is dropped later, not by W4-10.** `plan_slot` and its constraints,
-`objective.status`, and the `objective_status` and `period_kind` types stay until
-they can go. **W4-29 moved the readers** — Today and the effort write compute the
+**What was dropped, and when — not by W4-10.** `plan_slot` and its constraints,
+`objective.status`, and the `objective_status` and `period_kind` types stayed until
+they could go. **W4-29 moved the readers** — Today and the effort write compute the
 covering slot and read the status from `status_event`, nothing writes `plan_slot`,
-and `PlanSlot.id` left the contract (G-15, closed). **W4-30 drops them**, with no
-reader left to break. Expand, migrate, contract (ADR-004).
+and `PlanSlot.id` left the contract (G-15, closed). **W4-30 dropped them**, once
+the live catalog showed nothing depended on them. Expand, migrate, contract
+(ADR-004) — complete.
 
 Invariant 9 is the one that loses a database constraint in that trade —
 `plan_slot_unique` goes and nothing replaces it, because a value cannot carry a

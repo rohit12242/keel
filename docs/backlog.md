@@ -45,20 +45,23 @@ correct schedule.
 15. Screen: Objectives list and its empty state
 16. Tests: slot generation across month boundaries, week starts, a pause and resume, and a flexible week that straddles the end date — plus the two rules that left the database with `plan_slot` (INV-9): no two generated slots cover the same day or week, and a segment yields day slots or week slots, never both
 
-**Changed by ADR-008 (W4-09).** `plan_slot` is dropped and `status_event` moves
-into this epic, because slot generation now depends on it. Story 1's migration
-creates `status_event` and removes `plan_slot` and `objective.status` (W4-10).
-Stories 3 and 4 change shape: `generateSlots` takes `(segment, statusEvents)` and
-returns values that are never written down. Story 11 stops being "suppression and
-resumption" as write-time bookkeeping — pausing suppresses nothing, it is simply an
-event the generator reads — so it shrinks to test coverage of that case.
+**Changed by ADR-008 (W4-09) — done.** `plan_slot` and `objective.status` are gone
+and `status_event` is part of this epic, because slot generation depends on it.
+It took three stories in expand-migrate-contract order (ADR-004):
 
-Already-merged code reads `plan_slot` and `objective.status` and has to change with
-the migration: `src/modules/today/repo.ts` (the day query joins slots and returns `slot_id`),
-`src/modules/today/domain/assembleDay.ts` (emits `slot.id`),
-`src/modules/effort/repo.ts` (the derived `extra` flag) and `scripts/seed.mjs`
-(seeds 20 slot rows). See **G-15**. **Open:** whether that
-rework rides along with W4-10 or is its own story — Rohit's call at merge.
+- **W4-10 (expand)** created `status_event` and gave every objective a `created`
+  event. It dropped nothing.
+- **W4-29 (migrate)** moved every reader: Today and the effort write compute the
+  covering slot and read the status from events, `PlanSlot.id` left the contract,
+  and the seed stopped writing slots. Closed G-15.
+- **W4-30 (contract)** dropped `plan_slot`, `objective.status` and their types.
+
+What that leaves for the rest of E-02: stories 3 and 4 are `generateSlots` taking
+`(segment, statusEvents)` and returning values that are never written down — story
+4's week rows also close **G-17** (flexible objectives compute no slot yet). Story
+11 is no longer "suppression and resumption" as write-time bookkeeping; pausing is
+an event the generator reads, already tested, so it shrinks to whatever coverage
+the create-objective and status-change endpoints need.
 
 **Not in this epic:** extensions. `canExtend` needs a plan-end review to authorise
 it, so it lives in E-05 with the review lifecycle.

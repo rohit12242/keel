@@ -35,11 +35,13 @@ describe("Today computes its slot (real Postgres)", () => {
     await getPool().end();
   });
 
-  it("reads no plan_slot rows — there are none to read", async () => {
-    const res = await query<{ count: string }>(
-      "SELECT count(*) FROM plan_slot",
+  it("has no plan_slot table to read — the slot can only be computed", async () => {
+    // Until W4-30 this counted rows in an empty table. The table is gone now,
+    // which is the stronger claim: there is nowhere for a stale slot to live.
+    const res = await query<{ exists: boolean }>(
+      "SELECT to_regclass('public.plan_slot') IS NOT NULL AS exists",
     );
-    expect(Number(res.rows[0].count)).toBe(0);
+    expect(res.rows[0].exists).toBe(false);
   });
 
   it("computes the day's slot, with no id, from segment and status events", async () => {
