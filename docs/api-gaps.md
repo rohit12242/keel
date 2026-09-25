@@ -184,8 +184,8 @@ prose that described generation as persistence was corrected in the same commit
 computes the covering slot from the segment and the status events and emits no id,
 so the contract and the code agree again.
 
-The ordering held: this landed **before** anything dropped `plan_slot`. W4-30 now
-drops the table with no reader left.
+The ordering held: this landed **before** anything dropped `plan_slot`, and W4-30
+dropped the table afterwards with no reader left.
 
 **Originally raised as:**
 

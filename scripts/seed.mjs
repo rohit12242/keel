@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Seed one user, one objective with one fixed weekday segment, and that
- * segment's generated slots (W3-12). Idempotent: safe to run repeatedly.
+ * Seed one user, one objective with its `created` status event, and one fixed
+ * weekday segment. No slots: they are computed from the segment and the status
+ * events on every read (ADR-008). Idempotent: safe to run repeatedly.
  *
- * Build/ops script — reads the environment directly and imports the pure
- * domain slot generator so the seed and the app agree on how slots are made.
+ * Build/ops script — reads the environment directly, and imports the pure
+ * domain weekday helper so the seed and the app agree on the bitmask.
  */
 import { existsSync } from "node:fs";
 import pg from "pg";
