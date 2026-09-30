@@ -147,10 +147,12 @@ step measured coverage at all, so the rule had never run once. W5-06 wires it an
 settles three details the original decision left open.
 
 - **Four metrics, not branches alone.** The domain threshold is 100% on
-  **branches, statements, functions and lines**. When first measured, the domain
-  sat at 80.32% branches — and a branch-only threshold would still have missed
-  two whole exported functions (`isDateInPlan`, `weekdaysToBitmask`) that no test
-  called, because a function with no branches has none to miss.
+  **branches, statements, functions and lines**. The gate's first run, in its own
+  scope (type-only files excluded), measured the domain at 80.16% branches. It
+  also showed why branches alone are not enough: `weekdaysToBitmask` was an
+  exported function no test called, yet its file stood at 100% branches, because
+  a function with no branches has none to miss. Only the functions metric (50%)
+  saw it.
 - **A type-only file is outside the threshold.** A file that contains only type
   declarations has no runtime code, so v8 reports it at 0% with nothing that could
   ever be covered. Each such file is excluded **by name** in `coverage.exclude` in

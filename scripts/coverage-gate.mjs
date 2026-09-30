@@ -30,8 +30,9 @@ const secs = ((Date.now() - started) / 1000).toFixed(2);
 
 if (result.status !== 0) {
   console.error(
-    `\n✗ Coverage gate FAILED (after ${secs}s). ADR-007: src/**/domain/** must be` +
-      `\n  at 100% branches, statements, functions and lines. An uncovered line` +
+    `\n✗ Coverage gate FAILED (after ${secs}s). Either a test failed (see above)` +
+      `\n  or ADR-007's threshold was missed: src/**/domain/** must be at 100%` +
+      `\n  branches, statements, functions and lines. An uncovered line` +
       `\n  above is a domain rule with no test — write the test, or delete the` +
       `\n  branch if it cannot happen. Never lower the threshold or add an ignore.`,
   );

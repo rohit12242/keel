@@ -16,7 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  # The eight blocking stages, ordered cheapest-and-most-likely-to-fail first
+  # ADR-003's eight blocking stages, plus W5-06's domain coverage gate (ADR-007),
+  # ordered cheapest-and-most-likely-to-fail first
   # and run as sequential steps so the job stops at the first failure
   # (ADR-003: "fail fast, fail cheap"). This whole job is the required check.
   ci:
