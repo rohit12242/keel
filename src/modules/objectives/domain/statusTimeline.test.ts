@@ -37,6 +37,12 @@ describe("statusOn", () => {
     expect(statusOn(shuffled, "2026-09-17")).toBe("paused");
   });
 
+  it("reads events given newest first", () => {
+    const newestFirst = [...events].reverse();
+    expect(statusOn(newestFirst, "2026-09-17")).toBe("paused");
+    expect(statusOn(newestFirst, "2026-10-02")).toBe("completed");
+  });
+
   it("takes the later write when two changes share a day", () => {
     const sameDay: StatusEventRow[] = [
       { occurred_on: "2026-09-14", change: "created" },
@@ -59,5 +65,28 @@ describe("currentStatus", () => {
 
   it("is null with no events", () => {
     expect(currentStatus([])).toBeNull();
+  });
+
+  it("takes the latest by date, not the last one in the array", () => {
+    // Newest first: a reader that took the array's tail would say "active".
+    expect(
+      currentStatus([
+        { occurred_on: "2026-09-21", change: "paused" },
+        { occurred_on: "2026-09-16", change: "resumed" },
+        { occurred_on: "2026-09-14", change: "created" },
+      ]),
+    ).toBe("paused");
+  });
+
+  it("takes the later write when two changes share a day", () => {
+    // The repository returns same-day events in recorded order; the stable
+    // sort keeps it, so the second write on the 20th decides.
+    expect(
+      currentStatus([
+        { occurred_on: "2026-09-14", change: "created" },
+        { occurred_on: "2026-09-20", change: "paused" },
+        { occurred_on: "2026-09-20", change: "resumed" },
+      ]),
+    ).toBe("active");
   });
 });
