@@ -56,6 +56,12 @@ jobs:
       - name: Unit tests (multi-timezone)
         run: npm run test:tz
 
+      # ADR-007's domain gate (W5-06): 100% branches, statements, functions and
+      # lines on src/**/domain/**. Everything else is in the report, not gated.
+      # Part of the required `ci` job, so a gap here blocks the merge.
+      - name: Domain coverage (ADR-007)
+        run: npm run test:coverage
+
       # Stage 6 — contract validation: keel-api.yaml is valid OpenAPI 3.1 AND
       # every operation declares a 4xx/5xx response (NFR-07).
       - name: Contract validation

@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:tz": "node scripts/test-tz.mjs",
+    "test:coverage": "node scripts/coverage-gate.mjs",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:integration:tz": "node scripts/test-integration-tz.mjs",
     "contract": "node scripts/validate-contract.mjs",
