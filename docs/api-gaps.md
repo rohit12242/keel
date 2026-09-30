@@ -258,6 +258,34 @@ objective with **no status events at all** is also refused as not-active (ERD
 invariant 16 — no events means no status, rather than a default of active). The
 wording should cover that case.
 
+**Tests that pin this (W5-06):** `assembleDay.test.ts` — the case named
+"G-17 (open): a flexible objective shows its schedule but computes no slot". It
+asserts today's wrong answer on purpose; when G-17 closes it should fail, and be
+rewritten to the right answer rather than deleted.
+
+### G-18 — Today can emit a `Schedule` the contract forbids · OPEN
+**Found by:** the W5-06 reviewer, while the coverage gate was being made green
+`assembleDay` falls back when a segment is missing a field, and the fallbacks do
+not match the contract's `Schedule` shape:
+
+- **An objective with no segments** comes out as `mode: "fixed"` with
+  `days_per_week: 0` and `minutes_per_planned_day: 0`. `mode` defaults to fixed,
+  but the fixed/flexible field choice defaults to flexible, so the two disagree.
+  The contract says `days_per_week` is absent when fixed, minimum 1, and minutes
+  minimum 15.
+- **A flexible segment with no `days_per_week`** comes out as `days_per_week: 0`,
+  below the minimum of 1.
+
+**Nothing can hit it today.** The schema requires segment 0 for every objective
+and `days_per_week` for every flexible segment, so both paths are reachable only
+by calling the assembler directly. W5-06 pinned the current output in
+`assembleDay.test.ts` (the no-segments case and "G-18 (open): …") rather than
+change domain behaviour inside a coverage story.
+
+**Closing it** means choosing: make the fallbacks agree with the contract (for
+example no segments → no schedule), or make the domain throw on an impossible
+row, and rewrite those two tests to match.
+
 ---
 
 ## Accepted for v1
@@ -297,7 +325,7 @@ v1 — it is a feature, not a gap in plumbing, and it needs its own thinking.
 | Status | Count |
 |---|---|
 | Closed | 5 |
-| Open | 9 |
+| Open | 10 |
 | Accepted | 3 |
 
 **G-03 and G-05, which blocked Sprint 01's first screens, are both closed (W3-20).**

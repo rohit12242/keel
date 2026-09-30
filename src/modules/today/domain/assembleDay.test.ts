@@ -191,7 +191,7 @@ describe("assembleDay", () => {
     // Every objective has segment 0 in practice; this pins that the assembler
     // degrades rather than throws if one ever arrives without. Pinned AS FOUND:
     // `mode` defaults to "fixed" while the fixed/flexible field choice defaults
-    // to flexible, so the result mixes the two (W5-06 handover).
+    // to flexible, so the result mixes the two, outside the contract (G-18).
     const o = assembleDay("2026-09-16", [
       { ...baseRow, segments: [], entries: [entry()] },
     ]).objectives[0];
@@ -242,9 +242,10 @@ describe("assembleDay", () => {
     expect(day.totals.extra_off_day_minutes).toBe(60);
   });
 
-  it("G-17 (open): a flexible segment with no days_per_week shows 0", () => {
+  it("G-18 (open): a flexible segment with no days_per_week shows 0", () => {
     // Unreachable through the schema (plan_segment requires days_per_week for
-    // a flexible segment); pins that the assembler does not throw.
+    // a flexible segment); pins that the assembler does not throw. The 0 is
+    // below the contract's minimum of 1 — see G-18.
     const o = assembleDay("2026-09-16", [
       {
         ...baseRow,
