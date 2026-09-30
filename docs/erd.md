@@ -209,7 +209,7 @@ What you committed to. Note what is *not* here: no schedule, no end date. Those 
 | objective_id | uuid FK |  |
 | seq | int2 | 0 is the original plan. 1, 2, 3 are extensions — this is what "Extension 2" and "extended 3 times" read from. |
 | schedule_mode | enum('fixed','flexible') | Can differ from the previous segment. That is the whole point. |
-| planned_weekdays | int2 null | Bitmask Mon–Sun. Null when flexible. |
+| planned_weekdays | int2 null | Bitmask Mon–Sun. Null when flexible. **Never 0 when fixed** — a fixed segment planning no weekday commits nothing, so `generateSlots` would return an empty schedule and the objective would exist with a plan that asks for no days. 0 is exactly what an empty weekday list produces, so it is the value a create path stumbles into rather than chooses. Enforced: `plan_segment_planned_weekdays CHECK (planned_weekdays IS NULL OR planned_weekdays BETWEEN 1 AND 127)` (W4-10). Validation still refuses it before the insert, so the caller gets a 400 with a reason rather than a constraint violation. |
 | days_per_week | int2 null | Null when fixed. |
 | minutes_per_planned_day | int |  |
 | start_date / end_date | date | Contiguous with the previous segment; never overlapping. |
@@ -331,6 +331,15 @@ lives, and it is half the input to slot generation (ADR-008).
 
 **Append-only.** Nothing updates or deletes a row: a correction is another event
 (NFR-01). Every objective has a `created` event (invariant 16).
+
+**No `user_id`, deliberately.** Ownership travels through `objective` (invariant 1),
+so every query that touches `status_event` — read or write — joins `objective` and
+filters on its `user_id`. A second copy of the owner would be a second authority on
+one truth, and the copy that drifts is the one no constraint checks. The cost is
+worth stating plainly: nothing in the schema will catch a status-event query that
+forgets the join, so an unscoped read here is an NFR-10 breach that only review
+finds. The same reasoning applies to `plan_segment` and `effort_entry`, neither of
+which carries a user either.
 
 **Why no `tz` here, when `effort_entry` has one.** An effort entry records two
 different things — the day you meant (`local_date`) and the instant it was written
