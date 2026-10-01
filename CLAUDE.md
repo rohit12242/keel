@@ -150,6 +150,7 @@ If it touched code, additionally:
 | `docs/spikes/` | Spike write-ups. |
 | `docs/nfrs.md` | 13 non-functional requirements, with scope changes noted. |
 | `docs/flows.md` | Mermaid flow diagrams. Orientation only; the flow map spreadsheet is the spec. |
+| `REVIEW.md` | How PRs are reviewed — passes, severity, what to skip. Read it before reviewing. |
 | `docs/build-log/` | Daily notes, written by hand. Not generated. |
 
 ## Working style
