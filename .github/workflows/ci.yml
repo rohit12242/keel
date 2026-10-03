@@ -16,7 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  # The eight blocking stages, ordered cheapest-and-most-likely-to-fail first
+  # ADR-003's eight blocking stages, plus W5-06's domain coverage gate (ADR-007),
+  # ordered cheapest-and-most-likely-to-fail first
   # and run as sequential steps so the job stops at the first failure
   # (ADR-003: "fail fast, fail cheap"). This whole job is the required check.
   ci:
@@ -55,6 +56,12 @@ jobs:
       # a date bug. This is the one stage run four times, not a new stage.
       - name: Unit tests (multi-timezone)
         run: npm run test:tz
+
+      # ADR-007's domain gate (W5-06): 100% branches, statements, functions and
+      # lines on src/**/domain/**. Everything else is in the report, not gated.
+      # Part of the required `ci` job, so a gap here blocks the merge.
+      - name: Domain coverage (ADR-007)
+        run: npm run test:coverage
 
       # Stage 6 — contract validation: keel-api.yaml is valid OpenAPI 3.1 AND
       # every operation declares a 4xx/5xx response (NFR-07).

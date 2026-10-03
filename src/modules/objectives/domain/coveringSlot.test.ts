@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coveringSlot, nextPlannedDate } from "./coveringSlot";
+import { coveringSlot, isDateInPlan, nextPlannedDate } from "./coveringSlot";
 import type { SegmentForSlots } from "./generateSlots";
 import type { StatusEventRow } from "./statusTimeline";
 
@@ -127,5 +127,77 @@ describe("nextPlannedDate", () => {
 
   it("is null once the plan has run out", () => {
     expect(nextPlannedDate([MON_TO_FRI], CREATED, "2026-10-11")).toBeNull();
+  });
+
+  it("picks up again on the day the objective resumes", () => {
+    const events: StatusEventRow[] = [
+      ...CREATED,
+      { occurred_on: "2026-09-19", change: "paused" },
+      { occurred_on: "2026-09-23", change: "resumed" },
+    ];
+    // Mon 21st and Tue 22nd are planned weekdays, but paused.
+    expect(nextPlannedDate([MON_TO_FRI], events, "2026-09-18")).toBe(
+      "2026-09-23",
+    );
+  });
+
+  it("takes the soonest across segments, whatever order they arrive in", () => {
+    const LATER: SegmentForSlots = {
+      ...MON_TO_FRI,
+      startDate: "2026-10-12",
+      endDate: "2026-10-25",
+    };
+    expect(nextPlannedDate([MON_TO_FRI, LATER], CREATED, "2026-09-18")).toBe(
+      "2026-09-21",
+    );
+    expect(nextPlannedDate([LATER, MON_TO_FRI], CREATED, "2026-09-18")).toBe(
+      "2026-09-21",
+    );
+  });
+
+  it("does not plan from a flexible segment yet (E-02)", () => {
+    const FLEXIBLE: SegmentForSlots = {
+      ...MON_TO_FRI,
+      scheduleMode: "flexible",
+      plannedWeekdays: [],
+    };
+    expect(nextPlannedDate([FLEXIBLE], CREATED, "2026-09-18")).toBeNull();
+  });
+});
+
+/**
+ * The "outside the plan" rule (W3-14): a date outside every segment's range is
+ * refused; inside the range but on an off day is allowed and counts as extra.
+ */
+describe("isDateInPlan", () => {
+  // Two segments with a hole between them (10-12 … 10-18 is unplanned).
+  const LATER: SegmentForSlots = {
+    ...MON_TO_FRI,
+    startDate: "2026-10-19",
+    endDate: "2026-10-25",
+  };
+
+  it("is true for a date inside the range, including an off day", () => {
+    expect(isDateInPlan([MON_TO_FRI], "2026-09-16")).toBe(true);
+    expect(isDateInPlan([MON_TO_FRI], "2026-09-19")).toBe(true); // Saturday
+  });
+
+  it("includes the first and the last day", () => {
+    expect(isDateInPlan([MON_TO_FRI], "2026-09-14")).toBe(true);
+    expect(isDateInPlan([MON_TO_FRI], "2026-10-11")).toBe(true);
+  });
+
+  it("is false the day before the start and the day after the end", () => {
+    expect(isDateInPlan([MON_TO_FRI], "2026-09-13")).toBe(false);
+    expect(isDateInPlan([MON_TO_FRI], "2026-10-12")).toBe(false);
+  });
+
+  it("is false in a gap between two segments, true in either one", () => {
+    expect(isDateInPlan([MON_TO_FRI, LATER], "2026-10-15")).toBe(false);
+    expect(isDateInPlan([MON_TO_FRI, LATER], "2026-10-20")).toBe(true);
+  });
+
+  it("is false with no segments at all", () => {
+    expect(isDateInPlan([], "2026-09-16")).toBe(false);
   });
 });

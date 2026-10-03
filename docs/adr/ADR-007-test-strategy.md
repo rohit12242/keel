@@ -38,7 +38,7 @@ else, because it measures how much code ran, not whether it is right.
 
 | Scope | Rule | Why |
 |---|---|---|
-| `src/**/domain/**` | **100% branch coverage, blocking** | Pure functions, no I/O. Every branch is a business rule. An uncovered branch here is a rule with no test. |
+| `src/**/domain/**` | **100% branch coverage, blocking** *(all four metrics since W5-06 — see the amendment)* | Pure functions, no I/O. Every branch is a business rule. An uncovered branch here is a rule with no test. |
 | A fixed set of journey tests | **All must pass, blocking** | Each runs a real journey through the real stack and catches the wiring bugs the domain layer cannot see. Named below; the set is small on purpose. |
 | Everything else | **Reported on the pull request, never blocking** | Measures how much code ran, which is a different question from whether it is right. |
 
@@ -80,7 +80,7 @@ is the weakest:
    *(E-06)*
 5. **NFR-07's failure-response assertion** — no operation ships with only a happy
    path. *(W3-10)*
-6. Domain branch coverage at 100%.
+6. Domain coverage at 100% — branches, statements, functions, lines *(W5-06)*.
 
 ### Named edge cases per domain rule
 
@@ -139,6 +139,35 @@ risk; an untested area you never noticed is a bug waiting.
   branch, not to write the test — if it cannot happen, it should not be reachable.
 - Two blocking layers plus advisory coverage is more configuration than one number.
   Worth it.
+
+## Amendment — W5-06, 2026-09-30: the domain gate, made real
+
+Decided in W3-23, the 100% domain rule was never wired: until W5-06 no pipeline
+step measured coverage at all, so the rule had never run once. W5-06 wires it and
+settles three details the original decision left open.
+
+- **Four metrics, not branches alone.** The domain threshold is 100% on
+  **branches, statements, functions and lines**. The gate's first run, in its own
+  scope (type-only files excluded), measured the domain at 80.16% branches. It
+  also showed why branches alone are not enough: `weekdaysToBitmask` was an
+  exported function no test called, yet its file stood at 100% branches, because
+  a function with no branches has none to miss. Only the functions metric (50%)
+  saw it.
+- **A type-only file is outside the threshold.** A file that contains only type
+  declarations has no runtime code, so v8 reports it at 0% with nothing that could
+  ever be covered. Each such file is excluded **by name** in `coverage.exclude` in
+  `vitest.config.ts`, never by pattern. Today that is
+  `src/modules/today/domain/rows.ts`. The risk accepted: runtime code added to an
+  excluded file would go unmeasured, so the exclusion must be re-justified whenever
+  that file changes.
+- **Where it runs.** `npm run test:coverage` (`scripts/coverage-gate.mjs`), a step
+  in the required `ci` job, so a gap blocks the merge with no ruleset change. It
+  runs once, under the runner's zone; the four-zone run stays `test:tz`. Every
+  other file stays in the report and never blocks. Mirroring the gate into the
+  local Stop hook is a separate decision, not taken here.
+
+The rule for a branch that cannot happen is unchanged: delete it rather than test
+it. Lowering the threshold or adding a `v8 ignore` comment is not an option.
 
 ## Revisit when
 
