@@ -2,187 +2,141 @@
 
 A logbook that records effort against declared objectives, and the deviations that
 pull you off them, so that **the record — not memory — decides what to do next**.
-Single user for v1. Built to learn end-to-end product development, so *why* a
-thing is done is part of the deliverable, not overhead.
 
-## Stack — decided, do not relitigate
+When a mistake is made, add it to **Common mistakes** so it is not made
+again.
 
-| | | ADR |
-|---|---|---|
-| Language / framework | TypeScript on Node, Next.js (Node ≥ 26) | D-02 |
-| Database | PostgreSQL, relational | D-03 |
-| Client | Server-rendered by default | D-04 |
-| API | REST behind a written OpenAPI contract | D-05 |
-| Hosting | AWS | D-06 |
-| Auth | Managed provider (Cognito, conditional on D-06) — app owns the session | ADR-002 |
-| Architecture | Modular monolith, pure domain | ADR-001 |
+---
 
-If a task seems to need a different choice, **say so and stop** — do not quietly
-work around a decision. Changing one means writing an ADR.
+## Architecture
 
-## The one architectural rule
+| | |
+|---|---|
+| Language / framework | TypeScript, Node ≥ 26, Next.js |
+| Database | PostgreSQL — `pg` for queries, `node-pg-migrate` for migrations, no ORM |
+| Client | Server-rendered by default |
+| API | REST behind an OpenAPI 3.1 contract, `docs/keel-api.yaml` |
+| Auth | Cognito; the app owns the session |
+| Hosting | AWS — ECS Fargate, ALB, RDS, Terraform in `infra/`|
+| Shape | Modular monolith with a pure domain |
 
 ```
 src/
   app/                  Next.js route handlers. HTTP in, JSON out. No rules.
-  modules/<feature>/
+  modules/<feature>/    effort, objectives, today, health
     domain/             pure functions + types
     repo.ts             the only file with SQL in it
     service.ts          one function per use case
-  shared/time/          day boundaries — one implementation, nowhere else
-  shared/result.ts      Ok/Err, so rules return a reason rather than throw
+  shared/
+    db.ts               the one pg Pool
+    contract.ts         DTO types matching the contract
+    log.ts              structured logs
+    result.ts           Ok/Err — rules return a reason rather than throw
+    time/               day boundaries — one implementation, nowhere else
+  config/env.ts         the only place env vars are read
+migrations/             raw SQL in .cjs files
 ```
 
-**Everything may import `domain/`. `domain/` may import nothing** — not route
-handlers, not the repository, not any library that speaks HTTP or SQL, not the
-clock, not a random source. A domain function takes values and returns values.
+**Everything may import `domain/`. `domain/` imports nothing** — no HTTP, no SQL,
+no clock, no random source. Enforced by a lint rule. If `domain/` seems to need the
+database, the design is wrong, not the rule.
 
-This exists because `adherence` is needed on six screens. Six implementations
-would disagree, and Keel's only claim is that the record decides.
+Decisions and their reasons are in `docs/adr/`. The entity model and its invariants
+are in `docs/erd.md`; non-functional requirements in `docs/nfrs.md`.
 
-Enforced by an import-boundary lint rule in CI. If you find yourself wanting to
-import the database client into `domain/`, the design is wrong, not the rule.
-
-## Rules that constrain everyday code
-
-- **No aggregate is ever stored.** Adherence, totals, streaks, extension counts,
-  sequence numbers, "3 before" counts — all computed at read time. No migration
-  adds a rollup column; no request body accepts one. *(NFR-09)*
-- **`local_date` is stored as a `date`**, alongside `logged_at` (timestamptz) and
-  `tz`. The client sends the day it means; the server never derives it from the
-  request time. *(NFR-12, kept half)*
-- **Today is one query.** Objectives joined to slots and entries for a single
-  date, filtered by user. No fan-out, no query-per-objective. *(NFR-03)*
-- **Every endpoint has a defined failure response.** No operation ships with only
-  a happy path. Problem Details (RFC 9457), `application/problem+json`. *(NFR-07)*
-- **Nothing is deleted.** Objectives are completed or ended; reviews are discarded
-  only while drafts; verdicts and status changes append. Effort entries are the
-  one exception. *(NFR-01)*
-- **Entry text never leaves the system in readable form.** No deviation reason,
-  review answer or objective note in logs, analytics or error reports. Error
-  reports carry ids and types only. *(NFR-11)*
-- **Every query filters by user.** No user id appears in any URL path. A row that
-  belongs to someone else returns 404, not 403. *(NFR-10)*
-- **Keyboard-operable, and colour is never the only signal.** Status that uses
-  colour also carries a word or a shape. *(NFR-13)*
-
-## The contract is the source of truth
-
-`docs/keel-api.yaml` — OpenAPI 3.1. It was written before the code.
-
-- Do not add, rename or change an endpoint without changing the contract in the
-  same commit.
-- The spec must validate, and every operation must declare its failure responses.
-- Known gaps are tracked in `docs/api-gaps.md`. If you hit one, add to that file
-  rather than inventing a fix.
-
-## Deliberately out of scope for v1
-
-Do not add these helpfully. Each was decided, not forgotten.
-
-- **Offline logging** (NFR-06) — no sync queue, no client-generated ids, no
-  conflict resolution.
-- **Timezone and DST correctness** (NFR-12 behaviour) — deferred to v2. The
-  *column* stays; the test matrix does not.
-- **Pagination** — 1,680 rows per user per year. If a list needs paging, the data
-  model changed.
-- **Repository interfaces / ports and adapters** — add when a second storage
-  implementation exists, not before.
-- **Event sourcing** — the append-only tables already carry the useful half.
-- **A dependency-injection framework** — pass arguments.
-- **Caching, denormalised rollups, archive tables, a second datastore** — there is
-  no scale problem to solve.
-
-Ask before adding any runtime dependency. "It is only a small package" is how a
-solo project acquires a supply chain.
-
-## Branching and commits
-
-- `main` is always deployable. Work on short-lived branches.
-- Merge through a pull request. Checks must pass before merge.
-- Never push directly to `main`.
-
-Commit format — Conventional Commits, with the story id in the footer:
+## Commands
 
 ```
-feat(effort): log an entry against a plan slot
-
-Entries carry local_date and tz from the client. `extra` is derived,
-not stored — see ADR-001.
-
-Story: W3-14
+nvm use                          # Node 26, from .nvmrc
+docker compose up -d             # local Postgres (any Docker-compatible runtime)
+npm run migrate                  # apply migrations;  migrate:down rolls back one
+npm run seed                     # idempotent seed data
+npm run dev                      # local server
 ```
 
-Types: `feat` `fix` `docs` `refactor` `test` `chore`.
-Scope: the module (`effort`, `objectives`, `reviews`, `parking`, `time`) or
-`ci`, `db`, `contract`.
+The checks — all must pass locally before work is finished:
 
-The story id matters more than it looks — it is how the sprint sheet and the
-repository stay connected at retrospective.
+```
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test:tz                  # unit tests under more than one timezone
+npm run contract                 # OpenAPI spec validates
+npm run build
+npm run commitlint
+```
 
-## Definition of Done
+Integration tests (`npm run test:integration:tz`) run in CI only — skip them locally.
 
-Every story:
+## Conventions
 
-1. The named output exists and can be pointed at.
-2. It can be explained unprompted, including one thing worth changing.
-3. Actual hours are in the sprint sheet, including the embarrassing ones.
-4. Anything changed or revealed is written where it would be looked for — ADR,
-   gap list, ERD or contract.
+- **The contract is the source of truth.** An endpoint is never added or changed
+  without changing `docs/keel-api.yaml` in the same commit. Known gaps go in
+  `docs/api-gaps.md`.
+- **Failures are Problem Details** (`application/problem+json`). Every endpoint
+  declares its failure responses.
+- **Aggregates are computed at read time**, never stored — adherence, totals,
+  streaks, counts. _(NFR-09)_
+- **`local_date` is a `date` sent by the client**, alongside `logged_at` and `tz`.
+  _(NFR-12)_
+- **Nothing is deleted** except effort entries — rows are ended, completed or
+  appended to. _(NFR-01)_
+- **Every query filters by user.** No user id in a URL. _(NFR-10)_
+- **Logs carry ids and types only**, never user-written text. _(NFR-11)_
+- **Colour is never the only signal**; everything is keyboard-operable. _(NFR-13)_
+- **Not in v1:** offline logging, timezone/DST behaviour, pagination, repository
+  interfaces, event sourcing, DI frameworks, caching or rollups.
+- **Ask before adding a runtime dependency.**
+- **Git:** branch from `main` as `i-<nn>-<slug>`; `main` changes only through a PR
+  with passing checks. Conventional Commits, scope is the module or `ci`, `db`,
+  `contract`, `infra`; footer `Intent: I-<nn>`. (`Story: W<week>-<nn>` is the
+  historical form and stays valid — see `scripts/check-commits.mjs`.)
+- **The repository is public.** Personal tracking material never goes in it.
 
-If it touched code, additionally:
+## How a change is made
 
-5. The pipeline is green — on the pipeline, not on a laptop.
-6. It reached `main` through a PR with blocking checks.
-7. No NFR was quietly broken (usually: did this store an aggregate, or a date that
-   could move?).
-8. The failure path exists, not just the happy one.
+Keel is built one **intent** at a time: one user-visible change, statable in a
+sentence with no "and" in it. Intent, spec and plan live together in
+`docs/intents/I-<nn>-<slug>/` and are committed in the PR that implements it, so the
+review running in CI can read them. `docs/intents/README.md` has the full order.
 
-## Where things live
+The rules that matter while writing code:
 
-| | |
-|---|---|
-| `docs/adr/` | Decision records. ADR-001 architecture, ADR-002 auth. |
-| `docs/keel-api.yaml` | The API contract. |
-| `docs/api-gaps.md` | Known contract gaps, open and closed. |
-| `docs/erd.md` | Entity model — 10 entities, 17 invariants (revision 3, ADR-008). |
-| `docs/design/` | Screen designs — 15 artboards. |
-| `docs/spikes/` | Spike write-ups. |
-| `docs/nfrs.md` | 13 non-functional requirements, with scope changes noted. |
-| `docs/flows.md` | Mermaid flow diagrams. Orientation only; the flow map spreadsheet is the spec. |
-| `REVIEW.md` | How PRs are reviewed — passes, severity, what to skip. Read it before reviewing. |
-| `docs/build-log/` | Daily notes, written by hand. Not generated. |
+1. **Nothing is implemented without an accepted plan.** `plan.md` carries
+   `Status: ACCEPTED <date>` and is committed first and alone. If a step turns out
+   to be wrong, stop and say which one — never re-plan silently.
+2. **One commit per plan step**, each leaving `main` deployable.
+3. **A finding outside this intent goes to `docs/intents/TRIAGE.md`** — never into
+   the plan it interrupted.
+4. **The PR body stays on one screen.** Fill
+   `.github/PULL_REQUEST_TEMPLATE.md` and do not restate the spec or the plan —
+   they are in the diff. The section worth writing is *Decided, not specified*:
+   the choices the plan did not make. If the body will not fit on one screen, the
+   intent was too big; say so rather than writing more.
+5. **Never tick the explain-it-unprompted box.** It is Rohit's, and it is the one
+   clause the harness must not satisfy on his behalf.
 
-## Working style
+For platform work — CI, hooks, guards — **the ADR is the intent**: no `intent.md`,
+and `spec.md` names the ADR instead.
 
-- **Read the ADR before proposing an alternative.** Most "obvious improvements"
-  here were considered and rejected for a reason that is written down.
-- **Prefer the boring option.** This codebase has one user and one developer.
-- **When a decision is needed, stop and name it** rather than picking silently.
-  Unmade decisions belong in the register, not in a commit.
-- The build log is written by a human. Do not generate it.
+## Pull request review
 
-## Open — needs settling
+Before reviewing a pull request, read `REVIEW.md` and follow it.
 
-- ~~Branch protection on a private free repo~~ — settled: the repository is
-  **public**, so branch protection and required status checks are available.
-- D-08 (test strategy) currently names a coverage target. Under review — the four
-  NFR checks are the ones that discriminate.
+## Common mistakes
 
-## This repository is public
-
-The sprint sheets, daily log, parking lot and retrospectives live outside it, in a
-private folder. They contain personal notes.
-
-**Never copy tracking material into this repository**, and keep `docs/build-log/`
-technical — it is public too. `.gitignore` blocks `*.xlsx` and `*.numbers` as a
-backstop, but the real guard is knowing which folder a file belongs in.
-
-## Delegating a story
-
-One story, one command: `/story W4-07`. It reads the brief in
-`../Keel_doc/stories/`, runs the **spec-checker** before any code, implements,
-runs the checks, runs the **reviewer**, and opens the PR with the handover in
-its body. The hooks in `.claude/hooks/` refuse the things this file says not to
-do; `.claude/README.md` explains each piece and why. When a PR needs rework, the
-fix goes into the harness before the next story is delegated.
+- Storing a derived value (a count, a total, a streak) in a column or accepting it
+  in a request body.
+- Deriving the day on the server from the request time instead of using the
+  client's `local_date`.
+- Fetching per objective for Today — it is one query. _(NFR-03)_
+- Returning 403 for another user's row — it is 404.
+- Importing `@/shared/db`, `@/config` or a repo into `domain/`.
+- Reading `process.env` outside `src/config/env.ts`.
+- Changing a route without changing the contract.
+- Typing the root layout with Next's `LayoutProps` — those types only exist after a
+  build, so a cold `npm run typecheck` fails. Keep `children: React.ReactNode`.
+- Committing the `nextjs-agent-rules` block that `next dev` appends to this file —
+  revert it.
+- Creating a branch from `origin/main` leaves it tracking `main`; unset the upstream
+  and push with `git push -u origin <branch>`.

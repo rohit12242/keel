@@ -1,29 +1,32 @@
 <!--
-  Keel PR template. Keep it honest — this repository is public.
-  See docs/contributing.md and docs/definition-of-done.md.
+  Keep this brief — one screen. The intent, spec and plan are in the diff; the
+  reviewer reads them there. Do NOT restate them here. If this will not fit on
+  one screen, the intent was too big — say that instead of writing more.
+  This repository is public.
 -->
 
-## Story
+Intent: I-
+Plan steps: <!-- e.g. 1–4 of 4, or "3 of 5" for a follow-up PR -->
 
-<!-- The sprint id this PR closes or advances, e.g. W3-05. Required. -->
+## What changed
 
-Story: W3-
+<!-- One or two sentences. Why, not what — the diff already says what. -->
 
-## What this changes
+## Decided, not specified
 
-<!-- One or two sentences. Why, not just what. -->
+<!-- Each choice the plan did not make, one line each. This is the only part of
+     this PR that exists nowhere else, so it is the part worth writing. "None". -->
 
-## Review gate
+## Not verified here
 
-<!-- Tick what applies. Not every PR touches code. -->
+<!-- What only CI can prove — integration tests, the deploy. "Nothing". -->
 
-- [ ] The named output exists and can be pointed at.
-- [ ] It can be explained unprompted, including one thing worth changing.
-- [ ] Anything revealed is written where it would be looked for — ADR, gap list, ERD or contract.
+## Added to TRIAGE.md
 
-If it touched code:
+<!-- Findings that are real but outside this intent. "None". -->
 
-- [ ] The pipeline is green — on the pipeline, not on a laptop.
-- [ ] No NFR was quietly broken (did this store an aggregate, or a date that could move?).
-- [ ] The failure path exists, not just the happy one.
-- [ ] The API contract changed in the same commit as the endpoint, if an endpoint changed.
+---
+
+- [ ] I can explain this unprompted, including one thing I would change
+
+<!-- The box above is Rohit's. An agent opening this PR leaves it unticked. -->

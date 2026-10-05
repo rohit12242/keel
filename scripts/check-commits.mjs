@@ -5,7 +5,9 @@
  * Enforces the CLAUDE.md convention on every commit a pull request adds:
  *   - Conventional Commits subject: <type>(<scope>)?: <summary>
  *     type ∈ feat|fix|docs|refactor|test|chore
- *   - a `Story: W3-xx` footer, the link between the sprint sheet and the repo.
+ *   - an `Intent: I-nn` footer, the link between the intent and the commits that
+ *     deliver it. `Story: W<week>-<nn>` is the historical form and stays valid so
+ *     the commits made before Sprint 03 keep passing.
  *
  * No dependency: shells out to git and checks with regexes. Runs on
  * pull_request, so it needs the PR's commit range.
@@ -21,7 +23,7 @@ const TYPES = ["feat", "fix", "docs", "refactor", "test", "chore"];
 const SUBJECT_RE = new RegExp(
   `^(${TYPES.join("|")})(\\([a-z0-9,\\- ]+\\))?!?: .+`,
 );
-const STORY_RE = /^Story:\s*W\d+-\d+\b/m;
+const FOOTER_RE = /^(Intent:\s*I-\d+|Story:\s*W\d+-\d+)\b/m;
 
 const git = (args) => execSync(`git ${args}`, { encoding: "utf8" }).trim();
 
@@ -52,8 +54,11 @@ for (const sha of shas) {
         `(<type>(scope)?: summary; type ∈ ${TYPES.join("|")}).`,
     );
   }
-  if (!STORY_RE.test(body)) {
-    problems.push(`${short}\n    missing "Story: W3-xx" footer.`);
+  if (!FOOTER_RE.test(body)) {
+    problems.push(
+      `${short}\n    missing an "Intent: I-nn" footer ` +
+        `(or the historical "Story: W<week>-<nn>").`,
+    );
   }
 }
 
