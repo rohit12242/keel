@@ -1,13 +1,15 @@
 // Stop hook.
 //
 // Runs when the agent is about to say "done". If this session changed code,
-// the same cheap-and-blocking stages CI runs (ADR-003, stages 2–6) must pass
+// the same cheap-and-blocking stages CI runs (ADR-003, plus ADR-007's domain
+// coverage gate) must pass
 // *here*, or the agent is sent back to fix them. The point: a red build is
 // discovered by the agent, in the session, not by Rohit on the PR an hour later.
 //
 // Stages, in CI's order (fail fast, fail cheap):
-//   format:check → lint → typecheck → test:tz → contract
-// Build (stage 7) and the integration job are left to CI — too slow for a hook.
+//   format:check → lint → typecheck → test:tz → test:coverage → contract
+// Build and the integration job are left to CI — too slow for a hook.
+// test:coverage is ADR-007's gate: 100% on src/**/domain/**, blocking (W5-06).
 //
 // Loop guard: the agent gets three attempts per session. On the third failure
 // it is told to stop fixing and write down what fails. Stop hooks that block
@@ -28,7 +30,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const MAX_ATTEMPTS = 3;
-const STAGES = ["format:check", "lint", "typecheck", "test:tz", "contract"];
+const STAGES = [
+  "format:check",
+  "lint",
+  "typecheck",
+  "test:tz",
+  "test:coverage",
+  "contract",
+];
 const CODE_PATH =
   /^(src\/|migrations\/|scripts\/|docs\/keel-api\.yaml$|package\.json$|package-lock\.json$|tsconfig\.json$|eslint\.config\.mjs$|next\.config\.ts$|vitest\..*\.ts$|\.prettierrc$)/;
 

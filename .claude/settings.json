@@ -29,8 +29,7 @@
       "Bash(gh run view*)",
       "Bash(docker compose up *)",
       "Bash(docker compose ps*)",
-      "Bash(docker compose logs*)",
-      "Read(~/Desktop/Products/Keel_doc/stories/**)"
+      "Bash(docker compose logs*)"
     ],
     "deny": [
       "Read(/.env)",
