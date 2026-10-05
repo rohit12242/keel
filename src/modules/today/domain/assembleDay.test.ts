@@ -145,4 +145,121 @@ describe("assembleDay", () => {
     expect(day.totals.today_minutes).toBe(105);
     expect(day.totals.week_minutes).toBe(300);
   });
+
+  it("keeps the entry's time of day when one was given, and omits it when not", () => {
+    const day = assembleDay("2026-09-16", [
+      {
+        ...baseRow,
+        entries: [
+          entry({ occurred_at_local: "09:30" }),
+          entry({ id: "e2", occurred_at_local: null }),
+        ],
+      },
+    ]);
+    const [withTime, withoutTime] = day.objectives[0].entries;
+    expect(withTime.occurred_at_local).toBe("09:30");
+    expect("occurred_at_local" in withoutTime).toBe(false);
+  });
+
+  // --- which segment's schedule is shown (segmentInForce) -------------------
+
+  it("shows the latest segment's schedule for a date after every segment, with no slot", () => {
+    // Segment 1 (Mon/Wed/Fri) follows segment 0 (Mon–Fri). Given highest-seq
+    // first, then last, so the pick is by seq and not by array position.
+    const SEG_1 = {
+      ...MON_TO_FRI,
+      seq: 1,
+      planned_weekdays: 0b10101, // Mon, Wed, Fri
+      minutes_per_planned_day: 90,
+      start_date: "2026-10-12",
+      end_date: "2026-10-25",
+    };
+    for (const segments of [
+      [SEG_1, MON_TO_FRI],
+      [MON_TO_FRI, SEG_1],
+    ]) {
+      const o = assembleDay("2026-11-04", [{ ...baseRow, segments }])
+        .objectives[0]; // a Wednesday, after both segments
+      expect(o.slot).toBeNull();
+      expect(o.schedule.planned_weekdays).toEqual([1, 3, 5]);
+      expect(o.schedule.label).toBe("FIXED · MON, WED, FRI · 1h 30m PER DAY");
+      expect(o.next_planned_date).toBeNull();
+    }
+  });
+
+  it("degrades to an empty schedule for an objective with no segments", () => {
+    // Every objective has segment 0 in practice; this pins that the assembler
+    // degrades rather than throws if one ever arrives without. Pinned AS FOUND:
+    // `mode` defaults to "fixed" while the fixed/flexible field choice defaults
+    // to flexible, so the result mixes the two, outside the contract (G-18).
+    const o = assembleDay("2026-09-16", [
+      { ...baseRow, segments: [], entries: [entry()] },
+    ]).objectives[0];
+    expect(o.schedule).toEqual({
+      mode: "fixed",
+      minutes_per_planned_day: 0,
+      days_per_week: 0,
+      label: "FIXED ·  · 0h 00m PER DAY",
+    });
+    expect(o.slot).toBeNull();
+    expect(o.next_planned_date).toBeNull();
+    expect(o.entries[0].extra).toBe(true);
+  });
+
+  it("reads a fixed segment with no bitmask as no planned days", () => {
+    // The row type allows null; toSegment makes the same choice, so the
+    // schedule shown and the slot computed cannot disagree about the days.
+    const o = assembleDay("2026-09-16", [
+      { ...baseRow, segments: [{ ...MON_TO_FRI, planned_weekdays: null }] },
+    ]).objectives[0];
+    expect(o.schedule.planned_weekdays).toEqual([]);
+    expect(o.slot).toBeNull();
+  });
+
+  it("G-17 (open): a flexible objective shows its schedule but computes no slot", () => {
+    // Pins today's behaviour, which G-17 records as WRONG: generateSlots is
+    // fixed-only, so a flexible objective is never planned and all its effort
+    // is extra. When G-17 is fixed this test should fail and be rewritten.
+    const FLEXIBLE = {
+      ...MON_TO_FRI,
+      schedule_mode: "flexible" as const,
+      planned_weekdays: null,
+      days_per_week: 3,
+      minutes_per_planned_day: 60,
+    };
+    const day = assembleDay("2026-09-16", [
+      { ...baseRow, segments: [FLEXIBLE], entries: [entry()] },
+    ]);
+    const o = day.objectives[0];
+    expect(o.schedule).toEqual({
+      mode: "flexible",
+      minutes_per_planned_day: 60,
+      days_per_week: 3,
+      label: "FLEXIBLE · 3 DAYS/WEEK · 1h 00m PER DAY",
+    });
+    expect(o.slot).toBeNull();
+    expect(o.entries[0].extra).toBe(true);
+    expect(day.totals.extra_off_day_minutes).toBe(60);
+  });
+
+  it("G-18 (open): a flexible segment with no days_per_week shows 0", () => {
+    // Unreachable through the schema (plan_segment requires days_per_week for
+    // a flexible segment); pins that the assembler does not throw. The 0 is
+    // below the contract's minimum of 1 — see G-18.
+    const o = assembleDay("2026-09-16", [
+      {
+        ...baseRow,
+        segments: [
+          {
+            ...MON_TO_FRI,
+            schedule_mode: "flexible" as const,
+            planned_weekdays: null,
+            days_per_week: null,
+          },
+        ],
+      },
+    ]).objectives[0];
+    expect(o.schedule.days_per_week).toBe(0);
+    expect(o.schedule.label).toBe("FLEXIBLE · 0 DAYS/WEEK · 2h 00m PER DAY");
+  });
 });
