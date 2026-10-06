@@ -1,6 +1,6 @@
 # I-01 — Declare an objective
 
-**Author:** Rohit · **Status:** Drafted · **Raised:** 2026-10-05
+**Author:** Rohit · **Status:** Accepted · **Raised:** 2026-10-05
 
 ## Intent description
 
