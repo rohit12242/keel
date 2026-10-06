@@ -22,6 +22,17 @@ the contract — not tracking material.
    intent seems to need is usually already built.
 3. **Spec** — what must be true, not how. No ordered steps, no open decisions, no
    measurement presented as a requirement.
+
+   **Open decisions are answered here, not escalated.** A question the intent leaves
+   open — a contract field, a mapping, where a rule lives — is decided while the spec
+   is written, and every such decision appears in a **Decisions taken here** list at
+   the top of `spec.md`, each with one line of reason. Rohit's read of that list is
+   the approval, which is why it is a list at the top and not prose in the middle.
+
+   Three things stop and ask instead of being decided: anything needing an **ADR**, a
+   contract change affecting a feature **outside** this intent, and anything
+   irreversible in production. Those outlive the intent, so they are not the intent's
+   to settle.
 4. **Plan** — written by Claude Code after reading the code, never by someone
    reasoning from the documents alone. Numbered steps; each names what it changes,
    its test, and why `main` is still deployable after it.

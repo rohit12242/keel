@@ -3,15 +3,22 @@
 # <body: what changed and why. Wrap at 72. The why is the point —
 #  the diff already shows the what.>
 #
-# Story: W3-xx        ← required footer; the sprint id this commit belongs to
+# Intent: I-nn        ← required footer. Or: ADR: nnn | Chore: <what>
 #
 # ----------------------------------------------------------------------
 # Conventional Commits — see docs/contributing.md
 #
 #   type   feat | fix | docs | refactor | test | chore
 #   scope  effort | objectives | reviews | parking | time
-#          | ci | db | contract
+#          | ci | db | contract | infra
 #
-# Every commit ends with a `Story: W3-xx` footer. The story id is how the
-# sprint sheet and the repository stay connected at retrospective.
+# Every commit ends with a footer naming what asked for it:
+#
+#   Intent: I-nn    work an intent asked for
+#   ADR: nnn        platform work whose intent is an ADR
+#   Chore: <what>   housekeeping nothing asked for
+#
+# `Story: W<week>-<nn>` is the historical form and is still accepted, so
+# commits made before the move to intents keep validating.
+# Enforced by scripts/check-commits.mjs.
 # ----------------------------------------------------------------------

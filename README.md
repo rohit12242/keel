@@ -27,7 +27,6 @@ Sprint 01 — walking skeleton. No product features yet.
 | `docs/spikes/` | Spike write-ups |
 | `docs/flows.md` | Screen flow diagrams |
 | `docs/design/` | Screen designs |
-| `docs/definition-of-done.md` | Definition of Ready and Definition of Done |
 | `docs/build-log/` | Daily notes, written by hand |
 
 ## Reading order

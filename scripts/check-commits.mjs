@@ -5,9 +5,12 @@
  * Enforces the CLAUDE.md convention on every commit a pull request adds:
  *   - Conventional Commits subject: <type>(<scope>)?: <summary>
  *     type ∈ feat|fix|docs|refactor|test|chore
- *   - an `Intent: I-nn` footer, the link between the intent and the commits that
- *     deliver it. `Story: W<week>-<nn>` is the historical form and stays valid so
- *     the commits made before Sprint 03 keep passing.
+ *   - a footer naming what asked for the commit. One of:
+ *       Intent: I-nn      delivered by an intent
+ *       ADR: nnn          platform work whose intent is an ADR (see docs/intents)
+ *       Chore: <what>     housekeeping nothing asked for
+ *     `Story: W<week>-<nn>` is the historical form and stays valid so the commits
+ *     made before the move to intents keep passing.
  *
  * No dependency: shells out to git and checks with regexes. Runs on
  * pull_request, so it needs the PR's commit range.
@@ -23,7 +26,8 @@ const TYPES = ["feat", "fix", "docs", "refactor", "test", "chore"];
 const SUBJECT_RE = new RegExp(
   `^(${TYPES.join("|")})(\\([a-z0-9,\\- ]+\\))?!?: .+`,
 );
-const FOOTER_RE = /^(Intent:\s*I-\d+|Story:\s*W\d+-\d+)\b/m;
+const FOOTER_RE =
+  /^(Intent:\s*I-\d+\b|ADR:\s*\d{3}\b|Chore:\s*\S|Story:\s*W\d+-\d+\b)/m;
 
 const git = (args) => execSync(`git ${args}`, { encoding: "utf8" }).trim();
 
@@ -56,7 +60,8 @@ for (const sha of shas) {
   }
   if (!FOOTER_RE.test(body)) {
     problems.push(
-      `${short}\n    missing an "Intent: I-nn" footer ` +
+      `${short}\n    missing a footer naming what asked for this commit: ` +
+        `"Intent: I-nn", "ADR: nnn", or "Chore: <what>" ` +
         `(or the historical "Story: W<week>-<nn>").`,
     );
   }
