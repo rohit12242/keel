@@ -27,6 +27,11 @@ Plan steps: <!-- e.g. 1–4 of 4, or "3 of 5" for a follow-up PR -->
 
 ---
 
-- [ ] I can explain this unprompted, including one thing I would change
+- [ ] I can explain what this does and why, and name one thing I would change
 
-<!-- The box above is Rohit's. An agent opening this PR leaves it unticked. -->
+<!--
+  Rohit's box. Any agent opening this PR leaves it unticked.
+  It is not a claim to have written the code. It is the one place a human says they
+  understand what they are merging — which is the whole of their accountability in
+  this process, and the only clause the harness must never satisfy on their behalf.
+-->
