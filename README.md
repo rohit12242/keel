@@ -21,7 +21,7 @@ Sprint 01 — walking skeleton. No product features yet.
 | `docs/nfrs.md` | 13 non-functional requirements, each with a number and a check |
 | `docs/erd.md` | Entity model — 11 entities, 16 invariants |
 | `docs/keel-api.yaml` | OpenAPI 3.1 contract, written before the code |
-| `docs/api-gaps.md` | Known gaps between contract and screens |
+| `docs/intents/` | One folder per intent, and the triage queue |
 | `docs/adr/` | Architecture decision records |
 | `docs/contributing.md` | Branching, commit convention and the review gate |
 | `docs/spikes/` | Spike write-ups |
@@ -33,7 +33,7 @@ Sprint 01 — walking skeleton. No product features yet.
 
 If you have ten minutes and want to see how it was built rather than what it does:
 `docs/product-brief.md` → `docs/nfrs.md` → `docs/adr/ADR-001-architecture-style.md`
-→ `docs/api-gaps.md`. The last one is the most honest.
+→ `docs/intents/TRIAGE.md`. The last one is the most honest.
 
 ## Stack
 
