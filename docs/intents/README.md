@@ -19,13 +19,23 @@ All three are committed in the pull request, so the CI reviewer can read them.
    work the **ADR is the intent**; `spec.md` names the ADR and there is no `intent.md`.
 2. **What already exists** — checked before anything is specified.
 3. **Spec** — what must be true, not how. No steps, no open decisions.
-4. **Plan** — written by Claude Code after reading the code. Numbered steps; each names
-   what it changes, its test, and why `main` is still deployable after it.
-5. **Rohit accepts the plan.** `plan.md` carries `Status: ACCEPTED <date>` and is
+4. **Plan, drafted** — written by Claude Code after reading the code, `Status: Drafted`.
+5. **Plan, interrogated** — Rohit asks what the change could break, which step is most
+   risky, and what Claude chose not to do. The answers go into the plan.
+6. **Rohit accepts the plan.** `plan.md` carries `Status: ACCEPTED <date>` and is
    committed first and alone. Nothing is implemented before that commit exists.
-6. **Build** — one commit per plan step.
-7. **Review** — the Claude PR review in CI, against `REVIEW.md`.
-8. **Rohit merges.**
+7. **Build** — one commit per plan step.
+8. **Review** — the Claude PR review in CI, against `REVIEW.md`.
+9. **Rohit merges.**
+
+An accepted `plan.md` has four sections:
+
+| | |
+|---|---|
+| Files that change | every file, grouped by step |
+| Order of work | numbered steps, one commit each |
+| Risks | what could break, which step is riskiest, what was not chosen |
+| Proof | the test per step, and why `main` stays deployable |
 
 ## Where things go
 
