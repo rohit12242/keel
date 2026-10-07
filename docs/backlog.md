@@ -5,7 +5,7 @@ stories **named, not estimated**. Sizing happens at sprint planning, with the
 evidence from the sprint before it.
 
 Stories reference the artifacts that already exist: `erd.md` invariants (INV-n),
-`keel-api.yaml` operations, `api-gaps.md` gaps (G-n), and the decision register
+`keel-api.yaml` operations, the triage queue in `docs/intents/`, and the decision register
 (D-n). A story that cannot point at one of those is probably invented.
 
 | Epic | Sprint | Week | Stories |
