@@ -1,47 +1,47 @@
-# `docs/intents/` — the chain, one folder per intent
+# `docs/intents/` — one folder per intent
 
-Keel is built one **intent** at a time. An intent is one user-visible change, small
-enough to state in a sentence with no "and" in it.
+An intent is one feature a user would name: "declare an objective", "log effort",
+"see the week".
 
 ```
-docs/intents/I-01-create-an-objective/
-  intent.md    why this exists, what changes for the user, how we know it worked
-  spec.md      what must be true when it is done, and what constrains it
-  plan.md      the ordered steps that get there, written by Claude Code
+docs/intents/I-01-declare-an-objective/
+  intent.md    what this is, what changes for the user, how we know it worked
+  spec.md      what must be true when it is done
+  plan.md      the ordered steps that get there
 ```
 
-All three are committed in the pull request that implements the intent, so the
-reviewer running in CI can read them. They are project documents, like the ADRs and
-the contract — not tracking material.
+All three are committed in the pull request, so the CI reviewer can read them.
+`intent.md` and `spec.md` carry `Status: Drafted` until Rohit accepts them.
 
-## The order, and the one gate
+## The order
 
-1. **Intent** — Rohit writes it. For platform work (CI, hooks, guards) the **ADR is
-   the intent**; no `intent.md` is needed, and `spec.md` names the ADR instead.
-2. **What already exists** — checked before anything is specified. Half of what an
-   intent seems to need is usually already built.
-3. **Spec** — what must be true, not how. No ordered steps, no open decisions, no
-   measurement presented as a requirement.
-
-   **Open decisions are answered here, not escalated.** A question the intent leaves
-   open — a contract field, a mapping, where a rule lives — is decided while the spec
-   is written, and every such decision appears in a **Decisions taken here** list at
-   the top of `spec.md`, each with one line of reason. Rohit's read of that list is
-   the approval, which is why it is a list at the top and not prose in the middle.
-
-   Three things stop and ask instead of being decided: anything needing an **ADR**, a
-   contract change affecting a feature **outside** this intent, and anything
-   irreversible in production. Those outlive the intent, so they are not the intent's
-   to settle.
-4. **Plan** — written by Claude Code after reading the code, never by someone
-   reasoning from the documents alone. Numbered steps; each names what it changes,
-   its test, and why `main` is still deployable after it.
-5. **Rohit accepts the plan.** `plan.md` carries `Status: ACCEPTED <date>`, is
-   committed **first and alone**, and nothing is implemented before that commit
-   exists. A plan that exists is not a plan that was agreed.
+1. **Intent** — Rohit writes it: what and why, no files, fields or steps. For platform
+   work the **ADR is the intent**; `spec.md` names the ADR and there is no `intent.md`.
+2. **What already exists** — checked before anything is specified.
+3. **Spec** — what must be true, not how. No steps, no open decisions.
+4. **Plan** — written by Claude Code after reading the code. Numbered steps; each names
+   what it changes, its test, and why `main` is still deployable after it.
+5. **Rohit accepts the plan.** `plan.md` carries `Status: ACCEPTED <date>` and is
+   committed first and alone. Nothing is implemented before that commit exists.
 6. **Build** — one commit per plan step.
 7. **Review** — the Claude PR review in CI, against `REVIEW.md`.
 8. **Rohit merges.**
+
+## Where things go
+
+**Design** — a contract field, a column, an invariant, a state rule — goes in the
+document that owns it (`docs/keel-api.yaml`, `docs/erd.md`, `docs/adr/`,
+`docs/nfrs.md`), in the same commit as the spec. `spec.md` points at them, never
+repeats them.
+
+**Small decisions** are taken while the spec is written and are not logged anywhere.
+If one changes design, the design document is the record.
+
+**Three things stop and ask** instead: anything needing an ADR, a contract change
+affecting a feature outside this intent, anything irreversible in production.
+
+**Out-of-scope findings** go to `TRIAGE.md`, never into the running plan. `TRIAGE.md`
+is for work, not decisions.
 
 ## Naming
 
@@ -50,13 +50,8 @@ the contract — not tracking material.
 | Intent id | `I-01`, `I-02`, … |
 | Folder | `docs/intents/I-nn-<slug>/` |
 | Branch | `i-nn-<slug>` |
-| Commit footer | `Intent: I-nn` |
+| Footer, feature work | `Intent: I-nn` |
+| Footer, platform work | `ADR: nnn` |
+| Footer, anything else | `Chore: <what it was>` |
 
-`Story: W<week>-<nn>` is the historical form, still accepted by
-`scripts/check-commits.mjs` so the commits before Sprint 03 keep validating.
-
-## Out of scope is not out of mind
-
-A finding that is real but outside the running intent goes to `TRIAGE.md`. It never
-becomes an extra step in the plan it interrupted. Sprint 02 grew from 26 stories to
-32 by doing exactly that.
+`scripts/check-commits.mjs` enforces these.
