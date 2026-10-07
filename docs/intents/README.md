@@ -24,7 +24,7 @@ All three are committed in the pull request, so the CI reviewer can read them.
    risky, and what Claude chose not to do. The answers go into the plan.
 6. **Rohit accepts the plan.** `plan.md` carries `Status: ACCEPTED <date>` and is
    committed first and alone. Nothing is implemented before that commit exists.
-7. **Build** — one commit per plan step.
+7. **Build**.
 8. **Review** — the Claude PR review in CI, against `REVIEW.md`.
 9. **Rohit merges.**
 
@@ -33,7 +33,7 @@ An accepted `plan.md` has four sections:
 | | |
 |---|---|
 | Files that change | every file, grouped by step |
-| Order of work | numbered steps, one commit each |
+| Order of work | numbered steps, in the order the work happens |
 | Risks | what could break, which step is riskiest, what was not chosen |
 | Proof | the test per step, and why `main` stays deployable |
 
