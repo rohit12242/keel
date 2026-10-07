@@ -68,6 +68,17 @@ export type Day = {
   last_deviation: null;
 };
 
+/** Every field computed at read time; none stored, none writable (NFR-09). */
+export type Figures = {
+  adherence_pct: number;
+  logged_minutes: number;
+  target_minutes: number;
+  planned_days?: number;
+  planned_days_worked?: number;
+  target_met_days?: number;
+  extra_off_day_minutes?: number;
+};
+
 export type ProblemError = { field: string; message: string };
 
 export type Problem = {
