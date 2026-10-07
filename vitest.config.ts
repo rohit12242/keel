@@ -25,6 +25,7 @@ export default defineConfig({
         // Type-only: no runtime code, so nothing to cover (ADR-007, W5-06
         // amendment). Re-justify this line if the file ever gains a value.
         "src/modules/today/domain/rows.ts",
+        "src/modules/objectives/domain/rows.ts",
       ],
       reporter: ["text"],
       // No global threshold: only the domain blocks. All four metrics, because
