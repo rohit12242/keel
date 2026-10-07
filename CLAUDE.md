@@ -72,7 +72,7 @@ Integration tests (`npm run test:integration:tz`) run in CI only — skip them l
 
 - **The contract is the source of truth.** An endpoint is never added or changed
   without changing `docs/keel-api.yaml` in the same commit. Known gaps go in
-  `docs/api-gaps.md`.
+  `docs/intents/TRIAGE.md`.
 - **Failures are Problem Details** (`application/problem+json`). Every endpoint
   declares its failure responses.
 - **Aggregates are computed at read time**, never stored — adherence, totals,
@@ -85,7 +85,11 @@ Integration tests (`npm run test:integration:tz`) run in CI only — skip them l
 - **Logs carry ids and types only**, never user-written text. _(NFR-11)_
 - **Colour is never the only signal**; everything is keyboard-operable. _(NFR-13)_
 - **Not in v1:** offline logging, timezone/DST behaviour, pagination, repository
-  interfaces, event sourcing, DI frameworks, caching or rollups.
+  interfaces, event sourcing, DI frameworks, caching or rollups. Also decided and
+  deliberate: the sidebar's shared counts have no endpoint — a client derives them
+  from what it already fetched; `GET /deviations` requires a date range, so the client
+  picks a default; and "the sentence that repeats" has no definition, because sameness
+  between two sentences needs its own thinking and is a feature, not plumbing.
 - **Ask before adding a runtime dependency.**
 - **Git:** branch from `main` as `i-<nn>-<slug>`; `main` changes only through a PR
   with passing checks. Conventional Commits, scope is the module or `ci`, `db`,
