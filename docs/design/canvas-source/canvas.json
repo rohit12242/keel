@@ -1,19 +1,227 @@
 {
   "artboards": [
-    { "file": "Main.dc.html", "title": "Today", "x": 0, "y": 0, "w": 1400, "h": 1060 },
-    { "file": "NewObjective.dc.html", "title": "New objective", "x": 1480, "y": 0, "w": 1400, "h": 1140 },
-    { "file": "Deviation.dc.html", "title": "Log a deviation", "x": 2960, "y": 0, "w": 1400, "h": 1180 },
-    { "file": "ParkingLot.dc.html", "title": "Parking lot", "x": 4440, "y": 0, "w": 1400, "h": 940 },
-    { "file": "Objective.dc.html", "title": "Objective detail", "x": 0, "y": 1320, "w": 1400, "h": 1560 },
-    { "file": "Review.dc.html", "title": "Review", "x": 1480, "y": 1320, "w": 1400, "h": 1620 }
+    {
+      "file": "Login.dc.html",
+      "title": "Sign in",
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 860
+    },
+    {
+      "file": "Signup.dc.html",
+      "title": "Create account",
+      "x": 1480,
+      "y": 0,
+      "w": 1400,
+      "h": 940
+    },
+    {
+      "file": "ForgotPassword.dc.html",
+      "title": "Reset password",
+      "x": 2960,
+      "y": 0,
+      "w": 1400,
+      "h": 820
+    },
+    {
+      "file": "Main.dc.html",
+      "title": "Today",
+      "x": 0,
+      "y": 1180,
+      "w": 1400,
+      "h": 1060
+    },
+    {
+      "file": "Objectives.dc.html",
+      "title": "Objectives",
+      "x": 1480,
+      "y": 1180,
+      "w": 1400,
+      "h": 1300
+    },
+    {
+      "file": "NewObjective.dc.html",
+      "title": "New objective",
+      "x": 2960,
+      "y": 1180,
+      "w": 1400,
+      "h": 1300
+    },
+    {
+      "file": "Deviation.dc.html",
+      "title": "Log a deviation",
+      "x": 4440,
+      "y": 1180,
+      "w": 1400,
+      "h": 1180
+    },
+    {
+      "file": "ParkingLot.dc.html",
+      "title": "Parking lot",
+      "x": 5920,
+      "y": 1180,
+      "w": 1400,
+      "h": 1480
+    },
+    {
+      "file": "Objective.dc.html",
+      "title": "Objective — Overview (active)",
+      "x": 0,
+      "y": 2840,
+      "w": 1400,
+      "h": 1900
+    },
+    {
+      "file": "Review.dc.html",
+      "title": "Review — weekly",
+      "x": 1480,
+      "y": 2840,
+      "w": 1400,
+      "h": 1900
+    },
+    {
+      "file": "ObjectiveCompleted.dc.html",
+      "title": "Objective — Overview (completed, 3 extensions)",
+      "x": 0,
+      "y": 5080,
+      "w": 1400,
+      "h": 1620
+    },
+    {
+      "file": "ObjectiveEffort.dc.html",
+      "title": "Objective — Effort",
+      "x": 1480,
+      "y": 5080,
+      "w": 1400,
+      "h": 1300
+    },
+    {
+      "file": "ObjectiveReviews.dc.html",
+      "title": "Objective — Reviews",
+      "x": 2960,
+      "y": 5080,
+      "w": 1400,
+      "h": 1060
+    },
+    {
+      "file": "ReviewDetail.dc.html",
+      "title": "Review — one frozen review",
+      "x": 4440,
+      "y": 5080,
+      "w": 1400,
+      "h": 1700
+    },
+    {
+      "file": "ContinueModal.dc.html",
+      "title": "Continue — new schedule",
+      "x": 4440,
+      "y": 2840,
+      "w": 1400,
+      "h": 900
+    }
   ],
   "annotations": [
-    { "id": "note-today", "x": 0, "y": -170, "w": 430, "text": "Several objectives at once, several entries per day.\nOne is fixed-weekday, one is flexible-weekly, one is off today — all three states visible." },
-    { "id": "note-new", "x": 1480, "y": -170, "w": 430, "text": "The schedule builder. Everything on the right is derived — planned days, target hours, review date.\nAdding a third objective while two run asks for a reason, and records it." },
-    { "id": "note-dev", "x": 2960, "y": -170, "w": 430, "text": "Chosen vs drifted, with the reasoning captured at the time.\nThe review tests that reasoning against what happened." },
-    { "id": "note-park", "x": 4440, "y": -170, "w": 430, "text": "Unchanged except that ideas are now global rather than tied to one objective." },
-    { "id": "note-obj", "x": 0, "y": 1150, "w": 430, "text": "The attendance strip is the schedule made visible — met, short, missed, off, and off-but-worked.\nThe history table compares each day against its target." },
-    { "id": "note-review", "x": 1480, "y": 1150, "w": 430, "text": "Adherence is the headline, ahead of streak.\nDeviations split by kind; chosen ones get a was-it-worth-it verdict looking back." }
+    {
+      "id": "note-auth",
+      "x": 0,
+      "y": -170,
+      "w": 460,
+      "text": "Single user. The left panel carries the one-line description from the brief — it is the only place the product explains itself."
+    },
+    {
+      "id": "note-signup",
+      "x": 1480,
+      "y": -170,
+      "w": 460,
+      "text": "Sign-up closes once the account exists. The checkbox is the only place the product asks anything of you before you start."
+    },
+    {
+      "id": "note-nav",
+      "x": 0,
+      "y": 950,
+      "w": 460,
+      "text": "Review has left the sidebar: Today, Objectives, Deviations, Parking lot.\\nA review is something you do to an objective, not a place you visit."
+    },
+    {
+      "id": "note-objectives",
+      "x": 1480,
+      "y": 950,
+      "w": 460,
+      "text": "Carries the combined picture — where every hour in September went, including drift and objectives since ended."
+    },
+    {
+      "id": "note-new",
+      "x": 2960,
+      "y": 950,
+      "w": 460,
+      "text": "Opens with what is already parked, before the form."
+    },
+    {
+      "id": "note-park",
+      "x": 5920,
+      "y": 950,
+      "w": 460,
+      "text": "Parked / Taken / Dropped. Nothing is deleted; the pair of reasons on a dropped row is the point."
+    },
+    {
+      "id": "note-active",
+      "x": 0,
+      "y": 2670,
+      "w": 460,
+      "text": "Effort is gone from Overview — it has its own tab. In its place: status history with the reason given at each change, then the status actions below the schedule."
+    },
+    {
+      "id": "note-rev1",
+      "x": 1480,
+      "y": 2670,
+      "w": 460,
+      "text": "A weekly review, scoped to its own week. No decision here — status changes happen on the objective. It ends in a summary that appears against the week in the reviews list."
+    },
+    {
+      "id": "note-done",
+      "x": 0,
+      "y": 4910,
+      "w": 460,
+      "text": "The stress case: extended three times, completed with criteria only partly met. Overview shows how long it really took and adherence falling window on window."
+    },
+    {
+      "id": "note-effort",
+      "x": 1480,
+      "y": 4910,
+      "w": 460,
+      "text": "Effort tab. Four months, shown a month at a time, every day against its target."
+    },
+    {
+      "id": "note-revlist",
+      "x": 2960,
+      "y": 4910,
+      "w": 460,
+      "text": "Reviews tab. Four rows, the adherence trend beneath, and the sentence that repeats across three of them."
+    },
+    {
+      "id": "note-revdetail",
+      "x": 4440,
+      "y": 4910,
+      "w": 460,
+      "text": "One frozen review with its own address. Everything that was true on 22 Nov: figures, drift and its verdicts, parked ideas, the plan note, the reflection and the decision."
+    },
+    {
+      "id": "note-cont",
+      "x": 4440,
+      "y": 2670,
+      "w": 460,
+      "text": "The only status change that opens a dialog. It needs a new schedule, so it cannot be an inline panel."
+    },
+    {
+      "id": "note-forgot",
+      "x": 2960,
+      "y": -170,
+      "w": 460,
+      "text": "Added after your answer to Q2. Same confirmation whether or not the address has an account; if the mailbox is gone too, the account cannot be recovered."
+    }
   ],
-  "launch": { "view": "canvas" }
+  "launch": {
+    "view": "canvas"
+  }
 }
