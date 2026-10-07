@@ -216,10 +216,10 @@ describe("assembleDay", () => {
     expect(o.slot).toBeNull();
   });
 
-  it("G-17 (open): a flexible objective shows its schedule but computes no slot", () => {
-    // Pins today's behaviour, which G-17 records as WRONG: generateSlots is
-    // fixed-only, so a flexible objective is never planned and all its effort
-    // is extra. When G-17 is fixed this test should fail and be rewritten.
+  it("plans a flexible objective by its week, and its effort is not extra", () => {
+    // Until I-01 this pinned the wrong answer the W4-29 review found (G-17): a
+    // flexible objective computed no slot and every entry was extra. Week
+    // slots exist now, so the day is covered by its week.
     const FLEXIBLE = {
       ...MON_TO_FRI,
       schedule_mode: "flexible" as const,
@@ -237,9 +237,16 @@ describe("assembleDay", () => {
       days_per_week: 3,
       label: "FLEXIBLE · 3 DAYS/WEEK · 1h 00m PER DAY",
     });
-    expect(o.slot).toBeNull();
-    expect(o.entries[0].extra).toBe(true);
-    expect(day.totals.extra_off_day_minutes).toBe(60);
+    expect(o.slot).toEqual({
+      period_kind: "week",
+      period_start: "2026-09-14",
+      period_end: "2026-09-20",
+      target_minutes: 180,
+      target_days: 3,
+    });
+    expect(o.entries[0].extra).toBe(false);
+    expect(day.totals.extra_off_day_minutes).toBe(0);
+    expect(o.next_planned_date).toBe("2026-09-17");
   });
 
   it("G-18 (open): a flexible segment with no days_per_week shows 0", () => {
