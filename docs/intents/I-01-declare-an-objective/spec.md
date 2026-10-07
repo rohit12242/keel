@@ -1,6 +1,6 @@
 # Spec — I-01 · Declare an objective
 
-**Intent:** `intent.md` in this folder · **Status:** Drafted · **Written:** 2026-10-06
+**Intent:** `intent.md` in this folder · **Status:** Accepted · **Written:** 2026-10-06 · **Accepted:** 2026-10-07
 
 The design this needs is already in the repository — `docs/keel-api.yaml`,
 `docs/erd.md`, `docs/adr/`, `docs/nfrs.md`, all named by CLAUDE.md. This file does not
