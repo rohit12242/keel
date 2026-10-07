@@ -352,7 +352,13 @@ paths:
                   committed_minutes_per_week:
                     type: integer
                     description: Computed across active objectives.
+        '400':
+          description: '`status` is not one of the listed values.'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '500': { $ref: '#/components/responses/MalformedRecord' }
         '503': { $ref: '#/components/responses/Unavailable' }
     post:
       tags: [Objectives]
@@ -396,6 +402,7 @@ paths:
               schema: { $ref: '#/components/schemas/Objective' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/MalformedRecord' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
   /objectives/{objectiveId}/effort:
@@ -464,6 +471,7 @@ paths:
               schema: { $ref: '#/components/schemas/Problem' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/MalformedRecord' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
   /objectives/{objectiveId}/status-changes:
@@ -1029,6 +1037,15 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    MalformedRecord:
+      description: |
+        An objective's stored facts are malformed — no status events, or no plan
+        segment — so it has no status or no plan to show. The read fails rather
+        than guessing a default (`docs/erd.md`, invariant 16). The problem carries
+        no user-written text (NFR-11).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     TooManyRequests:
       description: Rate limited.
       content:
@@ -1204,7 +1221,11 @@ components:
             server clock with extra steps.
         tz:
           type: string
-          description: The zone the objective was declared in.
+          description: |
+            The zone the objective was declared in. Validated — an unknown IANA zone
+            is a `400` — and not stored: the objective records only the day it
+            starts, so a zone would be stored and never read (the ERD's reasoning
+            for `status_event`, applied here).
           example: 'Asia/Kolkata'
         runs_for_days:
           type: integer
@@ -1214,7 +1235,13 @@ components:
             Counted inclusively from `starts_on`, so a one-day objective starts and
             ends on the same date.
         review_cadence: { type: string, enum: [weekly, monthly] }
-        from_parked_idea_id: { type: [string, 'null'], format: uuid }
+        from_parked_idea_id:
+          type: [string, 'null']
+          format: uuid
+          description: |
+            Not accepted yet. Parked ideas have no table to check an id against, so
+            a non-null value is refused with `400` rather than stored unverified.
+            Send null, or leave it out, until the parking lot exists.
 
     Figures:
       type: object
