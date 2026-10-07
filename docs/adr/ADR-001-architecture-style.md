@@ -5,6 +5,13 @@
 > **Revision 2.** NFR-12 (timezone and DST correctness) is deferred to v2. The first
 > draft of this ADR leaned on it as the lead argument. It has been removed and the
 > decision re-argued without it — see *Context* and *Evidence*.
+>
+> **Revision 3.** The six-call-site rule is named `figures(slots, dailyMinutes)`, in
+> `effort/domain`. It was `adherence(slots, entries)` here, written before the
+> function existed; I-01's plan named the real one. Adherence is one of the figures
+> it returns, alongside planned days, days worked, days met and off-day minutes —
+> all from the same pass, because a screen that shows the percentage shows the
+> counts beside it. The decision is unchanged: one implementation, six call sites.
 
 ## Context
 
@@ -23,7 +30,7 @@ The ERD answered it. Keel is not CRUD — but the reason is not date correctness
 
 | Rule | Where it is needed |
 |---|---|
-| `adherence` | Today, objectives list, objective overview, effort tab, review, review detail — **six screens** |
+| `figures` — adherence and the counts beside it | Today, objectives list, objective overview, effort tab, review, review detail — **six screens** |
 | `generateSlots` | Real generation, and the New objective preview panel (gap G-09) |
 | `canExtend` | The API, as 409 and 422 — and the UI, as whether Continue is enabled |
 | `classifyEntry` | Today, and the effort tab |
@@ -80,7 +87,7 @@ This is enforced by an import-boundary lint rule in CI (W3-10), not by memory.
 |---|---|
 | `generateSlots(segment)` | Fixed → day rows, flexible → week rows |
 | `localDayOf(instant, tz)` | The midnight boundary. v1 needs only the simple case — see the note below |
-| `adherence(slots, entries)` | Planned days worked, target met, percentage |
+| `figures(slots, dailyMinutes)` | Planned days worked, target met, percentage |
 | `reviewWindows(cadence, segment)` | The rule gap G-06 named |
 | `canExtend(objective, review, newEnd, today)` | ERD invariants 6 and 7 |
 | `classifyEntry(entry, slots)` | Planned or extra — derived, never stored |
@@ -143,10 +150,11 @@ correctness one, and it belongs in the NFR document rather than buried here.
 
 ## Evidence
 
-The twenty-minute test, rewritten now that NFR-12 is deferred. Use **adherence**
-instead — it is the rule with six call sites, so it is the one that matters most.
+The twenty-minute test, rewritten now that NFR-12 is deferred. Use **the adherence
+rule** instead — it is the rule with six call sites, so it is the one that matters
+most.
 
-Write `adherence(slots, entries)` as a test first: a handful of plan slots, a
+Write `figures(slots, dailyMinutes)` as a test first: a handful of plan slots, a
 handful of effort entries, an expected percentage. Then ask:
 
 - Did writing it need a running database, or a web request? → the domain layer is
@@ -161,11 +169,11 @@ unification in the ERD is wrong, and it is far cheaper to learn that today than 
 Sprint 02.
 
 **Result: not run.** The decision was accepted on the argument rather than the
-evidence — six call sites for `adherence`, and the cost of them disagreeing.
+evidence — six call sites for the adherence rule, and the cost of them disagreeing.
 
 That is a legitimate way to decide and a worse way than running the test, so it is
 recorded as what it is. The evidence arrives anyway at the first real
-implementation in Sprint 02: if `adherence` turns out to need a database, or if the
+implementation in Sprint 02: if the rule turns out to need a database, or if the
 flexible-schedule case needs a different function rather than different inputs,
 this ADR was wrong and should be revised then rather than defended.
 
