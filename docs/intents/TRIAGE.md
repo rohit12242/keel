@@ -15,4 +15,18 @@ that forgets is a promise nobody kept.
 the small decisions taken while a spec or a plan is written. The test is whether a
 future intent would be *wrong* without the entry.
 
-Empty.
+## Open
+
+### Route validators are copied, not shared · found in I-01
+
+`shared/http.ts` gained `isUuid` in I-01, and the objectives routes use it. Two older
+routes still carry their own copies:
+
+- the UUID regex in `app/objectives/[objectiveId]/effort-entries/route.ts`;
+- `isIsoDate` in `app/day/[date]/route.ts`, which duplicates the exported one in
+  `modules/effort/domain/validateWrite.ts`.
+
+They agree today. The risk is the next route copying whichever it finds first, and one
+copy drifting: a date the day route accepts but the effort write refuses is the kind of
+disagreement that moves a day (NFR-12). Small to fix, since both routes would import
+the shared one. It was left out of I-01 because neither route is in its plan.
