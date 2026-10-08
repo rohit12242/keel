@@ -36,6 +36,7 @@ before any code commit — nothing is implemented without an accepted plan.
 - No `Status: ACCEPTED` line → Important Plan finding.
 - A code commit earlier than the plan commit → Important Plan finding.
 - The plan changed in the same PR that implements it, with no re-acceptance → Important Plan finding.
+- A missing section among _Files that change_, _Order of work_, _Risks_, _Proof_ → nit.
 
 A plan that exists is not a plan that was agreed.
 

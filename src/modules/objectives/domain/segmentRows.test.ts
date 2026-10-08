@@ -21,6 +21,7 @@ describe("toSegment", () => {
     expect(toSegment(FIXED)).toEqual({
       scheduleMode: "fixed",
       plannedWeekdays: [1, 2, 3, 4, 5],
+      daysPerWeek: null,
       minutesPerPlannedDay: 120,
       startDate: "2026-09-14",
       endDate: "2026-10-11",
@@ -37,6 +38,7 @@ describe("toSegment", () => {
     const segment = toSegment(flexible);
     expect(segment.scheduleMode).toBe("flexible");
     expect(segment.plannedWeekdays).toEqual([]);
+    expect(segment.daysPerWeek).toBe(3);
   });
 
   it("keeps dates as the strings the row carried (NFR-12)", () => {

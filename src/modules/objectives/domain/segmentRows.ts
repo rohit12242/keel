@@ -23,6 +23,7 @@ export function toSegment(row: PlanSegmentRow): SegmentForSlots {
   return {
     scheduleMode: row.schedule_mode,
     plannedWeekdays: bitmaskToWeekdays(row.planned_weekdays ?? 0),
+    daysPerWeek: row.days_per_week,
     minutesPerPlannedDay: row.minutes_per_planned_day,
     startDate: row.start_date,
     endDate: row.end_date,

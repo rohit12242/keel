@@ -10,13 +10,15 @@ import type { EffortEntryWrite, ProblemError } from "@/shared/contract";
 export type ValidationResult =
   { ok: true; value: EffortEntryWrite } | { ok: false; errors: ProblemError[] };
 
-function isIsoDate(s: string): boolean {
+/** A real calendar date written YYYY-MM-DD. Shared with the objective write. */
+export function isIsoDate(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(`${s}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 }
 
-function isValidTz(tz: string): boolean {
+/** An IANA zone the runtime recognises. Shared with the objective write. */
+export function isValidTz(tz: string): boolean {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });
     return true;

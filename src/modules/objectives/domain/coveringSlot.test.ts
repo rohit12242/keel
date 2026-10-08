@@ -69,13 +69,40 @@ describe("coveringSlot", () => {
     expect(coveringSlot([MON_TO_FRI], [], "2026-09-16")).toBeNull();
   });
 
-  it("is null for a flexible segment, rather than throwing", () => {
+  // --- a flexible schedule (I-01) -----------------------------------------
+
+  it("covers a flexible date with its week slot", () => {
     const flexible: SegmentForSlots = {
       ...MON_TO_FRI,
       scheduleMode: "flexible",
       plannedWeekdays: [],
+      daysPerWeek: 3,
     };
-    expect(coveringSlot([flexible], CREATED, "2026-09-16")).toBeNull();
+    // Saturday 19th: no weekday is "planned", but the week asks for 3 days.
+    expect(coveringSlot([flexible], CREATED, "2026-09-19")).toEqual({
+      periodKind: "week",
+      periodStart: "2026-09-14",
+      periodEnd: "2026-09-20",
+      targetMinutes: 360,
+      targetDays: 3,
+    });
+  });
+
+  it("covers no paused day inside a flexible week", () => {
+    const flexible: SegmentForSlots = {
+      ...MON_TO_FRI,
+      scheduleMode: "flexible",
+      plannedWeekdays: [],
+      daysPerWeek: 3,
+    };
+    const events: StatusEventRow[] = [
+      ...CREATED,
+      { occurred_on: "2026-09-16", change: "paused" },
+      { occurred_on: "2026-09-18", change: "resumed" },
+    ];
+    expect(coveringSlot([flexible], events, "2026-09-17")).toBeNull();
+    // The rest of the week is still covered, with the day count intact.
+    expect(coveringSlot([flexible], events, "2026-09-18")?.targetDays).toBe(3);
   });
 
   // --- the day is planned ---------------------------------------------------
@@ -155,13 +182,26 @@ describe("nextPlannedDate", () => {
     );
   });
 
-  it("does not plan from a flexible segment yet (E-02)", () => {
+  it("is the next active day inside a flexible week", () => {
     const FLEXIBLE: SegmentForSlots = {
       ...MON_TO_FRI,
       scheduleMode: "flexible",
       plannedWeekdays: [],
+      daysPerWeek: 2,
     };
-    expect(nextPlannedDate([FLEXIBLE], CREATED, "2026-09-18")).toBeNull();
+    // Friday 18th → Saturday 19th: any day of the week may be the one worked.
+    expect(nextPlannedDate([FLEXIBLE], CREATED, "2026-09-18")).toBe(
+      "2026-09-19",
+    );
+    // Across the week boundary, and over a pause.
+    const events: StatusEventRow[] = [
+      ...CREATED,
+      { occurred_on: "2026-09-20", change: "paused" },
+      { occurred_on: "2026-09-23", change: "resumed" },
+    ];
+    expect(nextPlannedDate([FLEXIBLE], events, "2026-09-19")).toBe(
+      "2026-09-23",
+    );
   });
 });
 

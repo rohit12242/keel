@@ -27,3 +27,28 @@ export function problem(
 
 const PROBLEM_BASE = "https://keel.app/problems";
 export const problemType = (slug: string) => `${PROBLEM_BASE}/${slug}`;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A path id that is not a UUID names no row: the route answers 404. */
+export const isUuid = (s: string): boolean => UUID.test(s);
+
+/** The objective's stored facts are malformed (ERD invariant 16). Ids only. */
+export const malformedRecord = (): Response =>
+  problem(
+    500,
+    "This objective's record is malformed",
+    problemType("malformed-record"),
+    "The objective has no status history or no plan, so it cannot be shown.",
+  );
+
+export const unavailable = (): Response =>
+  problem(
+    503,
+    "Couldn't reach your log",
+    problemType("unavailable"),
+    "The database could not be reached.",
+  );
+
+export const notFound = (what: string): Response =>
+  problem(404, "Not found", problemType("not-found"), `No such ${what}.`);

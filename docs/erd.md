@@ -213,7 +213,7 @@ What you committed to. Note what is *not* here: no schedule, no end date. Those 
 | days_per_week | int2 null | Null when fixed. |
 | minutes_per_planned_day | int |  |
 | start_date / end_date | date | Contiguous with the previous segment; never overlapping. |
-| reason | text | **NOT NULL.** The Continue dialog marks "why extend rather than complete?" as required, so the schema should too. Segment 0's reason is the objective's creation reason. |
+| reason | text | **NOT NULL.** The Continue dialog marks "why extend rather than complete?" as required, so the schema should too. Segment 0's reason is the objective's creation reason — its `why_now`, copied at create, because the create request has no `reason` field of its own and should not grow one. |
 | created_by_review_id | uuid null FK | Null on segment 0. Set by the plan-end review that extended. |
 
 ### Plan slots — not an entity
@@ -373,7 +373,7 @@ would be stored and never read.
 13. **Verdicts accumulate, they do not overwrite.** A parked idea's verdict history is append-only. The current verdict is the latest row; the verdict a review shows is the latest row on or before that review's period end. Reviving a dropped idea adds a row, it does not edit one. *(NFR-01)*
 14. **One draft, and it holds no figures.** At most one draft review per objective and period; saving replaces it. A draft stores answers only — adherence, totals, the per-day bars and deviation costs are recomputed every time the review is opened.
 15. **Nothing is ever counted twice.** No adherence, total, streak, extension count or sequence number is stored anywhere. Every figure on every screen — including "longest streak", "review 7 of the plan" and "the sentence that repeats" — is computed at read time. *(NFR-09)*
-16. **Every objective starts with a `created` event.** An objective's status is the latest status event, so an objective with no events has no status rather than a default one. The `created` event is written in the same transaction as the objective, and the W4-10 migration backfills one for every objective that predates `status_event`. *(ADR-008)*
+16. **Every objective starts with a `created` event.** An objective's status is the latest status event, so an objective with no events has no status rather than a default one. The `created` event is written in the same transaction as the objective, and the W4-10 migration backfills one for every objective that predates `status_event`. A read that meets an objective with no events therefore fails loudly: the stored facts are malformed, and substituting `active` would hide it. *(ADR-008)*
 17. **Nothing is deleted.** There is no delete for an objective, a review, a deviation or a parked idea. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
 
 ## Modelling calls worth challenging

@@ -352,7 +352,13 @@ paths:
                   committed_minutes_per_week:
                     type: integer
                     description: Computed across active objectives.
+        '400':
+          description: '`status` is not one of the listed values.'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '500': { $ref: '#/components/responses/MalformedRecord' }
         '503': { $ref: '#/components/responses/Unavailable' }
     post:
       tags: [Objectives]
@@ -396,6 +402,7 @@ paths:
               schema: { $ref: '#/components/schemas/Objective' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/MalformedRecord' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
   /objectives/{objectiveId}/effort:
@@ -464,6 +471,7 @@ paths:
               schema: { $ref: '#/components/schemas/Problem' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/MalformedRecord' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
   /objectives/{objectiveId}/status-changes:
@@ -1029,6 +1037,15 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    MalformedRecord:
+      description: |
+        An objective's stored facts are malformed — no status events, or no plan
+        segment — so it has no status or no plan to show. The read fails rather
+        than guessing a default (`docs/erd.md`, invariant 16). The problem carries
+        no user-written text (NFR-11).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     TooManyRequests:
       description: Rate limited.
       content:
@@ -1169,17 +1186,62 @@ components:
 
     ObjectiveWrite:
       type: object
-      required: [title, why_now, success_criteria, schedule, runs_for_days, review_cadence]
+      required:
+        [
+          title,
+          why_now,
+          success_criteria,
+          schedule,
+          starts_on,
+          tz,
+          runs_for_days,
+          review_cadence,
+        ]
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
         description: { type: string, maxLength: 4000 }
-        why_now: { type: string, minLength: 1, maxLength: 4000 }
+        why_now:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: |
+            Why this, now. It is also segment 0's `reason`, which the schema requires
+            and this body has no separate field for (`docs/erd.md`, plan_segment).
         success_criteria: { type: string, minLength: 1, maxLength: 2000 }
         plan_link: { type: [string, 'null'], format: uri }
         schedule: { $ref: '#/components/schemas/ScheduleWrite' }
-        runs_for_days: { type: integer, minimum: 1, maximum: 365 }
+        starts_on:
+          type: string
+          format: date
+          description: |
+            The day the objective starts, as the user means it. Never inferred from
+            the request time — the same discipline as `EffortEntryWrite.local_date`,
+            and for the same reason: a plan created at 23:55 belongs to that date for
+            good (NFR-12). Required, with no default: an optional date here is the
+            server clock with extra steps.
+        tz:
+          type: string
+          description: |
+            The zone the objective was declared in. Validated — an unknown IANA zone
+            is a `400` — and not stored: the objective records only the day it
+            starts, so a zone would be stored and never read (the ERD's reasoning
+            for `status_event`, applied here).
+          example: 'Asia/Kolkata'
+        runs_for_days:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: |
+            Counted inclusively from `starts_on`, so a one-day objective starts and
+            ends on the same date.
         review_cadence: { type: string, enum: [weekly, monthly] }
-        from_parked_idea_id: { type: [string, 'null'], format: uuid }
+        from_parked_idea_id:
+          type: [string, 'null']
+          format: uuid
+          description: |
+            Not accepted yet. Parked ideas have no table to check an id against, so
+            a non-null value is refused with `400` rather than stored unverified.
+            Send null, or leave it out, until the parking lot exists.
 
     Figures:
       type: object
@@ -1233,7 +1295,15 @@ components:
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
-        status: { type: string, enum: [active, paused, completed, ended] }
+        status:
+          type: string
+          enum: [active, paused, completed, ended]
+          description: |
+            Derived from the latest status event, never stored. The stored facts also
+            include `created` and `resumed`, which this enum does not: both read as
+            `active`. An objective with no status events has no status at all — that
+            is a malformed record, not a state, and a read fails rather than
+            defaulting (`docs/erd.md`, invariant 16).
         schedule: { $ref: '#/components/schemas/Schedule' }
         start_date: { type: string, format: date }
         end_date: { type: string, format: date, description: 'The latest segment''s end. Derived.' }
