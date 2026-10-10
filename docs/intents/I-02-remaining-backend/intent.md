@@ -9,13 +9,7 @@ listed, opened, and its schedule read. Effort can be logged against an objective
 a day can be read back. Everything else the contract describes is still only
 described.
 
-This intent builds the rest. The product's claim is that the record decides what to
-do next, and a record that holds only effort cannot do that. The deviations that
-pulled you off the plan, the ideas you parked instead of chasing, the reviews that
-judge a window and the status changes that end or extend an objective — those are
-the parts that turn a log of hours into something worth reviewing. The patterns are
-the vocabulary a deviation is classified against, and the session is what makes any
-of it yours.
+This intent builds the rest.
 
 ## Proposed outcome
 
