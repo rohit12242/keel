@@ -1,8 +1,24 @@
 # Keel — entity model and invariants
 
-Sprint 00 · Story W2-09 · **Revision 3** · 10 entities, 17 invariants, 0 stored aggregates
+Sprint 00 · Story W2-09 · **Revision 4** · 10 entities, 17 invariants, 0 stored aggregates
 
 Built against the current 15 screens. **NFR-06 (offline logging) is out of scope for v1.**
+
+## What revision 4 changed
+
+I-02's spec found two places where the model still said something a decision had
+since overruled, and one relationship stored twice.
+
+- **`user` holds no password.** ADR-002 delegated credentials to Cognito: Keel never
+  stores a password, and the local row is keyed by the provider's subject id. The
+  model still carried `password_hash` and had nowhere to put the subject. It now has
+  `idp_subject` and no hash.
+- **A parked idea no longer points at the objective it became.**
+  `objective.from_parked_idea_id` and `parked_idea.became_objective_id` were two
+  pointers for one relationship — two authorities on one truth, the thing revision 3
+  removed elsewhere. The objective keeps its pointer; the idea's is derived from it.
+- **Invariant 7 now says what a plan-end review's outcome does,** so the outcome and
+  the status history cannot disagree.
 
 ## What revision 3 changed
 
@@ -69,7 +85,7 @@ erDiagram
     USER {
         uuid id PK
         citext email UK
-        text password_hash
+        text idp_subject UK
         text tz
     }
     OBJECTIVE {
@@ -151,7 +167,6 @@ erDiagram
         text why
         date caught_on
         date locked_until
-        uuid became_objective_id FK
     }
     PARKED_IDEA_VERDICT {
         uuid id PK
@@ -196,7 +211,7 @@ What you committed to. Note what is *not* here: no schedule, no end date. Those 
 | title / description / why_now / success_criteria | text | From the New objective screen. |
 | plan_link | text null | The external spreadsheet. Keel stores the link, never the plan. |
 | review_cadence | enum('weekly','monthly') | A plan-end review is always created regardless of cadence. |
-| from_parked_idea_id | uuid null FK | Drives the "FROM PARKING LOT" badge on the objectives list. |
+| from_parked_idea_id | uuid null FK | Drives the "FROM PARKING LOT" badge on the objectives list. **The only pointer between an idea and the objective it became.** Taking an idea *is* creating an objective from it: the `taken` verdict row is written in the same transaction, and nowhere else. |
 | — not stored — |  | **Current status** is the latest status event — there is no status column (ADR-008). **Current end date** is the latest segment's end. **Original end date** is segment 0's end. **Extension count** is a row count. **The plan slots** for any date range. All derived. |
 
 ### Plan segment — `plan_segment`
@@ -292,8 +307,7 @@ The lock is the point. An idea you cannot act on for three weeks is an idea you 
 | idea / why | text | "The honest reason — this is the part worth having later." |
 | caught_on | date |  |
 | locked_until | date | Set when parked. Never moves. |
-| became_objective_id | uuid null FK | Set when a verdict of 'taken' is recorded. |
-| — not stored — |  | **The current verdict.** It is the latest verdict event — see below. |
+| — not stored — |  | **The current verdict.** It is the latest verdict event — see below. **The objective it became** is the objective whose `from_parked_idea_id` names it; the idea does not point back, because one relationship stored from both ends is two authorities on one truth. |
 
 ### Parked idea verdict — `parked_idea_verdict`
 
@@ -353,8 +367,17 @@ would be stored and never read.
 |---|---|---|
 | id | uuid PK |  |
 | email | citext UK |  |
-| password_hash | text |  |
-| tz | text | The zone new entries are stamped with by default. |
+| idp_subject | text null UK | The provider's subject id (ADR-002). Null only until the first sign-in binds it. Every Keel row points at `user.id`, never at this — changing provider re-maps one column rather than re-keying the database. |
+| tz | text | The zone new entries are stamped with by default, and the zone "today" is read in wherever the server must compare against it. |
+
+**No password, ever.** Credentials live at the provider (ADR-002); there is no column
+that could hold one.
+
+**First sign-in binds before it creates.** A sign-in whose subject matches no row
+looks for a row with the same verified email and no subject, and binds it. Only if
+there is none does it create a user. Without this, the first real sign-in on a
+database that already holds data would create a second, empty user and orphan the
+first one's record.
 
 ## Invariants
 
@@ -364,7 +387,7 @@ would be stored and never read.
 4. **Segments are contiguous and never overlap.** Segment *n* starts the day after segment *n−1* ends. No two segments of one objective cover the same date, and there are no gaps.
 5. **Every extension carries a reason.** `plan_segment.reason` is NOT NULL. The Continue dialog marks "why extend rather than complete?" as required, and a required field on the screen should be a required column in the schema.
 6. **An extension must reach into the future.** A new segment's end date is strictly after the day it is created. An extension that would end in the past is refused, not silently adjusted. *(Your answer, Q5)*
-7. **Only the plan-end review decides.** Only a review of kind `plan_end` may carry an outcome, a criteria verdict, or create a plan segment. Weekly and monthly reviews record and judge; they never change the plan. *(Your answer, Q8)*
+7. **Only the plan-end review decides.** Only a review of kind `plan_end` may carry an outcome, a criteria verdict, or create a plan segment. Weekly and monthly reviews record and judge; they never change the plan. *(Your answer, Q8)* **Its outcome is applied, not just recorded:** saving a plan-end review whose outcome is `completed`, `paused` or `ended` writes the matching status event in the same transaction, dated the review's `period_end` — the plan ended that day, whenever the review was saved; `continued` writes none, and is the only outcome that authorises an extension — exactly one. So the outcome a review shows and the status history can never disagree.
 8. **Criteria are judged once, at the end.** `criteria_assessment` and `criteria_verdict` are null on every weekly and monthly review. The screen says so in words; the schema should say it in constraints.
 9. **One plan per period.** Generating an objective's slots never yields two covering the same day or week. A fixed segment produces day slots; a flexible one produces week slots; never both within one segment. Nothing enforces this in the database — slots are values now, so this is a property of `generateSlots` and is tested as one *(ADR-008)*.
 10. **Slots follow the status.** A generated slot exists only for dates inside its segment and only for stretches the objective was active, according to its status events. Pausing suppresses slots for the paused stretch; resuming produces them again. Effort logged while paused is covered by no slot and therefore counts as extra. Because slots are derived, this can no longer drift from the status history — it *is* the status history *(ADR-008)*.
