@@ -67,6 +67,7 @@ changed four of them; those changes are in the same commit.
 
 - `next_review_on`, `committed_minutes_per_week` and the objective's criteria verdict
   are now returned, by the rules the domain documents and the contract give them.
+- Each objective says how many reviews it owes, not only when the oldest fell due.
 - The objective's effort can be read a month at a time.
 
 **Reading it all back**

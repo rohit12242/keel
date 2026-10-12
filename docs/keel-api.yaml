@@ -1283,6 +1283,13 @@ components:
         start_date: { type: string, format: date }
         end_date: { type: string, format: date, description: 'The latest segment''s end. Derived.' }
         next_review_on: { type: [string, 'null'], format: date }
+        reviews_due:
+          type: integer
+          minimum: 0
+          description: |
+            How many reviews are owed — every window that is due, not only the
+            earliest. Computed (`docs/domain/review-windows.md`). 0 exactly when
+            `next_review_on` is null.
         from_parking_lot: { type: boolean }
         figures: { $ref: '#/components/schemas/Figures' }
 
