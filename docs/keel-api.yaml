@@ -756,8 +756,9 @@ paths:
               schema: { $ref: '#/components/schemas/Problem' }
         '422':
           description: |
-            The deviation is drifted, or its date is outside this review's period.
-            Only chosen deviations are judged.
+            The deviation is drifted, its date is outside this review's period, or
+            it was logged against a different objective from this review's. Only
+            chosen deviations are judged, and only by their own objective.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -768,11 +769,15 @@ paths:
       tags: [Deviations]
       summary: List deviations in a date range
       description: |
-        No objective filter, because a deviation has no objective. A review asks
-        for its own period and shows whatever falls inside it, which means one
-        deviation can appear in several objectives' reviews.
+        Every deviation in the range, across all your objectives — the Deviations
+        screen. Each one names the objective it was logged against; pass
+        `objective_id` to see one objective's only.
       operationId: listDeviations
       parameters:
+        - name: objective_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
         - name: from
           in: query
           required: true
@@ -802,10 +807,16 @@ paths:
         '400': { $ref: '#/components/responses/Invalid' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '503': { $ref: '#/components/responses/Unavailable' }
+
+  /objectives/{objectiveId}/deviations:
     post:
       tags: [Deviations]
-      summary: Record a deviation
+      summary: Record a deviation against an objective
+      description: |
+        A deviation is logged against the objective it pulled you off, the way
+        effort is. A day that pulled you off two objectives is two deviations.
       operationId: createDeviation
+      parameters: [{ $ref: '#/components/parameters/objectiveId' }]
       requestBody:
         required: true
         content:
@@ -819,8 +830,12 @@ paths:
               schema: { $ref: '#/components/schemas/Deviation' }
         '400': { $ref: '#/components/responses/Invalid' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '422':
-          description: The pattern named does not exist, or `local_date` is in the future.
+          description: |
+            The objective is not active, `local_date` falls outside every plan
+            segment, `local_date` is in the future, or the pattern named does not
+            exist. The same rules that decide whether effort can be logged.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -1428,9 +1443,10 @@ components:
       allOf:
         - $ref: '#/components/schemas/DeviationWrite'
         - type: object
-          required: [id]
+          required: [id, objective_id]
           properties:
             id: { type: string, format: uuid }
+            objective_id: { type: string, format: uuid, description: 'The objective it was logged against.' }
             pattern_name: { type: [string, 'null'] }
             verdict:
               type: [string, 'null']
@@ -1534,7 +1550,7 @@ components:
                   planned: { type: boolean }
             deviations:
               type: array
-              description: Every deviation whose date falls in the period, whatever objective you were on.
+              description: The deviations logged against this review's objective whose date falls in the period.
               items: { $ref: '#/components/schemas/Deviation' }
             parked_ideas:
               type: array
