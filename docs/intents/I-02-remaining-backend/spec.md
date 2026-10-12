@@ -1,6 +1,6 @@
 # Spec — I-02 · Building the remaining backend of Keel
 
-**Intent:** `intent.md` in this folder · **Status:** Drafted · **Written:** 2026-10-10
+**Intent:** `intent.md` in this folder · **Status:** Accepted · **Written:** 2026-10-10 · **Accepted:** 2026-10-12
 
 The design this needs is in the repository — `docs/keel-api.yaml`, `docs/erd.md`,
 `docs/adr/`, `docs/nfrs.md`, `docs/domain/`. This file does not repeat them. Writing it
