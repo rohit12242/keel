@@ -650,7 +650,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: The review is saved. Saved reviews are updated through their own endpoint.
+          description: The review is saved. A saved review is the record of what you concluded then, and nothing changes it afterwards (NFR-01).
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
