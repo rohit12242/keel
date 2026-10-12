@@ -43,7 +43,8 @@ changed four of them; those changes are in the same commit.
 - A plan-end review's outcome is applied, not just written down, so what the review
   says and what the status history says can never disagree (ERD, invariant 7).
 - An extension is authorised by exactly one plan-end review that chose to continue,
-  and it ends after today.
+  and its new end date must fall after the day it is created — one already in the
+  past is refused, not adjusted.
 
 **Reviews**
 
