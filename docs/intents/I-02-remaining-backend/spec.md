@@ -16,6 +16,24 @@ changed four of them; those changes are in the same commit.
 - The first sign-in on the deployed database lands on the record that is already
   there, not on a new, empty user.
 - A signed-in session keeps working while the provider is unreachable (NFR-08).
+- The deployed service is reached only over HTTPS, on the registered domain ADR-006
+  requires; plain HTTP redirects to it. No credential and no entry crosses the wire in
+  clear (NFR-11). ADR-006 made this the precondition for sign-in, and the deployment
+  is still HTTP-only today.
+
+**The contract, usable from a browser**
+
+- The contract is served as an interactive page on every environment, local and
+  deployed. It is rendered from `docs/keel-api.yaml` itself, never a copy, and each
+  operation can be sent to the server the page came from.
+- The page acts as whoever is signed in. Signed out, every protected request gets the
+  contract's `401`, so the page exposes nothing a visitor could not already read in
+  the repository.
+- On the deployed page a request is a real write into the real record, and the record
+  deletes nothing. That is stated on the page, not left to be discovered.
+- The page is a runtime dependency, approved here: `swagger-ui-dist`, version pinned
+  and served by the app itself — never loaded from a third-party origin, because the
+  page runs on the same origin as the session.
 
 **Every request is the caller's**
 
@@ -80,4 +98,5 @@ changed four of them; those changes are in the same commit.
 
 Every screen, including the look of the provider's login page. Exporting or deleting
 an account, which now spans two systems (ADR-002). MFA. Seeding a starter set of
-deviation patterns. The Swagger UI (T-05).
+deviation patterns. Checking responses against the contract automatically — the page
+shows drift to a person; it does not fail a build. A sandbox to send requests to.

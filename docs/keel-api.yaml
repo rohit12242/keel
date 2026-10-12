@@ -31,10 +31,12 @@ info:
     Out of scope for v1: offline logging (NFR-06). There is no sync endpoint, no
     client-supplied identifier, and no conflict resolution.
 servers:
-  - url: https://api.keel.app/v1
-    description: Production
-  - url: http://localhost:3000/v1
-    description: Local
+  - url: /
+    description: |
+      Relative: requests go to whichever host served this document — localhost in
+      development, the deployed domain in production. No route has a `/v1`
+      prefix, and no environment is named here, so the interactive page and the
+      code cannot disagree about where the API lives (ADR-004).
 
 tags:
   - name: Session
