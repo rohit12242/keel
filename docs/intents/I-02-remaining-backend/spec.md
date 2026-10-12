@@ -23,6 +23,9 @@ changed four of them; those changes are in the same commit.
 
 **The contract, usable from a browser**
 
+- Every operation is served under `/v1`, as the contract's `servers` says — the six
+  routes already live move there. The health check stays at `/health`, where the load
+  balancer and the deploy look for it.
 - The contract is served as an interactive page on every environment, local and
   deployed. It is rendered from `docs/keel-api.yaml` itself, never a copy, and each
   operation can be sent to the server the page came from.

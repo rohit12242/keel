@@ -31,12 +31,13 @@ info:
     Out of scope for v1: offline logging (NFR-06). There is no sync endpoint, no
     client-supplied identifier, and no conflict resolution.
 servers:
-  - url: /
+  - url: /v1
     description: |
+      Every operation is versioned under `/v1`, except the health check (below).
       Relative: requests go to whichever host served this document — localhost in
-      development, the deployed domain in production. No route has a `/v1`
-      prefix, and no environment is named here, so the interactive page and the
-      code cannot disagree about where the API lives (ADR-004).
+      development, the deployed domain in production. No environment is named
+      here, so the interactive page and the code cannot disagree about where the
+      API lives (ADR-004).
 
 tags:
   - name: Session
@@ -59,6 +60,13 @@ security:
 
 paths:
   /health:
+    servers:
+      - url: /
+        description: |
+          Unversioned, deliberately. The load balancer's health check, the deploy
+          smoke check and the runbook all call `/health`; it describes the
+          running service, not a version of the API, and moving it would fail
+          every task during the deploy that moved it.
     get:
       tags: [Ops]
       summary: Liveness and database reachability
