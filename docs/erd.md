@@ -1,6 +1,6 @@
 # Keel — entity model and invariants
 
-Sprint 00 · Story W2-09 · **Revision 4** · 10 entities, 17 invariants, 0 stored aggregates
+Sprint 00 · Story W2-09 · **Revision 4** · 11 entities, 17 invariants, 0 stored aggregates
 
 Built against the current 15 screens. **NFR-06 (offline logging) is out of scope for v1.**
 
@@ -19,10 +19,12 @@ since overruled, and one relationship stored twice.
   removed elsewhere. The objective keeps its pointer; the idea's is derived from it.
 - **Invariant 7 now says what a plan-end review's outcome does,** so the outcome and
   the status history cannot disagree.
-- **A deviation belongs to an objective.** It used to belong to the user and a day,
-  so one deviation appeared in every objective's review that covered its date. It
-  is now logged against the objective it pulled you off, like effort, and only that
-  objective's reviews show it. Invariants 1, 11 and 12 changed with it.
+- **A deviation names the objectives it pulled you off.** It used to belong to the
+  user and a day with no objective at all, so every objective's review covering the
+  date showed it and none could say what it cost. It still belongs to the user, and
+  now names one or more of the user's objectives through `deviation_objective` — the
+  user chooses. Only the reviews of the objectives it names show it. The entity count
+  went from 10 to 11. Invariants 1, 11 and 12 changed with it.
 
 ## What revision 3 changed
 
@@ -57,7 +59,7 @@ Review found two things. The Review table was missing four fields visible on scr
 
 ## Decisions this model rests on
 
-- **A deviation belongs to an objective and a date.** *(Revision 4 — it belonged to the user alone.)*
+- **A deviation belongs to a user and a date, and names the objectives it pulled you off.** *(Revision 4 — it used to name none.)*
 - **An extension must reach a date strictly in the future** — refused, not adjusted.
 - **Only a plan-end review may change the plan.**
 
@@ -65,7 +67,9 @@ Review found two things. The Review table was missing four fields visible on scr
 ```mermaid
 erDiagram
     USER ||--o{ OBJECTIVE : owns
-    OBJECTIVE ||--o{ DEVIATION : "is deviated from"
+    USER ||--o{ DEVIATION : records
+    DEVIATION ||--|{ DEVIATION_OBJECTIVE : names
+    OBJECTIVE ||--o{ DEVIATION_OBJECTIVE : "is named by"
     USER ||--o{ PARKED_IDEA : parks
     USER ||--o{ DEVIATION_PATTERN : names
     OBJECTIVE ||--|{ PLAN_SEGMENT : "is planned over"
@@ -148,7 +152,7 @@ erDiagram
     }
     DEVIATION {
         uuid id PK
-        uuid objective_id FK
+        uuid user_id FK
         date local_date
         enum kind
         text what_happened
@@ -158,6 +162,11 @@ erDiagram
         uuid pattern_id FK
         enum verdict
         uuid verdict_review_id FK
+    }
+    DEVIATION_OBJECTIVE {
+        uuid deviation_id PK
+        uuid objective_id PK
+        uuid user_id FK
     }
     DEVIATION_PATTERN {
         uuid id PK
@@ -187,7 +196,9 @@ erDiagram
         text reason
     }
     USER ||--o{ OBJECTIVE : owns
-    OBJECTIVE ||--o{ DEVIATION : "is deviated from"
+    USER ||--o{ DEVIATION : records
+    DEVIATION ||--|{ DEVIATION_OBJECTIVE : names
+    OBJECTIVE ||--o{ DEVIATION_OBJECTIVE : "is named by"
     USER ||--o{ PARKED_IDEA : parks
     USER ||--o{ DEVIATION_PATTERN : names
     OBJECTIVE ||--|{ PLAN_SEGMENT : "is planned over"
@@ -286,14 +297,14 @@ Per objective, per period. The three free-text fields are marked on screen as *r
 
 ### Deviation — `deviation`
 
-Belongs to an objective and a date — the objective it pulled you off, on the day it
-happened. *(Revision 4. Until then it belonged to the user alone, and appeared in
-every objective's review that covered its date.)*
+Belongs to you and a date, and **names the objectives it pulled you off** — one or
+several, your choice. *(Revision 4. Until then it named none, and appeared in every
+objective's review that covered its date.)*
 
 | Column | Type | Why |
 |---|---|---|
 | id | uuid PK |  |
-| objective_id | uuid FK | The objective it pulled you off. Ownership travels through it — there is no `user_id`, for the reason `status_event` gives. |
+| user_id | uuid FK | The owner. A deviation can name several objectives, so ownership cannot travel through one of them. |
 | local_date | date |  |
 | kind | enum('chosen','drifted') |  |
 | what_happened / reasoning / did_instead | text | Reasoning is recorded now and tested at review. |
@@ -301,6 +312,19 @@ every objective's review that covered its date.)*
 | pattern_id | uuid null FK | Null means "a genuine one-off", which is a real answer. |
 | verdict | enum('worth_it','not_worth_it') null | Chosen deviations only. |
 | verdict_review_id | uuid null FK | Which review judged it. Null together with verdict. |
+
+### Deviation objective — `deviation_objective`
+
+Which objectives a deviation names. One row per pair.
+
+| Column | Type | Why |
+|---|---|---|
+| deviation_id | uuid PK, FK |  |
+| objective_id | uuid PK, FK |  |
+| user_id | uuid | Not a second owner — the column that lets the schema prove both sides share one. `(deviation_id, user_id)` references `deviation (id, user_id)` and `(objective_id, user_id)` references `objective (id, user_id)`, so a row naming another user's objective cannot be written. |
+
+**At least one row per deviation**, written in the same transaction as the deviation.
+That one the schema cannot check; the service guarantees it.
 
 ### Parked idea — `parked_idea`
 
@@ -358,8 +382,8 @@ filters on its `user_id`. A second copy of the owner would be a second authority
 one truth, and the copy that drifts is the one no constraint checks. The cost is
 worth stating plainly: nothing in the schema will catch a status-event query that
 forgets the join, so an unscoped read here is an NFR-10 breach that only review
-finds. The same reasoning applies to `plan_segment`, `effort_entry` and `deviation`,
-none of which carries a user either.
+finds. The same reasoning applies to `plan_segment` and `effort_entry`, neither of
+which carries a user either.
 
 **Why no `tz` here, when `effort_entry` has one.** An effort entry records two
 different things — the day you meant (`local_date`) and the instant it was written
@@ -387,7 +411,7 @@ first one's record.
 
 ## Invariants
 
-1. **Ownership.** Every plan segment, effort entry, deviation, review and status event belongs to exactly one objective, and every objective, parked idea and pattern belongs to exactly one user. No row is reachable without passing through a user. *(NFR-10)*
+1. **Ownership.** Every plan segment, effort entry, review and status event belongs to exactly one objective, and every objective, deviation, parked idea and pattern belongs to exactly one user. Every objective a deviation names belongs to the deviation's own user. No row is reachable without passing through a user. *(NFR-10)*
 2. **The day never moves.** An effort entry's `local_date` is set when it is written and never changes — not when the user travels, not across a daylight-saving boundary, not when the row is edited. *(NFR-12)*
 3. **The schedule lives on the segment.** An objective has no schedule and no end date of its own. Its current end date is the end date of its latest segment; its original end date is segment 0's. Neither is stored, so neither can disagree with the segments.
 4. **Segments are contiguous and never overlap.** Segment *n* starts the day after segment *n−1* ends. No two segments of one objective cover the same date, and there are no gaps.
@@ -397,8 +421,8 @@ first one's record.
 8. **Criteria are judged once, at the end.** `criteria_assessment` and `criteria_verdict` are null on every weekly and monthly review. The screen says so in words; the schema should say it in constraints.
 9. **One plan per period.** Generating an objective's slots never yields two covering the same day or week. A fixed segment produces day slots; a flexible one produces week slots; never both within one segment. Nothing enforces this in the database — slots are values now, so this is a property of `generateSlots` and is tested as one *(ADR-008)*.
 10. **Slots follow the status.** A generated slot exists only for dates inside its segment and only for stretches the objective was active, according to its status events. Pausing suppresses slots for the paused stretch; resuming produces them again. Effort logged while paused is covered by no slot and therefore counts as extra. Because slots are derived, this can no longer drift from the status history — it *is* the status history *(ADR-008)*.
-11. **A deviation belongs to an objective and a day.** It is logged against the objective it pulled you off, and a review shows the deviations of **its own objective** whose `local_date` falls inside its period — no other objective's. A day that pulled you off two objectives is two deviations. *(Revision 4, your answer; it reverses the earlier one, where a deviation had no objective.)*
-12. **Only chosen deviations are judged.** A verdict may exist only on a deviation of kind `chosen`, and must name the review that gave it — a review of the deviation's own objective. Verdict and `verdict_review_id` are null together or set together. Once saved, a later review never changes it. *(NFR-01)*
+11. **A deviation names the objectives it pulled you off.** At least one, chosen by you; one deviation can name several. A review shows the deviations that **name its objective** and whose `local_date` falls inside its period, so a deviation naming three objectives appears in all three of their reviews — by choice, not by accident. *(Revision 4, your answer; it replaces the earlier one, where a deviation named no objective.)*
+12. **Only chosen deviations are judged.** A verdict may exist only on a deviation of kind `chosen`, and must name the review that gave it — a review of one of the objectives the deviation names. The first such review to judge it gives the verdict; the others show it. Verdict and `verdict_review_id` are null together or set together. Once saved, a later review never changes it. *(NFR-01)*
 13. **Verdicts accumulate, they do not overwrite.** A parked idea's verdict history is append-only. The current verdict is the latest row; the verdict a review shows is the latest row on or before that review's period end. Reviving a dropped idea adds a row, it does not edit one. *(NFR-01)*
 14. **One draft, and it holds no figures.** At most one draft review per objective and period; saving replaces it. A draft stores answers only — adherence, totals, the per-day bars and deviation costs are recomputed every time the review is opened.
 15. **Nothing is ever counted twice.** No adherence, total, streak, extension count or sequence number is stored anywhere. Every figure on every screen — including "longest streak", "review 7 of the plan" and "the sentence that repeats" — is computed at read time. *(NFR-09)*

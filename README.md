@@ -15,7 +15,7 @@ before the code.
 | `REVIEW.md` | What the reviewer running in CI checks, and what counts as Important |
 | `docs/product-brief.md` | What Keel is and who it is for |
 | `docs/nfrs.md` | 13 non-functional requirements, each with a number and a check |
-| `docs/erd.md` | Entity model — 10 entities, 17 invariants, 0 stored aggregates |
+| `docs/erd.md` | Entity model — 11 entities, 17 invariants, 0 stored aggregates |
 | `docs/keel-api.yaml` | OpenAPI 3.1 contract, written before the code |
 | `docs/adr/` | Architecture decision records |
 | `docs/intents/` | One folder per intent, and the triage queue |

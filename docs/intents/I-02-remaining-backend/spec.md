@@ -74,10 +74,10 @@ changed four of them; those changes are in the same commit.
 - A review's figures are computed every time it is opened. Saving stores the answers
   only, and a review cannot be saved while a chosen deviation in its period is
   unjudged.
-- A deviation is logged against the objective it pulled you off, and only that
-  objective's reviews show it (ERD, invariant 11).
-- A chosen deviation is judged once, by a review of its own objective whose period
-  holds it, and no later review changes that.
+- A deviation names the objectives it pulled you off — one or several, the user's
+  choice — and shows in the reviews of each of them (ERD, invariant 11).
+- A chosen deviation is judged once, by the first review of one of its objectives
+  whose period holds it, and no later review changes that.
 
 **The parking lot**
 
