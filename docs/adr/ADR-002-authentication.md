@@ -48,3 +48,10 @@ verified email before it creates one (`docs/erd.md`, *User*).
 
 Users therefore live in two systems: exporting or deleting an account has to cover
 both.
+
+## Revisit when
+
+- Keel has more than one user and the bill becomes visible.
+- Cognito changes its pricing or its terms.
+- MFA or social sign-in is wanted.
+- The deployment moves off AWS — Cognito's main advantage was being in the same cloud.
