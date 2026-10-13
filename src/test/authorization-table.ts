@@ -8,6 +8,7 @@ import * as entry from "@/app/v1/effort-entries/[entryId]/route";
 import * as effortMonth from "@/app/v1/objectives/[objectiveId]/effort/route";
 import * as patterns from "@/app/v1/deviation-patterns/route";
 import * as deviations from "@/app/v1/deviations/route";
+import * as ideas from "@/app/v1/parked-ideas/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import {
   OBJECTIVE_BODY,
@@ -192,6 +193,23 @@ export const AUTHORIZATION: AuthRow[] = [
           what_happened: "w",
           reasoning: "r",
           minutes: 5,
+        }),
+        undefined,
+      ),
+  },
+  {
+    operationId: "listParkedIdeas",
+    call: (cookie) =>
+      ideas.GET(req("GET", "/v1/parked-ideas", cookie), undefined),
+  },
+  {
+    operationId: "createParkedIdea",
+    call: (cookie) =>
+      ideas.POST(
+        req("POST", "/v1/parked-ideas", cookie, {
+          idea: "i",
+          why: "w",
+          caught_on: "2026-09-16",
         }),
         undefined,
       ),

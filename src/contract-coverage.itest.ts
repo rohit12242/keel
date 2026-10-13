@@ -28,8 +28,6 @@ const NOT_YET_BUILT = new Set([
   "discardReview",
   "saveReview",
   "setDeviationVerdict",
-  "listParkedIdeas",
-  "createParkedIdea",
   "createParkedIdeaVerdict",
 ]);
 
