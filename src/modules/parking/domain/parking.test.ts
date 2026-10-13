@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assembleIdea,
+  canTake,
   lockedUntil,
   validateIdeaWrite,
   validateVerdictWrite,
@@ -242,5 +243,30 @@ describe("validateIdeaWrite / validateVerdictWrite", () => {
       "verdict",
       "occurred_on",
     ]);
+  });
+});
+
+describe("canTake", () => {
+  it("takes a parked idea, locked or not, and nothing else", () => {
+    expect(canTake(row())).toBe(true);
+    expect(
+      canTake(
+        row({
+          verdicts: [
+            { verdict: "parked", note: null, occurred_on: "2026-09-14" },
+            { verdict: "dropped", note: null, occurred_on: "2026-11-03" },
+          ],
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      canTake(
+        row({
+          verdicts: [
+            { verdict: "taken", note: null, occurred_on: "2026-10-01" },
+          ],
+        }),
+      ),
+    ).toBe(false);
   });
 });

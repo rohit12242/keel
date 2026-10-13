@@ -87,6 +87,13 @@ export const POST = withSession(
               problemType("schedule-mode-mismatch"),
               result.detail,
             );
+          case "idea_unavailable":
+            return problem(
+              422,
+              "That idea can't be taken",
+              problemType("idea-unavailable"),
+              result.detail,
+            );
         }
       } catch {
         return unavailable();

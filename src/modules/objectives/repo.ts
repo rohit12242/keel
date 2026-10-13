@@ -28,8 +28,8 @@ export async function insertObjective(
   const objective = await tx.query<{ id: string }>(
     `INSERT INTO objective
        (user_id, title, description, why_now, success_criteria, plan_link,
-        review_cadence)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+        review_cadence, from_parked_idea_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id`,
     [
       userId,
@@ -39,6 +39,7 @@ export async function insertObjective(
       o.success_criteria,
       o.plan_link,
       o.review_cadence,
+      o.from_parked_idea_id,
     ],
   );
   const id = objective.rows[0].id;

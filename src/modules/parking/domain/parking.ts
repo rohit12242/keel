@@ -193,3 +193,13 @@ export function verdictRefusal(
   if (today < row.locked_until) return "locked";
   return null;
 }
+
+/**
+ * Whether an idea can be taken — an objective started from it. Only an idea
+ * that is currently parked: a dropped one is revived first, and a taken one
+ * already became an objective. A lock does not stop it: taking early is
+ * allowed, and shown as early (docs/domain/parking-lock.md).
+ */
+export function canTake(row: IdeaRow): boolean {
+  return assembleIdea(row, row.caught_on).verdict === "parked";
+}

@@ -14,6 +14,8 @@ import { assembleGrid, parseGridRange } from "./domain/scheduleGrid";
 import { validateObjectiveWrite } from "./domain/validateObjectiveWrite";
 import { statusChange, validateStatusChange } from "./domain/statusChange";
 import { committedMinutesPerWeek } from "./domain/committedMinutes";
+import { canTake } from "@/modules/parking/domain/parking";
+import { insertVerdict, lockIdea } from "@/modules/parking/repo";
 import { localDayOf } from "@/shared/time/localDay";
 import type { StatusChange } from "./domain/statusTimeline";
 import {
@@ -35,18 +37,51 @@ import {
 export type CreateObjectiveResult =
   | { ok: true; objective: Objective }
   | { ok: false; kind: "invalid"; errors: ProblemError[] }
-  | { ok: false; kind: "mode_mismatch"; detail: string };
+  | { ok: false; kind: "mode_mismatch"; detail: string }
+  | { ok: false; kind: "idea_unavailable"; detail: string };
 
+/**
+ * Declare an objective. Started from a parked idea, it takes the idea: the
+ * idea must be the caller's and currently parked — locked or not, since an
+ * early take is allowed — and its `taken` verdict, dated the day the
+ * objective starts, is written in the same transaction. There is no other way
+ * to take an idea.
+ */
 export async function createObjective(
   userId: string,
   body: unknown,
 ): Promise<CreateObjectiveResult> {
   const validated = validateObjectiveWrite(body);
   if (!validated.ok) return validated;
+  const write = validated.value;
 
-  const id = await withTransaction((tx) =>
-    insertObjective(tx, userId, validated.value),
+  const created = await withTransaction(
+    async (tx): Promise<{ id: string } | { refused: string }> => {
+      if (write.from_parked_idea_id !== null) {
+        const idea = await lockIdea(tx, userId, write.from_parked_idea_id);
+        if (!idea) return { refused: "The parked idea is not one of yours." };
+        if (!canTake(idea)) {
+          return {
+            refused:
+              "The idea is not currently parked: it was dropped or already taken.",
+          };
+        }
+      }
+      const id = await insertObjective(tx, userId, write);
+      if (write.from_parked_idea_id !== null) {
+        await insertVerdict(tx, userId, write.from_parked_idea_id, {
+          verdict: "taken",
+          occurred_on: write.starts_on,
+          note: null,
+        });
+      }
+      return { id };
+    },
   );
+  if ("refused" in created) {
+    return { ok: false, kind: "idea_unavailable", detail: created.refused };
+  }
+  const id = created.id;
 
   // Read it back through the same read the list uses, so a created objective
   // and a listed one cannot differ in shape or figures.

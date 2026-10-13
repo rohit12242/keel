@@ -40,6 +40,8 @@ export type NewObjective = {
   starts_on: string;
   /** starts_on + runs_for_days − 1: a one-day objective starts and ends together. */
   end_date: string;
+  /** Started from a parked idea: taking it is creating this objective. */
+  from_parked_idea_id: string | null;
 };
 
 export type ObjectiveWriteResult =
@@ -108,16 +110,20 @@ export function validateObjectiveWrite(input: unknown): ObjectiveWriteResult {
   if (body.review_cadence !== "weekly" && body.review_cadence !== "monthly") {
     fail("review_cadence", "Required; weekly or monthly.");
   }
-  // Parked ideas do not exist yet (no table to check an id against), so a
-  // reference to one is refused rather than stored unverified.
+  // Whether the idea is the caller's and still parked is a fact, checked
+  // against the record when the objective is written; here, only its shape.
+  const idea = body.from_parked_idea_id;
   if (
-    body.from_parked_idea_id !== undefined &&
-    body.from_parked_idea_id !== null
+    idea !== undefined &&
+    idea !== null &&
+    !(
+      typeof idea === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idea,
+      )
+    )
   ) {
-    fail(
-      "from_parked_idea_id",
-      "Parked ideas are not available yet; send null.",
-    );
+    fail("from_parked_idea_id", "A parked idea's id, or null.");
   }
 
   const schedule = asRecord(body.schedule);
@@ -227,6 +233,7 @@ export function validateObjectiveWrite(input: unknown): ObjectiveWriteResult {
       schedule: normalised,
       starts_on: startsOn,
       end_date: endDate,
+      from_parked_idea_id: typeof idea === "string" ? idea : null,
     },
   };
 }

@@ -47,6 +47,7 @@ describe("validateObjectiveWrite — accepted", () => {
         },
         starts_on: "2026-11-02",
         end_date: "2026-11-29",
+        from_parked_idea_id: null,
       },
     });
   });
@@ -165,13 +166,20 @@ describe("validateObjectiveWrite — 400, a field wrong on its own", () => {
     ]);
   });
 
-  it("refuses a parked idea, which cannot be checked yet", () => {
-    expect(
-      fields({
-        ...FIXED,
-        from_parked_idea_id: "00000000-0000-0000-0000-0000000000aa",
-      }),
-    ).toEqual(["from_parked_idea_id"]);
+  it("keeps a parked idea's id, and refuses one that is not an id", () => {
+    const r = validateObjectiveWrite({
+      ...FIXED,
+      from_parked_idea_id: "00000000-0000-0000-0000-0000000000aa",
+    });
+    expect(r.ok && r.value.from_parked_idea_id).toBe(
+      "00000000-0000-0000-0000-0000000000aa",
+    );
+    expect(fields({ ...FIXED, from_parked_idea_id: "idea-1" })).toEqual([
+      "from_parked_idea_id",
+    ]);
+    expect(fields({ ...FIXED, from_parked_idea_id: 7 })).toEqual([
+      "from_parked_idea_id",
+    ]);
   });
 
   it("refuses a schedule that is not an object, or has no mode", () => {
