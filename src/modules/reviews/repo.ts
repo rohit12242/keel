@@ -208,3 +208,41 @@ export async function deleteDraft(
     reviewId,
   ]);
 }
+
+/** The caller's deviation, locked for the verdict. Null when it is not theirs. */
+export async function lockDeviation(
+  tx: Queryable,
+  userId: string,
+  deviationId: string,
+): Promise<DeviationRow | null> {
+  await tx.query(
+    `SELECT 1 FROM deviation WHERE id = $2 AND user_id = $1 FOR UPDATE`,
+    [userId, deviationId],
+  );
+  const res = await tx.query<DeviationRow>(
+    `SELECT ${DEVIATION_COLUMNS}
+     FROM deviation d LEFT JOIN deviation_pattern p ON p.id = d.pattern_id
+     WHERE d.id = $2 AND d.user_id = $1`,
+    [userId, deviationId],
+  );
+  return res.rows[0] ?? null;
+}
+
+export async function setDeviationVerdict(
+  tx: Queryable,
+  deviationId: string,
+  verdict: string,
+  reviewId: string,
+): Promise<DeviationRow> {
+  await tx.query(
+    `UPDATE deviation SET verdict = $2, verdict_review_id = $3 WHERE id = $1`,
+    [deviationId, verdict, reviewId],
+  );
+  const res = await tx.query<DeviationRow>(
+    `SELECT ${DEVIATION_COLUMNS}
+     FROM deviation d LEFT JOIN deviation_pattern p ON p.id = d.pattern_id
+     WHERE d.id = $1`,
+    [deviationId],
+  );
+  return res.rows[0];
+}

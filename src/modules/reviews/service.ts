@@ -1,4 +1,5 @@
-import type { ProblemError } from "@/shared/contract";
+import type { Deviation, ProblemError } from "@/shared/contract";
+import { parseVerdict, verdictDecision } from "./domain/deviationVerdict";
 import { withTransaction } from "@/shared/db";
 import { validateReviewEdit } from "./domain/reviewWrite";
 import { isIsoDate } from "@/modules/effort/domain/validateWrite";
@@ -25,7 +26,9 @@ import {
   deleteDraft,
   getReviewFacts,
   insertDraft,
+  lockDeviation,
   lockReview,
+  setDeviationVerdict,
   updateReviewAnswers,
   type ObjectiveReviewFacts,
 } from "./repo";
@@ -241,5 +244,56 @@ export async function discardReview(
     if (review.status === "saved") return { ok: false, kind: "saved" };
     await deleteDraft(tx, reviewId);
     return { ok: true };
+  });
+}
+
+export type VerdictResult =
+  | { ok: true; deviation: Deviation }
+  | { ok: false; kind: "invalid" }
+  | { ok: false; kind: "not_found"; what: "review" | "deviation" }
+  | { ok: false; kind: "not_judgeable"; detail: string }
+  | { ok: false; kind: "conflict"; detail: string };
+
+/** A review judges a chosen deviation of its period (invariant 12). */
+export async function setVerdict(
+  userId: string,
+  reviewId: string,
+  deviationId: string,
+  body: unknown,
+): Promise<VerdictResult> {
+  const verdict = parseVerdict(body);
+  if (!verdict) return { ok: false, kind: "invalid" };
+  return withTransaction(async (tx): Promise<VerdictResult> => {
+    const review = await lockReview(tx, userId, reviewId);
+    if (!review) return { ok: false, kind: "not_found", what: "review" };
+    const row = await lockDeviation(tx, userId, deviationId);
+    if (!row) return { ok: false, kind: "not_found", what: "deviation" };
+    const decision = verdictDecision(review, present(row), verdict);
+    switch (decision.kind) {
+      case "unchanged":
+        return { ok: true, deviation: present(row) };
+      case "write":
+        return {
+          ok: true,
+          deviation: present(
+            await setDeviationVerdict(tx, deviationId, verdict, reviewId),
+          ),
+        };
+      case "not_judgeable":
+        return { ok: false, kind: "not_judgeable", detail: decision.detail };
+      case "judged_elsewhere":
+        return {
+          ok: false,
+          kind: "conflict",
+          detail:
+            "An earlier review already judged this deviation, and that stands.",
+        };
+      case "review_saved":
+        return {
+          ok: false,
+          kind: "conflict",
+          detail: "This review is saved; nothing changes it now.",
+        };
+    }
   });
 }

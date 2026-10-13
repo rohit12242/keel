@@ -5,6 +5,8 @@ import { createObjective } from "@/modules/objectives/service";
 import { createEffortEntry } from "@/modules/effort/service";
 import { createParkedIdea } from "@/modules/parking/service";
 import { startReview } from "@/modules/reviews/service";
+import { createDeviation } from "@/modules/deviations/service";
+import type { Deviation } from "@/shared/contract";
 import type { EffortEntry } from "@/shared/contract";
 import { cookieFor } from "./session";
 
@@ -123,4 +125,28 @@ export async function testReview(
   const result = await startReview(user.id, id, period, new Date());
   if (!result.ok) throw new Error(`testReview: ${JSON.stringify(result)}`);
   return { id: result.review.id, objective_id: id };
+}
+
+/** A deviation naming `objectiveIds`, through the real use case. Chosen, on Wednesday 2026-09-16. */
+export async function testDeviation(
+  user: TestUser,
+  objectiveIds: string[],
+  over: Record<string, unknown> = {},
+): Promise<Deviation> {
+  const result = await createDeviation(
+    user.id,
+    {
+      objective_ids: objectiveIds,
+      local_date: "2026-09-16",
+      tz: "Asia/Kolkata",
+      kind: "chosen",
+      what_happened: "itest deviation",
+      reasoning: "A test needs one.",
+      minutes: 30,
+      ...over,
+    },
+    new Date(),
+  );
+  if (!result.ok) throw new Error(`testDeviation: ${JSON.stringify(result)}`);
+  return result.deviation;
 }

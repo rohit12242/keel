@@ -19,11 +19,7 @@ import { AUTHORIZATION } from "@/test/authorization-table";
  * Each step that builds an operation removes it from NOT_YET_BUILT; the step
  * that builds the last one deletes the list.
  */
-const NOT_YET_BUILT = new Set([
-  "createExtension",
-  "saveReview",
-  "setDeviationVerdict",
-]);
+const NOT_YET_BUILT = new Set(["createExtension", "saveReview"]);
 
 const METHODS = ["GET", "PUT", "POST", "PATCH", "DELETE"] as const;
 const APP = join(process.cwd(), "src", "app");

@@ -11,11 +11,13 @@ import * as deviations from "@/app/v1/deviations/route";
 import * as ideas from "@/app/v1/parked-ideas/route";
 import * as reviewsOf from "@/app/v1/objectives/[objectiveId]/reviews/route";
 import * as review from "@/app/v1/reviews/[reviewId]/route";
+import * as deviationVerdict from "@/app/v1/reviews/[reviewId]/deviation-verdicts/[deviationId]/route";
 import * as verdicts from "@/app/v1/parked-ideas/[ideaId]/verdicts/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import {
   OBJECTIVE_BODY,
   testEntry,
+  testDeviation,
   testIdea,
   testReview,
   testObjective,
@@ -278,5 +280,26 @@ export const AUTHORIZATION: AuthRow[] = [
         req("DELETE", `/v1/reviews/${id}`, cookie),
         reviewParams(id),
       ),
+  },
+  {
+    operationId: "setDeviationVerdict",
+    // Two ids in the path: a review and a chosen deviation of its period.
+    resource: async (user) => {
+      const r = await testReview(user);
+      const d = await testDeviation(user, [r.objective_id]);
+      return `${r.id}/${d.id}`;
+    },
+    call: (cookie, ids) => {
+      const [reviewId, deviationId] = ids.split("/");
+      return deviationVerdict.PUT(
+        req(
+          "PUT",
+          `/v1/reviews/${reviewId}/deviation-verdicts/${deviationId}`,
+          cookie,
+          { verdict: "worth_it" },
+        ),
+        { params: Promise.resolve({ reviewId, deviationId }) },
+      );
+    },
   },
 ];
