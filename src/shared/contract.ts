@@ -157,6 +157,8 @@ export type Objective = ObjectiveSummary & {
   extension_count?: number;
   segments: PlanSegment[];
   status_history: StatusEvent[];
+  /** From the latest saved plan-end review; null before there is one. */
+  criteria_verdict: "met" | "partly_met" | "not_met" | null;
 };
 
 export type DayState =

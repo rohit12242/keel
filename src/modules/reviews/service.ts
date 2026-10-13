@@ -3,6 +3,7 @@ import { parseVerdict, verdictDecision } from "./domain/deviationVerdict";
 import { withTransaction } from "@/shared/db";
 import { validateReviewEdit } from "./domain/reviewWrite";
 import { saveDecision } from "./domain/saveReview";
+import { insertStatusEvent } from "@/modules/objectives/repo";
 import { isIsoDate } from "@/modules/effort/domain/validateWrite";
 import { planSlots } from "@/modules/objectives/domain/planSlots";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
@@ -323,24 +324,25 @@ export async function saveReview(
         reviewId,
       })) as ObjectiveReviewFacts;
       const { facts } = contextOf(raw, now);
-      const decision = saveDecision(locked, facts);
+      const decision = saveDecision(locked, facts, raw.status_events);
       switch (decision.kind) {
         case "already_saved":
           return { ok: false, kind: "already_saved" };
-        case "unjudged":
-          return {
-            ok: false,
-            kind: "refused",
-            detail: `${decision.deviation_ids.length} chosen deviation(s) in this period are not judged yet.`,
-          };
-        case "plan_end_not_yet":
-          return {
-            ok: false,
-            kind: "refused",
-            detail: "Saving a plan-end review is not available yet.",
-          };
+        case "refused":
+          return { ok: false, kind: "refused", detail: decision.detail };
         case "save":
           await markSaved(tx, reviewId, decision.previous_review_id);
+          // Invariant 7: the outcome is applied in the same transaction, so
+          // the review and the status history cannot disagree.
+          if (decision.status_event) {
+            await insertStatusEvent(
+              tx,
+              locked.objective_id,
+              decision.status_event.change,
+              decision.status_event.occurred_on,
+              null,
+            );
+          }
           return null;
       }
     },

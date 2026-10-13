@@ -132,7 +132,9 @@ rev AS (
   SELECT r.objective_id,
     json_agg(json_build_object(
       'period_start', to_char(r.period_start, 'YYYY-MM-DD'),
-      'period_end', to_char(r.period_end, 'YYYY-MM-DD')
+      'period_end', to_char(r.period_end, 'YYYY-MM-DD'),
+      'kind', r.kind,
+      'criteria_verdict', r.criteria_verdict
     ) ORDER BY r.period_start) AS saved_reviews
   FROM review r
   JOIN obj ON obj.id = r.objective_id

@@ -180,6 +180,27 @@ describe("assembleSummary", () => {
   });
 });
 
+describe("criteria_verdict", () => {
+  it("is null until a plan-end review is saved, then the latest one's", () => {
+    expect(detail(ROW).criteria_verdict).toBeNull();
+    const saved = (
+      period_end: string,
+      kind: "weekly" | "plan_end",
+      v: "met" | "not_met" | null,
+    ) => ({ period_start: period_end, period_end, kind, criteria_verdict: v });
+    expect(
+      detail({
+        ...ROW,
+        saved_reviews: [
+          saved("2026-11-08", "weekly", null),
+          saved("2026-11-15", "plan_end", "not_met"),
+          saved("2026-11-29", "plan_end", "met"),
+        ],
+      }).criteria_verdict,
+    ).toBe("met");
+  });
+});
+
 describe("next_review_on and reviews_due", () => {
   // Segment 0 runs Mon 2 Nov … Sun 15 Nov: Week 1 closes 8 Nov, End of plan 15 Nov.
   it("is the earliest closed, unsaved window, counting every one owed", () => {
@@ -203,7 +224,12 @@ describe("next_review_on and reviews_due", () => {
         {
           ...ROW,
           saved_reviews: [
-            { period_start: "2026-11-02", period_end: "2026-11-08" },
+            {
+              period_start: "2026-11-02",
+              period_end: "2026-11-08",
+              kind: "weekly",
+              criteria_verdict: null,
+            },
           ],
         },
         "2026-11-20",

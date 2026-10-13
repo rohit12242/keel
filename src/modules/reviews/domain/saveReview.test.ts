@@ -47,6 +47,8 @@ const facts = (over: Partial<ReviewFacts> = {}): ReviewFacts => ({
   ...over,
 });
 
+const ACTIVE = [{ occurred_on: "2026-09-07", change: "created" as const }];
+
 describe("saveDecision", () => {
   it("saves, answering the last saved review before the period", () => {
     const week1 = review({
@@ -56,13 +58,17 @@ describe("saveDecision", () => {
       status: "saved",
       saved_at: "x",
     });
-    expect(saveDecision(review(), facts({ reviews: [week1] }))).toEqual({
-      kind: "save",
-      previous_review_id: "r1",
-    });
-    expect(saveDecision(review(), facts())).toEqual({
+    expect(saveDecision(review(), facts({ reviews: [week1] }), ACTIVE)).toEqual(
+      {
+        kind: "save",
+        previous_review_id: "r1",
+        status_event: null,
+      },
+    );
+    expect(saveDecision(review(), facts(), ACTIVE)).toEqual({
       kind: "save",
       previous_review_id: null,
+      status_event: null,
     });
   });
 
@@ -80,23 +86,95 @@ describe("saveDecision", () => {
         deviation({ id: "after", local_date: "2026-09-21" }),
       ],
     });
-    expect(saveDecision(review(), f)).toEqual({
-      kind: "unjudged",
-      deviation_ids: ["open"],
+    expect(saveDecision(review(), f, ACTIVE)).toEqual({
+      kind: "refused",
+      detail: "1 chosen deviation(s) in this period are not judged yet.",
     });
   });
 
   it("refuses a review already saved", () => {
     expect(
-      saveDecision(review({ status: "saved", saved_at: "x" }), facts()),
+      saveDecision(review({ status: "saved", saved_at: "x" }), facts(), ACTIVE),
     ).toEqual({
       kind: "already_saved",
     });
   });
 
-  it("does not save a plan-end review yet", () => {
-    expect(saveDecision(review({ kind: "plan_end" }), facts())).toEqual({
-      kind: "plan_end_not_yet",
+  const planEnd = (over: Partial<ReviewRow> = {}) =>
+    review({
+      kind: "plan_end",
+      period_start: "2026-10-05",
+      period_end: "2026-10-11",
+      outcome: "completed",
+      criteria_verdict: "partly_met",
+      ...over,
+    });
+
+  it("refuses a plan-end review without its outcome or its criteria verdict", () => {
+    expect(saveDecision(planEnd({ outcome: null }), facts(), ACTIVE)).toEqual({
+      kind: "refused",
+      detail: "A plan-end review needs its outcome.",
+    });
+    expect(
+      saveDecision(
+        planEnd({ outcome: null, criteria_verdict: null }),
+        facts(),
+        ACTIVE,
+      ),
+    ).toEqual({
+      kind: "refused",
+      detail: "A plan-end review needs its outcome and criteria verdict.",
+    });
+  });
+
+  it.each([
+    ["completed", "completed"],
+    ["paused", "paused"],
+    ["ended", "ended"],
+  ] as const)(
+    "applies %s as a status event dated period_end",
+    (outcome, change) => {
+      expect(saveDecision(planEnd({ outcome }), facts(), ACTIVE)).toMatchObject(
+        {
+          kind: "save",
+          status_event: { change, occurred_on: "2026-10-11" },
+        },
+      );
+    },
+  );
+
+  it("writes no status event for continued", () => {
+    expect(
+      saveDecision(planEnd({ outcome: "continued" }), facts(), ACTIVE),
+    ).toMatchObject({
+      kind: "save",
+      status_event: null,
+    });
+  });
+
+  it("refuses an outcome that does not follow, or would rewrite the history", () => {
+    const ended = [
+      ...ACTIVE,
+      { occurred_on: "2026-10-01", change: "ended" as const },
+    ];
+    expect(saveDecision(planEnd(), facts(), ended)).toMatchObject({
+      kind: "refused",
+      detail: expect.stringMatching(/does not follow/),
+    });
+    const pausedLater = [
+      ...ACTIVE,
+      { occurred_on: "2026-10-20", change: "paused" as const },
+    ];
+    expect(
+      saveDecision(planEnd({ outcome: "ended" }), facts(), pausedLater),
+    ).toMatchObject({
+      kind: "refused",
+      detail: expect.stringMatching(
+        /before the latest status change \(2026-10-20\)/,
+      ),
+    });
+    expect(saveDecision(planEnd(), facts(), [])).toMatchObject({
+      detail: expect.stringMatching(/\(none\)/),
     });
   });
 });

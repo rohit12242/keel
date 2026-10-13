@@ -28,7 +28,7 @@ import type { ObjectiveRow, ObjectiveSegmentRow } from "./rows";
  *
  * `next_review_on` and `reviews_due` come from the review windows
  * (docs/domain/review-windows.md), read against `today` in the caller's zone.
- * Omitted on purpose until its rule is built: `criteria_verdict`.
+ * `criteria_verdict` is the latest saved plan-end review's (invariant 8).
  */
 
 /**
@@ -164,6 +164,14 @@ function toPlanSegment(segment: ObjectiveSegmentRow): PlanSegment {
   };
 }
 
+/** The verdict of the latest saved plan-end review — after an extension, the second one's. */
+function criteriaVerdictOf(row: ObjectiveRow): Objective["criteria_verdict"] {
+  const planEnds = row.saved_reviews.filter((r) => r.kind === "plan_end");
+  return planEnds.length > 0
+    ? planEnds[planEnds.length - 1].criteria_verdict
+    : null;
+}
+
 export function assembleObjective(
   row: ObjectiveRow,
   today: string,
@@ -182,6 +190,7 @@ export function assembleObjective(
     extension_count: segments.length - 1,
     segments: segments.map(toPlanSegment),
     status_history: statusHistory(row, segments),
+    criteria_verdict: criteriaVerdictOf(row),
   };
   // `description` is a string in the contract, never null: absent when unset.
   if (row.description !== null) objective.description = row.description;

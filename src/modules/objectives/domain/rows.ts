@@ -35,8 +35,13 @@ export type ObjectiveRow = {
   /** Ordered by occurred_on, then by when each was recorded. */
   status_events: ObjectiveEventRow[];
   daily_minutes: DailyMinutesRow[];
-  /** The periods already reviewed and saved; a draft is not here. */
-  saved_reviews: { period_start: string; period_end: string }[];
+  /** The reviews already saved, by period; a draft is not here. */
+  saved_reviews: {
+    period_start: string;
+    period_end: string;
+    kind: "weekly" | "monthly" | "plan_end";
+    criteria_verdict: "met" | "partly_met" | "not_met" | null;
+  }[];
 };
 
 /**
