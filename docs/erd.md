@@ -407,6 +407,11 @@ that could hold one.
 email: nothing on the deployed database predates sign-in that is worth keeping, so a
 first sign-in is simply a new user.
 
+**An email belongs to one user.** A new subject whose email another user already has
+— a provider account deleted and recreated with the same address — is refused, and
+nothing is written. Keel cannot tell a recreated account from someone else holding
+the address, so reconnecting the two is an operator's decision (`docs/runbook.md`).
+
 ## Invariants
 
 1. **Ownership.** Every plan segment, effort entry, review and status event belongs to exactly one objective, and every objective, deviation, parked idea and pattern belongs to exactly one user. Every objective a deviation names belongs to the deviation's own user. No row is reachable without passing through a user. *(NFR-10)*

@@ -50,5 +50,14 @@ export const unavailable = (): Response =>
     "The database could not be reached.",
   );
 
+/** No valid session: the client signs in again; it does not retry. */
+export const unauthenticated = (): Response =>
+  problem(
+    401,
+    "Sign in to continue",
+    problemType("unauthenticated"),
+    "There is no valid session. Sign in again.",
+  );
+
 export const notFound = (what: string): Response =>
   problem(404, "Not found", problemType("not-found"), `No such ${what}.`);

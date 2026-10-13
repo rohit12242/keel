@@ -139,7 +139,19 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
         '401':
-          description: The provider refused the code — expired, reused or forged.
+          description: |
+            The provider refused the code — expired, reused or forged — or the
+            identity it returned is not one Keel accepts: another pool's or
+            client's token, expired, or an unverified email.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: |
+            The email already belongs to a Keel user under a different subject —
+            a provider account deleted and recreated with the same address.
+            Nothing is written and no session is issued; reconnecting the two is
+            an operator's decision (`docs/runbook.md`), never the app's.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
