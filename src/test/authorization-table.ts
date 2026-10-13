@@ -6,6 +6,7 @@ import * as effortEntries from "@/app/v1/objectives/[objectiveId]/effort-entries
 import * as session from "@/app/v1/session/route";
 import * as entry from "@/app/v1/effort-entries/[entryId]/route";
 import * as effortMonth from "@/app/v1/objectives/[objectiveId]/effort/route";
+import * as patterns from "@/app/v1/deviation-patterns/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import {
   OBJECTIVE_BODY,
@@ -155,6 +156,19 @@ export const AUTHORIZATION: AuthRow[] = [
           occurred_on: "2026-09-20",
         }),
         objectiveParams(id),
+      ),
+  },
+  {
+    operationId: "listDeviationPatterns",
+    call: (cookie) =>
+      patterns.GET(req("GET", "/v1/deviation-patterns", cookie), undefined),
+  },
+  {
+    operationId: "createDeviationPattern",
+    call: (cookie) =>
+      patterns.POST(
+        req("POST", "/v1/deviation-patterns", cookie, { name: "itest" }),
+        undefined,
       ),
   },
 ];

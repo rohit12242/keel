@@ -30,8 +30,6 @@ const NOT_YET_BUILT = new Set([
   "setDeviationVerdict",
   "listDeviations",
   "createDeviation",
-  "listDeviationPatterns",
-  "createDeviationPattern",
   "listParkedIdeas",
   "createParkedIdea",
   "createParkedIdeaVerdict",
