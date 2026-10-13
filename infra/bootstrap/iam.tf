@@ -145,7 +145,8 @@ resource "aws_iam_role" "deploy" {
 
 data "aws_iam_policy_document" "deploy" {
   # The ADR-006 (rev 2) services: ECS Fargate, ALB, CloudFront (TLS), ECR,
-  # RDS, CloudWatch. Scoped to these services, not AdministratorAccess.
+  # RDS, CloudWatch, and Cognito for sign-in (ADR-002). Scoped to these
+  # services, not AdministratorAccess.
   statement {
     sid    = "CoreServices"
     effect = "Allow"
@@ -158,6 +159,7 @@ data "aws_iam_policy_document" "deploy" {
       "elasticloadbalancing:*",
       "cloudfront:*",
       "application-autoscaling:*",
+      "cognito-idp:*",
     ]
     resources = ["*"]
   }

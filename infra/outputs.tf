@@ -28,5 +28,16 @@ output "migrate_task_family" {
 }
 
 output "ssm_parameters" {
-  value = [aws_ssm_parameter.database_url.name, aws_ssm_parameter.session_secret.name]
+  value = [
+    aws_ssm_parameter.database_url.name,
+    aws_ssm_parameter.session_secret.name,
+    aws_ssm_parameter.cognito_domain.name,
+    aws_ssm_parameter.cognito_pool_id.name,
+    aws_ssm_parameter.cognito_client_id.name,
+    aws_ssm_parameter.cognito_client_secret.name,
+  ]
+}
+
+output "cognito_domain" {
+  value = aws_ssm_parameter.cognito_domain.value
 }
