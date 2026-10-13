@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { getConfig } from "@/config/env";
 import type { Day } from "@/shared/contract";
 import styles from "./page.module.css";
@@ -11,16 +12,25 @@ function formatMinutes(minutes: number): string {
   return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
 }
 
-async function fetchDay(date: string): Promise<Day | null> {
+type Fetched = { day: Day } | "signed_out" | "unreachable";
+
+/**
+ * The document request's own cookie goes along, so the server knows who is
+ * asking without the browser fetching anything (ADR-002, D-04).
+ */
+async function fetchDay(date: string): Promise<Fetched> {
   const { appBaseUrl } = getConfig();
+  const cookie = (await headers()).get("cookie");
   try {
     const res = await fetch(`${appBaseUrl}/v1/day/${date}`, {
       cache: "no-store",
+      headers: cookie ? { cookie } : {},
     });
-    if (!res.ok) return null;
-    return (await res.json()) as Day;
+    if (res.status === 401) return "signed_out";
+    if (!res.ok) return "unreachable";
+    return { day: (await res.json()) as Day };
   } catch {
-    return null;
+    return "unreachable";
   }
 }
 
@@ -33,9 +43,20 @@ export default async function TodayPage({
   // "Today" in the server's local zone; ?date= overrides for inspection.
   // Real per-user timezone handling is NFR-12 (v2) / arrives with auth (E-06).
   const day = date ?? new Date().toLocaleDateString("en-CA");
-  const data = await fetchDay(day);
+  const fetched = await fetchDay(day);
 
-  if (!data) {
+  if (fetched === "signed_out") {
+    return (
+      <main className={styles.page}>
+        <h1 className={styles.title}>Today</h1>
+        <p>
+          <a href="/v1/session/sign-in">Sign in</a> to see your log.
+        </p>
+      </main>
+    );
+  }
+
+  if (fetched === "unreachable") {
     // Error state: the endpoint could not be read (e.g. the database is down).
     return (
       <main className={styles.page}>
@@ -48,6 +69,7 @@ export default async function TodayPage({
     );
   }
 
+  const data = fetched.day;
   return (
     <main className={styles.page}>
       <header className={styles.header}>

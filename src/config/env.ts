@@ -15,21 +15,12 @@
 export type LogLevel = "debug" | "info" | "warn" | "error";
 const LOG_LEVELS: readonly LogLevel[] = ["debug", "info", "warn", "error"];
 
-/**
- * The single seeded user id, standing in for authentication until E-06
- * (ground rule: no auth/sessions/middleware yet). Every read filters by this
- * id. The W3-12 seed inserts a user with exactly this id; keep them in step.
- */
-export const DEFAULT_SEED_USER_ID = "00000000-0000-0000-0000-000000000001";
-
 export type Config = {
   databaseUrl: string;
   appBaseUrl: string;
   logLevel: LogLevel;
   seedData: boolean;
   sessionSecret: string;
-  /** The current user, until real auth (E-06). Defaults to the seeded user. */
-  seedUserId: string;
   /** The identity provider (ADR-002). Required: there is no other sign-in. */
   cognito: {
     /** The hosted login pages' origin, e.g. https://keel-1.auth.us-east-1.amazoncognito.com */
@@ -128,16 +119,6 @@ export function loadConfig(
   const cognitoClientId = required("COGNITO_CLIENT_ID");
   const cognitoClientSecret = required("COGNITO_CLIENT_SECRET");
 
-  // Optional; defaults to the seeded user. Validated only if provided.
-  const seedUserId = env.SEED_USER_ID?.trim() || DEFAULT_SEED_USER_ID;
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      seedUserId,
-    )
-  ) {
-    problems.push(`SEED_USER_ID must be a UUID`);
-  }
-
   if (problems.length > 0) {
     throw new ConfigError(problems);
   }
@@ -148,7 +129,6 @@ export function loadConfig(
     logLevel: logLevelRaw as LogLevel,
     seedData: seedRaw === "true",
     sessionSecret,
-    seedUserId,
     cognito: {
       domain: cognitoDomain.replace(/\/$/, ""),
       poolId: cognitoPoolId,

@@ -9,6 +9,7 @@ import * as objectives from "@/app/v1/objectives/route";
 import * as one from "@/app/v1/objectives/[objectiveId]/route";
 import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
 import * as effort from "@/app/v1/objectives/[objectiveId]/effort-entries/route";
+import { testUser, type TestUser } from "@/test/fixtures";
 
 /**
  * I-01's check, as intent.md states it, through the real route handlers.
@@ -19,10 +20,13 @@ import * as effort from "@/app/v1/objectives/[objectiveId]/effort-entries/route"
  * planned days and an off day, and the grid tells apart a day met, a day
  * short, a planned day with nothing on it, an off day, and an off day worked.
  *
- * Runs once per timezone against one database and deletes nothing (NFR-01),
- * so it only ever looks at the ids it created.
+ * Signed in as its own user, new on every run, so the four per-timezone runs
+ * against one database never see each other's objectives, and nothing is
+ * deleted (NFR-01).
  */
 const BASE = "http://keel.test";
+let me: TestUser;
+const asMe = () => ({ cookie: me.cookie });
 const params = (objectiveId: string) => ({
   params: Promise.resolve({ objectiveId }),
 });
@@ -39,8 +43,10 @@ async function create(body: Record<string, unknown>): Promise<Objective> {
   const res = await objectives.POST(
     new Request(`${BASE}/v1/objectives`, {
       method: "POST",
+      headers: asMe(),
       body: JSON.stringify(body),
     }),
+    undefined,
   );
   expect(res.status).toBe(201);
   return (await res.json()) as Objective;
@@ -54,6 +60,7 @@ async function logEffort(
   const res = await effort.POST(
     new Request(`${BASE}/v1/objectives/${objectiveId}/effort-entries`, {
       method: "POST",
+      headers: asMe(),
       body: JSON.stringify({
         local_date,
         tz: "Asia/Kolkata",
@@ -68,7 +75,9 @@ async function logEffort(
 
 async function grid(objectiveId: string): Promise<ScheduleGrid> {
   const res = await schedule.GET(
-    new Request(`${BASE}/v1/objectives/${objectiveId}/schedule`),
+    new Request(`${BASE}/v1/objectives/${objectiveId}/schedule`, {
+      headers: asMe(),
+    }),
     params(objectiveId),
   );
   expect(res.status).toBe(200);
@@ -83,6 +92,7 @@ describe("I-01 — declare an objective (the intent's check)", () => {
   let flexible: Objective;
 
   beforeAll(async () => {
+    me = await testUser();
     fixed = await create({
       ...COMMON,
       title: "itest: I-01 fixed",
@@ -110,11 +120,15 @@ describe("I-01 — declare an objective (the intent's check)", () => {
   });
 
   it("lists both, active, with the schedule given and 0 of a real target", async () => {
-    const res = await objectives.GET(new Request(`${BASE}/v1/objectives`));
+    const res = await objectives.GET(
+      new Request(`${BASE}/v1/objectives`, { headers: asMe() }),
+      undefined,
+    );
     expect(res.status).toBe(200);
     const all = ((await res.json()) as { objectives: ObjectiveSummary[] })
       .objectives;
     const byId = (id: string) => all.find((o) => o.id === id);
+    expect(all).toHaveLength(2);
 
     expect(byId(fixed.id)).toMatchObject({
       status: "active",
@@ -146,7 +160,7 @@ describe("I-01 — declare an objective (the intent's check)", () => {
       [flexible, "monthly"],
     ] as const) {
       const res = await one.GET(
-        new Request(`${BASE}/v1/objectives/${o.id}`),
+        new Request(`${BASE}/v1/objectives/${o.id}`, { headers: asMe() }),
         params(o.id),
       );
       expect(res.status).toBe(200);
@@ -181,7 +195,7 @@ describe("I-01 — declare an objective (the intent's check)", () => {
     expect(stateOn(g, "2026-11-08")).toBe("off_day");
 
     const res = await one.GET(
-      new Request(`${BASE}/v1/objectives/${fixed.id}`),
+      new Request(`${BASE}/v1/objectives/${fixed.id}`, { headers: asMe() }),
       params(fixed.id),
     );
     expect(((await res.json()) as Objective).figures).toMatchObject({

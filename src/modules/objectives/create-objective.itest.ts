@@ -1,9 +1,9 @@
-import { afterAll, describe, expect, it } from "vitest";
-import { getConfig } from "@/config/env";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPool, query, withTransaction, type Queryable } from "@/shared/db";
 import { insertObjective } from "./repo";
 import { createObjective } from "./service";
 import { validateObjectiveWrite } from "./domain/validateObjectiveWrite";
+import { testUser, type TestUser } from "@/test/fixtures";
 
 /**
  * I-01 step 6: the create is one transaction. The objective, segment 0 and
@@ -11,8 +11,8 @@ import { validateObjectiveWrite } from "./domain/validateObjectiveWrite";
  * created event has no status, and every later read of the list would fail on
  * it (ERD invariant 16).
  *
- * Nothing here is deleted (NFR-01) and the suite runs once per timezone
- * against one database, so every assertion filters by the ids this test made.
+ * Nothing here is deleted (NFR-01). The suite writes as its own user, new on
+ * every run, and every assertion filters by the ids this test made.
  */
 const BODY = {
   title: "itest: I-01 create",
@@ -43,13 +43,19 @@ async function countRows(objectiveId: string) {
   };
 }
 
+let user: TestUser;
+
 describe("createObjective (real Postgres)", () => {
+  beforeAll(async () => {
+    user = await testUser();
+  });
+
   afterAll(async () => {
     await getPool().end();
   });
 
   it("writes the objective, segment 0 and its created event together", async () => {
-    const result = await createObjective(BODY);
+    const result = await createObjective(user.id, BODY);
     if (!result.ok) throw new Error(`create failed: ${result.kind}`);
     const o = result.objective;
 
@@ -90,11 +96,7 @@ describe("createObjective (real Postgres)", () => {
             return res as never;
           },
         };
-        return insertObjective(
-          failing,
-          getConfig().seedUserId,
-          validated.value,
-        );
+        return insertObjective(failing, user.id, validated.value);
       }),
     ).rejects.toThrow(/forced/);
 
@@ -111,7 +113,7 @@ describe("createObjective (real Postgres)", () => {
 
   it("writes nothing for a refused body", async () => {
     const title = `itest: I-01 refused ${Date.now()}`;
-    const result = await createObjective({
+    const result = await createObjective(user.id, {
       ...BODY,
       title,
       schedule: { ...BODY.schedule, days_per_week: 3 },

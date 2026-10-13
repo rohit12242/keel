@@ -1,4 +1,3 @@
-import { getConfig } from "@/config/env";
 import type { EffortEntry, ProblemError } from "@/shared/contract";
 import { validateEffortEntryWrite } from "./domain/validateWrite";
 import {
@@ -15,8 +14,7 @@ import {
 
 /**
  * effort/service — the log-effort use case (ADR-001). Validates the body,
- * enforces the 404/422 rules, then inserts. The current user is the seeded
- * user until auth (E-06).
+ * enforces the 404/422 rules, then inserts, for the signed-in user.
  */
 export type CreateEffortResult =
   | { ok: true; entry: EffortEntry }
@@ -42,6 +40,7 @@ function present(row: EffortEntryRow, extra: boolean): EffortEntry {
 }
 
 export async function createEffortEntry(
+  userId: string,
   objectiveId: string,
   body: unknown,
 ): Promise<CreateEffortResult> {
@@ -50,8 +49,7 @@ export async function createEffortEntry(
     return { ok: false, kind: "validation", errors: validated.errors };
   }
 
-  const { seedUserId } = getConfig();
-  const objective = await getObjectiveForEffort(seedUserId, objectiveId);
+  const objective = await getObjectiveForEffort(userId, objectiveId);
   if (!objective) return { ok: false, kind: "not_found" };
 
   // The rules are pure functions over the facts (ADR-008): the status is the

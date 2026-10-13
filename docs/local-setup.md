@@ -88,13 +88,16 @@ Open `.env` and set:
 | `LOG_LEVEL` | `info` |
 | `SEED_DATA` | `false` |
 | `SESSION_SECRET` | any long random string — generate one with `openssl rand -hex 32` |
-| `COGNITO_POOL_ID` | leave blank |
-| `COGNITO_CLIENT_ID` | leave blank |
-| `COGNITO_CLIENT_SECRET` | leave blank |
+| `COGNITO_DOMAIN` | `terraform -chdir=infra output -raw cognito_domain` |
+| `COGNITO_POOL_ID` | `aws ssm get-parameter --name /keel/COGNITO_POOL_ID --query Parameter.Value --output text` |
+| `COGNITO_CLIENT_ID` | the same, for `/keel/COGNITO_CLIENT_ID` |
+| `COGNITO_CLIENT_SECRET` | the same, for `/keel/COGNITO_CLIENT_SECRET`, adding `--with-decryption` |
 
-The `DATABASE_URL` above matches the credentials in `docker-compose.yml`. The
-`COGNITO_*` variables are unused until auth (E-06) — leaving them blank is
-correct. See `docs/configuration.md` for what each variable does.
+The `DATABASE_URL` above matches the credentials in `docker-compose.yml`. There is
+no local identity provider: you sign in against the deployed Cognito pool, whose app
+client accepts a callback on `http://localhost:3000`. The AWS commands need the
+`keel-deploy` profile (`AWS_PROFILE=keel-deploy`). See `docs/configuration.md` for
+what each variable does.
 
 ## 6. Start the app
 
@@ -102,7 +105,10 @@ correct. See `docs/configuration.md` for what each variable does.
 npm run dev
 ```
 
-Then open http://localhost:3000.
+Then open http://localhost:3000 and follow **Sign in**. The first time, choose
+*Sign up* on Cognito's page and confirm the code it emails you. You come back to
+Today as a new, empty user — every request after that carries your
+`keel_session` cookie.
 
 ## 7. How to tell it worked
 
@@ -111,7 +117,8 @@ Then open http://localhost:3000.
 - `npm run dev` starts without printing a `ConfigError`. If a variable is missing
   or malformed, the app fails immediately at startup and names the exact variable
   — fix that variable in `.env` and start again.
-- http://localhost:3000 renders the Keel walking-skeleton page.
+- http://localhost:3000 shows **Sign in** when you are signed out, and Today once
+  you are.
 
 To stop: `Ctrl-C` the app, then `docker compose down` (add `-v` to also delete
 the database volume).

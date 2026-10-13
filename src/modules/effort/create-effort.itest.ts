@@ -1,5 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { getPool, query } from "@/shared/db";
+import {
+  addStatusEvents,
+  testObjective,
+  testUser,
+  type TestUser,
+} from "@/test/fixtures";
 import { createEffortEntry } from "./service";
 
 /**
@@ -9,10 +15,9 @@ import { createEffortEntry } from "./service";
  * those rules, and every failure path, are exercised rather than declared
  * (NFR-07, DoD clause 8).
  *
- * Fixtures are `npm run seed`'s: one objective, fixed Mon–Fri,
+ * Each case has its own user and objective, fixed Mon–Fri,
  * 2026-09-14 … 2026-10-11, created on the 14th.
  */
-const OBJECTIVE_ID = "00000000-0000-0000-0000-0000000000a1";
 const WEDNESDAY = "2026-09-16"; // planned
 const SATURDAY = "2026-09-19"; // inside the range, not a planned weekday
 const NOTE = "itest: W4-29 effort write";
@@ -27,26 +32,27 @@ function body(over: Record<string, unknown> = {}) {
   };
 }
 
-async function cleanup(): Promise<void> {
-  await query("DELETE FROM effort_entry WHERE note = $1", [NOTE]);
-  await query(
-    "DELETE FROM status_event WHERE objective_id = $1 AND change <> 'created'",
-    [OBJECTIVE_ID],
-  );
-}
+let user: TestUser;
+let OBJECTIVE_ID: string;
+
+/** Log as the case's own user. */
+const log = (objectiveId: string, b: unknown) =>
+  createEffortEntry(user.id, objectiveId, b);
 
 describe("createEffortEntry (real Postgres)", () => {
-  beforeEach(cleanup);
+  beforeEach(async () => {
+    user = await testUser();
+    OBJECTIVE_ID = (await testObjective(user)).id;
+  });
 
   afterAll(async () => {
-    await cleanup();
     await getPool().end();
   });
 
   // --- failure paths --------------------------------------------------------
 
   it("refuses a body that is not valid (400)", async () => {
-    const result = await createEffortEntry(OBJECTIVE_ID, body({ minutes: 0 }));
+    const result = await log(OBJECTIVE_ID, body({ minutes: 0 }));
     expect(result.ok).toBe(false);
     if (!result.ok && result.kind === "validation") {
       expect(result.errors.map((e) => e.field)).toContain("minutes");
@@ -55,31 +61,34 @@ describe("createEffortEntry (real Postgres)", () => {
     }
   });
 
-  it("is not_found for an objective that is not this user's (404, NFR-10)", async () => {
-    const result = await createEffortEntry(
-      "00000000-0000-0000-0000-00000000dead",
-      body(),
-    );
+  it("is not_found for an objective that does not exist (404)", async () => {
+    const result = await log("00000000-0000-0000-0000-00000000dead", body());
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.kind).toBe("not_found");
   });
 
-  it("is not_active once the objective has ended — read from the events, not a column", async () => {
-    await query(
-      `INSERT INTO status_event (objective_id, occurred_on, change)
-       VALUES ($1, '2026-09-15', 'ended')`,
-      [OBJECTIVE_ID],
+  it("is not_found for another user's objective, and writes nothing (404, NFR-10)", async () => {
+    const someoneElse = await testUser();
+    const theirs = await testObjective(someoneElse);
+    const result = await log(theirs.id, body());
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.kind).toBe("not_found");
+    const written = await query(
+      "SELECT 1 FROM effort_entry WHERE objective_id = $1",
+      [theirs.id],
     );
-    const result = await createEffortEntry(OBJECTIVE_ID, body());
+    expect(written.rowCount).toBe(0);
+  });
+
+  it("is not_active once the objective has ended — read from the events, not a column", async () => {
+    await addStatusEvents(OBJECTIVE_ID, [["2026-09-15", "ended"]]);
+    const result = await log(OBJECTIVE_ID, body());
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.kind).toBe("not_active");
   });
 
   it("is outside_plan for a date beyond every segment", async () => {
-    const result = await createEffortEntry(
-      OBJECTIVE_ID,
-      body({ local_date: "2026-11-02" }),
-    );
+    const result = await log(OBJECTIVE_ID, body({ local_date: "2026-11-02" }));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.kind).toBe("outside_plan");
   });
@@ -87,7 +96,7 @@ describe("createEffortEntry (real Postgres)", () => {
   // --- what it writes -------------------------------------------------------
 
   it("logs a planned day as not extra", async () => {
-    const result = await createEffortEntry(OBJECTIVE_ID, body());
+    const result = await log(OBJECTIVE_ID, body());
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.entry.extra).toBe(false);
@@ -96,10 +105,7 @@ describe("createEffortEntry (real Postgres)", () => {
   });
 
   it("logs an off day inside the plan as extra", async () => {
-    const result = await createEffortEntry(
-      OBJECTIVE_ID,
-      body({ local_date: SATURDAY }),
-    );
+    const result = await log(OBJECTIVE_ID, body({ local_date: SATURDAY }));
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.entry.extra).toBe(true);
   });
@@ -107,12 +113,11 @@ describe("createEffortEntry (real Postgres)", () => {
   it("counts effort logged during a paused stretch as extra (invariant 10)", async () => {
     // Paused before the planned day, resumed after it: the objective is active
     // now, so the write is allowed, but that day was not planned.
-    await query(
-      `INSERT INTO status_event (objective_id, occurred_on, change)
-       VALUES ($1, '2026-09-15', 'paused'), ($1, '2026-09-21', 'resumed')`,
-      [OBJECTIVE_ID],
-    );
-    const result = await createEffortEntry(OBJECTIVE_ID, body());
+    await addStatusEvents(OBJECTIVE_ID, [
+      ["2026-09-15", "paused"],
+      ["2026-09-21", "resumed"],
+    ]);
+    const result = await log(OBJECTIVE_ID, body());
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.entry.extra).toBe(true);
   });

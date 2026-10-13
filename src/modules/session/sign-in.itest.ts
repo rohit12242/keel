@@ -240,6 +240,7 @@ describe("DELETE /v1/session", () => {
         method: "DELETE",
         headers: cookie ? { cookie } : {},
       }),
+      undefined,
     );
 
   it("401 without a session", async () => {

@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 import { getConfig } from "@/config/env";
+import { getPool } from "@/shared/db";
+import { testObjective, testUser } from "@/test/fixtures";
 
 /**
  * W4-10 — every constraint the migration adds, proved by violating it.
@@ -9,15 +11,15 @@ import { getConfig } from "@/config/env";
  * tests write the row the constraint is supposed to refuse and assert the
  * refusal, plus the one thing the backfill claims (ERD invariant 16).
  *
- * Each case runs in its own transaction and rolls back, so the seeded database
+ * Each case runs in its own transaction and rolls back, so the suite's objective
  * is unchanged. `SET CONSTRAINTS ALL IMMEDIATE` makes the DEFERRABLE contiguity
  * trigger fire at the statement instead of at COMMIT, so a rolled-back
  * transaction still sees it.
  *
- * Fixtures are `npm run seed`'s: one objective with segment 0 (seq 0, fixed,
- * 2026-09-14 … 2026-10-11). Run migrate + seed before this suite.
+ * The suite makes its own user and objective with segment 0 (seq 0, fixed,
+ * 2026-09-14 … 2026-10-11), new on every run.
  */
-const OBJECTIVE_ID = "00000000-0000-0000-0000-0000000000a1";
+let OBJECTIVE_ID: string;
 const ADJACENT = "2026-10-12"; // the day after segment 0 ends — contiguous
 const AFTER_A_GAP = "2026-10-13"; // one day later — leaves 10-12 unplanned
 
@@ -71,7 +73,7 @@ const SEG = (seq: number, start: string, end: string) => ({
   params: [OBJECTIVE_ID, seq, start, end],
 });
 
-/** A second segment on the seeded objective. Contiguous unless `start` says otherwise. */
+/** A second segment on the suite's objective. Contiguous unless `start` says otherwise. */
 function insertSegment(
   columns: string,
   values: string,
@@ -88,14 +90,17 @@ function insertSegment(
 
 describe("W4-10 schema constraints (real Postgres)", () => {
   beforeAll(async () => {
-    // This suite talks to pg directly, not through shared/db. NFR-12's
-    // DATE-as-string parser comes from vitest.integration.setup.ts.
+    // The fixture is written through shared/db; the cases talk to pg
+    // directly. NFR-12's DATE-as-string parser comes from
+    // vitest.integration.setup.ts.
+    OBJECTIVE_ID = (await testObjective(await testUser())).id;
     client = new pg.Client({ connectionString: getConfig().databaseUrl });
     await client.connect();
   });
 
   afterAll(async () => {
     await client.end();
+    await getPool().end();
   });
 
   // --- the constraints this migration adds, each proved by a violation -------

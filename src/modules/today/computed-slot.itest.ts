@@ -1,37 +1,37 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { getConfig } from "@/config/env";
 import { getPool, query } from "@/shared/db";
 import { getDayRows } from "@/modules/today/repo";
 import { assembleDay } from "@/modules/today/domain/assembleDay";
+import {
+  addStatusEvents,
+  testObjective,
+  testUser,
+  type TestUser,
+} from "@/test/fixtures";
 
 /**
  * W4-29 end to end: the Today read joins no `plan_slot`, and the covering slot
  * is computed from the segment and the status events against a real database.
  *
  * The unit tests pin the rule; this pins that the query actually returns the
- * facts the rule needs, in the shape it expects. Fixtures are `npm run seed`'s:
- * one objective, fixed Mon–Fri, 2026-09-14 … 2026-10-11, created on the 14th.
+ * facts the rule needs, in the shape it expects. Each case has its own user and
+ * objective — fixed Mon–Fri, 2026-09-14 … 2026-10-11, created on the 14th — so
+ * one case's pause or end cannot outrank the next one's.
  */
-const USER_ID = getConfig().seedUserId;
-const OBJECTIVE_ID = "00000000-0000-0000-0000-0000000000a1";
 const WEDNESDAY = "2026-09-16";
 const SATURDAY = "2026-09-19";
 
-/** Status events added by a test, removed afterwards (the seed's stays). */
-async function clearAddedEvents(): Promise<void> {
-  await query(
-    "DELETE FROM status_event WHERE objective_id = $1 AND change <> 'created'",
-    [OBJECTIVE_ID],
-  );
-}
+let USER_ID: string;
+let OBJECTIVE_ID: string;
 
 describe("Today computes its slot (real Postgres)", () => {
-  // Each case starts from the seed's single 'created' event, so one test's
-  // pause or end cannot outrank the next one's.
-  beforeEach(clearAddedEvents);
+  beforeEach(async () => {
+    const user: TestUser = await testUser();
+    USER_ID = user.id;
+    OBJECTIVE_ID = (await testObjective(user)).id;
+  });
 
   afterAll(async () => {
-    await clearAddedEvents();
     await getPool().end();
   });
 
@@ -64,11 +64,10 @@ describe("Today computes its slot (real Postgres)", () => {
   });
 
   it("stops planning while paused and plans again once resumed", async () => {
-    await query(
-      `INSERT INTO status_event (objective_id, occurred_on, change)
-       VALUES ($1, '2026-09-15', 'paused'), ($1, '2026-09-21', 'resumed')`,
-      [OBJECTIVE_ID],
-    );
+    await addStatusEvents(OBJECTIVE_ID, [
+      ["2026-09-15", "paused"],
+      ["2026-09-21", "resumed"],
+    ]);
 
     const paused = assembleDay(WEDNESDAY, await getDayRows(USER_ID, WEDNESDAY));
     expect(
@@ -85,11 +84,7 @@ describe("Today computes its slot (real Postgres)", () => {
   });
 
   it("drops an objective off Today once it is no longer active", async () => {
-    await query(
-      `INSERT INTO status_event (objective_id, occurred_on, change)
-       VALUES ($1, '2026-09-15', 'ended')`,
-      [OBJECTIVE_ID],
-    );
+    await addStatusEvents(OBJECTIVE_ID, [["2026-09-15", "ended"]]);
     const day = assembleDay(WEDNESDAY, await getDayRows(USER_ID, WEDNESDAY));
     expect(day.objectives.find((o) => o.id === OBJECTIVE_ID)).toBeUndefined();
   });

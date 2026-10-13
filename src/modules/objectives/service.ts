@@ -1,4 +1,3 @@
-import { getConfig } from "@/config/env";
 import { withTransaction } from "@/shared/db";
 import type {
   Objective,
@@ -18,7 +17,7 @@ import { getObjectiveRows, insertObjective } from "./repo";
 /**
  * objectives/service — one function per use case (ADR-001). Each read is one
  * repository call, so one query (NFR-03's reason); the rules are in domain/.
- * The current user is the seeded user until auth (E-06).
+ * Every function takes the signed-in user's id and reads only their rows.
  *
  * `malformed` is an objective whose stored facts have no status or no plan:
  * a read fails rather than guessing (ERD invariant 16).
@@ -30,19 +29,19 @@ export type CreateObjectiveResult =
   | { ok: false; kind: "mode_mismatch"; detail: string };
 
 export async function createObjective(
+  userId: string,
   body: unknown,
 ): Promise<CreateObjectiveResult> {
   const validated = validateObjectiveWrite(body);
   if (!validated.ok) return validated;
 
-  const { seedUserId } = getConfig();
   const id = await withTransaction((tx) =>
-    insertObjective(tx, seedUserId, validated.value),
+    insertObjective(tx, userId, validated.value),
   );
 
   // Read it back through the same read the list uses, so a created objective
   // and a listed one cannot differ in shape or figures.
-  const [row] = await getObjectiveRows(seedUserId, id);
+  const [row] = await getObjectiveRows(userId, id);
   const objective = row ? assembleObjective(row) : null;
   if (!objective?.ok) {
     throw new Error(`createObjective: objective ${id} did not read back`);
@@ -56,6 +55,7 @@ export type ListObjectivesResult =
   | { ok: false; kind: "malformed" };
 
 export async function listObjectives(
+  userId: string,
   status: string | null,
 ): Promise<ListObjectivesResult> {
   const filter = parseStatusFilter(status);
@@ -72,7 +72,7 @@ export async function listObjectives(
     };
   }
 
-  const rows = await getObjectiveRows(getConfig().seedUserId, null);
+  const rows = await getObjectiveRows(userId, null);
   const list = assembleList(rows, filter);
   return list.ok
     ? { ok: true, objectives: list.value }
@@ -85,9 +85,10 @@ export type GetObjectiveResult =
   | { ok: false; kind: "malformed" };
 
 export async function getObjective(
+  userId: string,
   objectiveId: string,
 ): Promise<GetObjectiveResult> {
-  const [row] = await getObjectiveRows(getConfig().seedUserId, objectiveId);
+  const [row] = await getObjectiveRows(userId, objectiveId);
   if (!row) return { ok: false, kind: "not_found" };
   const objective = assembleObjective(row);
   return objective.ok
@@ -102,6 +103,7 @@ export type GetScheduleResult =
   | { ok: false; kind: "malformed" };
 
 export async function getObjectiveSchedule(
+  userId: string,
   objectiveId: string,
   from: string | null,
   to: string | null,
@@ -109,7 +111,7 @@ export async function getObjectiveSchedule(
   const range = parseGridRange(from, to);
   if (!range.ok) return { ok: false, kind: "invalid", errors: range.error };
 
-  const [row] = await getObjectiveRows(getConfig().seedUserId, objectiveId);
+  const [row] = await getObjectiveRows(userId, objectiveId);
   if (!row) return { ok: false, kind: "not_found" };
   const grid = assembleGrid(row, range.value);
   return grid.ok

@@ -1,4 +1,7 @@
+import { getConfig } from "@/config/env";
 import type { Problem, ProblemError } from "@/shared/contract";
+import { logLine } from "@/shared/log";
+import { sessionUserId } from "@/shared/session";
 
 /** A success response as application/json. */
 export function jsonResponse(status: number, data: unknown): Response {
@@ -61,3 +64,30 @@ export const unauthenticated = (): Response =>
 
 export const notFound = (what: string): Response =>
   problem(404, "Not found", problemType("not-found"), `No such ${what}.`);
+
+/**
+ * Every route that needs a caller (everything but /health and signing in)
+ * is exported through this. It reads `keel_session` with no network call
+ * (NFR-08) and answers 401 without a live one; the handler gets the caller's
+ * id and filters every query by it (NFR-10). There is no other way for a
+ * handler to learn who is asking.
+ */
+export function withSession<C>(
+  handler: (req: Request, ctx: C, userId: string) => Promise<Response>,
+): (req: Request, ctx: C) => Promise<Response> {
+  return async (req, ctx) => {
+    const userId = sessionUserId(
+      req.headers.get("cookie"),
+      new Date(),
+      getConfig().sessionSecret,
+    );
+    if (!userId) {
+      logLine("http_request", {
+        route: `${req.method} ${new URL(req.url).pathname}`,
+        status: 401,
+      });
+      return unauthenticated();
+    }
+    return handler(req, ctx, userId);
+  };
+}
