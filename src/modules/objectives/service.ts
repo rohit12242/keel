@@ -86,7 +86,9 @@ export async function createObjective(
   // Read it back through the same read the list uses, so a created objective
   // and a listed one cannot differ in shape or figures.
   const [row] = await getObjectiveRows(userId, id);
-  const objective = row ? assembleObjective(row) : null;
+  const objective = row
+    ? assembleObjective(row, localDayOf(new Date(), row.user_tz))
+    : null;
   if (!objective?.ok) {
     throw new Error(`createObjective: objective ${id} did not read back`);
   }
@@ -127,15 +129,17 @@ export async function listObjectives(
   }
 
   const rows = await getObjectiveRows(userId, null);
-  const list = assembleList(rows, filter);
+  // With no objectives there is nothing to read today for.
+  if (rows.length === 0) {
+    return { ok: true, objectives: [], committed_minutes_per_week: 0 };
+  }
+  const today = localDayOf(now, rows[0].user_tz);
+  const list = assembleList(rows, filter, today);
   if (!list.ok) return { ok: false, kind: "malformed" };
   return {
     ok: true,
     objectives: list.value,
-    committed_minutes_per_week:
-      rows.length === 0
-        ? 0
-        : committedMinutesPerWeek(rows, localDayOf(now, rows[0].user_tz)),
+    committed_minutes_per_week: committedMinutesPerWeek(rows, today),
   };
 }
 
@@ -150,7 +154,7 @@ export async function getObjective(
 ): Promise<GetObjectiveResult> {
   const [row] = await getObjectiveRows(userId, objectiveId);
   if (!row) return { ok: false, kind: "not_found" };
-  const objective = assembleObjective(row);
+  const objective = assembleObjective(row, localDayOf(new Date(), row.user_tz));
   return objective.ok
     ? { ok: true, objective: objective.value }
     : { ok: false, kind: "malformed" };

@@ -150,8 +150,10 @@ describe("I-01 — declare an objective (the intent's check)", () => {
       },
       figures: { adherence_pct: 0, logged_minutes: 0, target_minutes: 360 },
     });
-    // Omitted, not guessed: their rules are not in I-01.
-    expect(byId(fixed.id)).not.toHaveProperty("next_review_on");
+    // Read against the real today, so only their presence is pinned here;
+    // review-due.itest.ts pins the values against a plan wholly in the past.
+    expect(byId(fixed.id)).toHaveProperty("next_review_on");
+    expect(typeof byId(fixed.id)?.reviews_due).toBe("number");
   });
 
   it("opens one with its plan, its history and both review cadences", async () => {

@@ -32,6 +32,7 @@ const ROW: ObjectiveRow = {
     { occurred_on: "2026-11-02", change: "created", reason: null },
   ],
   daily_minutes: [],
+  saved_reviews: [],
 };
 
 function grid(row: ObjectiveRow, range = {}): ScheduleGrid {

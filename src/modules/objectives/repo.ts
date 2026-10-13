@@ -127,16 +127,29 @@ day AS (
     ) ORDER BY d.local_date) AS daily_minutes
   FROM per_day d
   GROUP BY d.objective_id
+),
+rev AS (
+  SELECT r.objective_id,
+    json_agg(json_build_object(
+      'period_start', to_char(r.period_start, 'YYYY-MM-DD'),
+      'period_end', to_char(r.period_end, 'YYYY-MM-DD')
+    ) ORDER BY r.period_start) AS saved_reviews
+  FROM review r
+  JOIN obj ON obj.id = r.objective_id
+  WHERE r.status = 'saved'
+  GROUP BY r.objective_id
 )
 SELECT
   obj.*,
   COALESCE(seg.segments, '[]'::json) AS segments,
   COALESCE(ev.status_events, '[]'::json) AS status_events,
-  COALESCE(day.daily_minutes, '[]'::json) AS daily_minutes
+  COALESCE(day.daily_minutes, '[]'::json) AS daily_minutes,
+  COALESCE(rev.saved_reviews, '[]'::json) AS saved_reviews
 FROM obj
 LEFT JOIN seg ON seg.objective_id = obj.id
 LEFT JOIN ev ON ev.objective_id = obj.id
 LEFT JOIN day ON day.objective_id = obj.id
+LEFT JOIN rev ON rev.objective_id = obj.id
 ORDER BY obj.title, obj.id
 `;
 

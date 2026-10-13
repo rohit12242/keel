@@ -122,7 +122,8 @@ export type ObjectiveSummary = {
   start_date: string;
   /** The latest segment's end. Derived. */
   end_date: string;
-  next_review_on?: string | null;
+  next_review_on: string | null;
+  reviews_due: number;
   from_parking_lot?: boolean;
   figures: Figures;
 };
