@@ -1,4 +1,9 @@
-import type { Day, DayObjective, EffortEntry } from "@/shared/contract";
+import type {
+  Day,
+  DayObjective,
+  EffortEntry,
+  Deviation,
+} from "@/shared/contract";
 import { bitmaskToWeekdays } from "@/modules/objectives/domain/weekdays";
 import { scheduleLabel } from "@/modules/objectives/domain/scheduleLabel";
 import {
@@ -99,7 +104,11 @@ function toObjective(row: DayObjectiveRow, date: string): DayObjective {
   };
 }
 
-export function assembleDay(date: string, rows: DayObjectiveRow[]): Day {
+export function assembleDay(
+  date: string,
+  rows: DayObjectiveRow[],
+  lastDeviation: Deviation | null,
+): Day {
   // The status is the latest status event; the query no longer filters on a
   // status column (ADR-008). Objectives that are paused, completed or ended —
   // and any with no events at all — are not on Today.
@@ -121,6 +130,6 @@ export function assembleDay(date: string, rows: DayObjectiveRow[]): Day {
         0,
       ),
     },
-    last_deviation: null,
+    last_deviation: lastDeviation,
   };
 }

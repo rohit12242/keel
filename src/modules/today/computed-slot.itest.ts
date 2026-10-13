@@ -45,7 +45,11 @@ describe("Today computes its slot (real Postgres)", () => {
   });
 
   it("computes the day's slot, with no id, from segment and status events", async () => {
-    const day = assembleDay(WEDNESDAY, await getDayRows(USER_ID, WEDNESDAY));
+    const day = assembleDay(
+      WEDNESDAY,
+      await getDayRows(USER_ID, WEDNESDAY),
+      null,
+    );
     const objective = day.objectives.find((o) => o.id === OBJECTIVE_ID);
     expect(objective?.slot).toEqual({
       period_kind: "day",
@@ -59,7 +63,11 @@ describe("Today computes its slot (real Postgres)", () => {
   });
 
   it("has no slot on an off day", async () => {
-    const day = assembleDay(SATURDAY, await getDayRows(USER_ID, SATURDAY));
+    const day = assembleDay(
+      SATURDAY,
+      await getDayRows(USER_ID, SATURDAY),
+      null,
+    );
     expect(day.objectives.find((o) => o.id === OBJECTIVE_ID)?.slot).toBeNull();
   });
 
@@ -69,7 +77,11 @@ describe("Today computes its slot (real Postgres)", () => {
       ["2026-09-21", "resumed"],
     ]);
 
-    const paused = assembleDay(WEDNESDAY, await getDayRows(USER_ID, WEDNESDAY));
+    const paused = assembleDay(
+      WEDNESDAY,
+      await getDayRows(USER_ID, WEDNESDAY),
+      null,
+    );
     expect(
       paused.objectives.find((o) => o.id === OBJECTIVE_ID)?.slot,
     ).toBeNull();
@@ -77,6 +89,7 @@ describe("Today computes its slot (real Postgres)", () => {
     const resumed = assembleDay(
       "2026-09-21",
       await getDayRows(USER_ID, "2026-09-21"),
+      null,
     );
     expect(
       resumed.objectives.find((o) => o.id === OBJECTIVE_ID)?.slot?.period_start,
@@ -85,7 +98,11 @@ describe("Today computes its slot (real Postgres)", () => {
 
   it("drops an objective off Today once it is no longer active", async () => {
     await addStatusEvents(OBJECTIVE_ID, [["2026-09-15", "ended"]]);
-    const day = assembleDay(WEDNESDAY, await getDayRows(USER_ID, WEDNESDAY));
+    const day = assembleDay(
+      WEDNESDAY,
+      await getDayRows(USER_ID, WEDNESDAY),
+      null,
+    );
     expect(day.objectives.find((o) => o.id === OBJECTIVE_ID)).toBeUndefined();
   });
 });

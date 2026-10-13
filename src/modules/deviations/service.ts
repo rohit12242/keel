@@ -1,4 +1,4 @@
-import type { ProblemError } from "@/shared/contract";
+import type { Deviation, ProblemError } from "@/shared/contract";
 import { validatePatternWrite } from "./domain/validatePatternWrite";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
 import { localDayOf } from "@/shared/time/localDay";
@@ -44,10 +44,6 @@ export async function createDeviationPattern(
 }
 
 /** The contract's Deviation: `did_instead` is left out when there was none. */
-export type Deviation = Omit<DeviationRow, "did_instead"> & {
-  did_instead?: string;
-};
-
 export function present(row: DeviationRow): Deviation {
   const { did_instead, ...rest } = row;
   return did_instead === null ? rest : { ...rest, did_instead };

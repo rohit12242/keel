@@ -1,5 +1,9 @@
 import { query } from "@/shared/db";
 import type { DayObjectiveRow } from "@/modules/today/domain/rows";
+import {
+  DEVIATION_COLUMNS,
+  type DeviationRow,
+} from "@/modules/deviations/repo";
 
 /**
  * The Today read (NFR-03): one query, no query-per-objective.
@@ -88,10 +92,41 @@ LEFT JOIN wk ON wk.objective_id = obj.id
 ORDER BY obj.title
 `;
 
+export type DayFacts = {
+  objectives: DayObjectiveRow[];
+  last_deviation: DeviationRow | null;
+};
+
+/**
+ * Today's facts in one row of one query (NFR-03): the objectives above, and
+ * the caller's most recent deviation on or before the date. Wrapped as a
+ * single row so the deviation arrives even when there are no objectives.
+ */
+const DAY_FACTS_SQL = `
+SELECT
+  COALESCE((SELECT json_agg(day) FROM (${DAY_SQL}) day), '[]'::json)
+    AS objectives,
+  (SELECT row_to_json(last) FROM (
+     SELECT ${DEVIATION_COLUMNS}
+     FROM deviation d LEFT JOIN deviation_pattern p ON p.id = d.pattern_id
+     WHERE d.user_id = $1 AND d.local_date <= $2::date
+     ORDER BY d.local_date DESC, d.recorded_at DESC
+     LIMIT 1
+   ) last) AS last_deviation
+`;
+
+export async function getDayFacts(
+  userId: string,
+  date: string,
+): Promise<DayFacts> {
+  const result = await query<DayFacts>(DAY_FACTS_SQL, [userId, date]);
+  return result.rows[0];
+}
+
+/** The objectives alone — the same one query. */
 export async function getDayRows(
   userId: string,
   date: string,
 ): Promise<DayObjectiveRow[]> {
-  const result = await query<DayObjectiveRow>(DAY_SQL, [userId, date]);
-  return result.rows;
+  return (await getDayFacts(userId, date)).objectives;
 }
