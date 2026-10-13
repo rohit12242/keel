@@ -13,8 +13,6 @@ changed four of them; those changes are in the same commit.
 - Keel never receives, stores or compares a password. Creating an account, resetting
   a password and lockout happen at the provider (ADR-002), and the provider's
   configuration lives in `infra/` like the rest of the deployment.
-- The first sign-in on the deployed database lands on the record that is already
-  there, not on a new, empty user.
 - A signed-in session keeps working while the provider is unreachable (NFR-08).
 - The deployed service is reached only over HTTPS, on the registered domain ADR-006
   requires; plain HTTP redirects to it. No credential and no entry crosses the wire in

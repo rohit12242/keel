@@ -117,9 +117,8 @@ paths:
       summary: Finish signing in
       description: |
         Where the provider sends the browser back. Exchanges the authorization
-        code for the user's identity, binds or creates the local user row
-        (`docs/erd.md`, *User* — first sign-in binds before it creates), and
-        issues Keel's own session cookie. No later request reaches the provider:
+        code for the user's identity, finds the local user by subject or creates
+        it (`docs/erd.md`, *User*), and issues Keel's own session cookie. No later request reaches the provider:
         the cookie is validated locally (NFR-08).
       operationId: completeSignIn
       security: []

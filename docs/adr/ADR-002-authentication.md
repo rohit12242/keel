@@ -22,7 +22,7 @@ OIDC authorization code flow with PKCE, against Cognito's managed login.
 1. `GET /session/sign-in` — Keel stores `state` and the PKCE verifier in a
    short-lived HttpOnly cookie and redirects to Cognito.
 2. The user signs in at Cognito, which redirects back.
-3. `GET /session/callback` — Keel checks `state`, exchanges the code, binds or creates
+3. `GET /session/callback` — Keel checks `state`, exchanges the code, finds or creates
    the local user, sets the session cookie and redirects to Today.
 
 `DELETE /session` signs out by clearing the cookie.
@@ -43,8 +43,8 @@ an open session does not.
 
 Keel keeps its own `user` row, keyed by Cognito's subject id in `idp_subject`. Every
 Keel row points at `user.id`, never at the subject, so changing provider re-maps one
-column rather than re-keying the database. First sign-in binds to an existing row by
-verified email before it creates one (`docs/erd.md`, *User*).
+column rather than re-keying the database. A first sign-in creates the user; there is
+no matching by email (`docs/erd.md`, *User*).
 
 Users therefore live in two systems: exporting or deleting an account has to cover
 both.

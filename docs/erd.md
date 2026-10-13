@@ -397,17 +397,15 @@ would be stored and never read.
 |---|---|---|
 | id | uuid PK |  |
 | email | citext UK |  |
-| idp_subject | text null UK | The provider's subject id (ADR-002). Null only until the first sign-in binds it. Every Keel row points at `user.id`, never at this — changing provider re-maps one column rather than re-keying the database. |
+| idp_subject | text null UK | The provider's subject id (ADR-002). Null only on a row the seed script wrote, which nobody signs in as. Every Keel row points at `user.id`, never at this — changing provider re-maps one column rather than re-keying the database. |
 | tz | text | The zone new entries are stamped with by default, and the zone "today" is read in wherever the server must compare against it. |
 
 **No password, ever.** Credentials live at the provider (ADR-002); there is no column
 that could hold one.
 
-**First sign-in binds before it creates.** A sign-in whose subject matches no row
-looks for a row with the same verified email and no subject, and binds it. Only if
-there is none does it create a user. Without this, the first real sign-in on a
-database that already holds data would create a second, empty user and orphan the
-first one's record.
+**A sign-in finds its user by subject, or creates one.** There is no matching by
+email: nothing on the deployed database predates sign-in that is worth keeping, so a
+first sign-in is simply a new user.
 
 ## Invariants
 
