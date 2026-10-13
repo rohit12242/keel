@@ -187,7 +187,14 @@ describe("criteria_verdict", () => {
       period_end: string,
       kind: "weekly" | "plan_end",
       v: "met" | "not_met" | null,
-    ) => ({ period_start: period_end, period_end, kind, criteria_verdict: v });
+    ) => ({
+      id: period_end,
+      outcome: null,
+      period_start: period_end,
+      period_end,
+      kind,
+      criteria_verdict: v,
+    });
     expect(
       detail({
         ...ROW,
@@ -225,6 +232,8 @@ describe("next_review_on and reviews_due", () => {
           ...ROW,
           saved_reviews: [
             {
+              id: "r1",
+              outcome: null,
               period_start: "2026-11-02",
               period_end: "2026-11-08",
               kind: "weekly",

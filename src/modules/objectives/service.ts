@@ -1,6 +1,7 @@
 import { withTransaction } from "@/shared/db";
 import type {
   Objective,
+  PlanSegment,
   ObjectiveSummary,
   ProblemError,
   ScheduleGrid,
@@ -14,6 +15,10 @@ import { assembleGrid, parseGridRange } from "./domain/scheduleGrid";
 import { validateObjectiveWrite } from "./domain/validateObjectiveWrite";
 import { statusChange, validateStatusChange } from "./domain/statusChange";
 import { committedMinutesPerWeek } from "./domain/committedMinutes";
+import {
+  extensionDecision,
+  validateExtensionWrite,
+} from "./domain/validateExtension";
 import { canTake } from "@/modules/parking/domain/parking";
 import { insertVerdict, lockIdea } from "@/modules/parking/repo";
 import { localDayOf } from "@/shared/time/localDay";
@@ -21,7 +26,9 @@ import type { StatusChange } from "./domain/statusTimeline";
 import {
   getObjectiveRows,
   insertObjective,
+  insertSegment,
   insertStatusEvent,
+  lockObjective,
   lockStatusHistory,
 } from "./repo";
 
@@ -233,4 +240,59 @@ export async function createStatusChange(
     );
     return { ok: true, event };
   });
+}
+
+export type ExtensionResult =
+  | { ok: true; segment: PlanSegment }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "conflict"; detail: string }
+  | { ok: false; kind: "not_in_future"; detail: string };
+
+/**
+ * Extend the plan with a new segment, authorised by a continued plan-end
+ * review. The objective is locked while the plan is read and the segment
+ * written, so two extensions cannot both pass against the same plan.
+ */
+export async function createExtension(
+  userId: string,
+  objectiveId: string,
+  body: unknown,
+  now: Date,
+): Promise<ExtensionResult> {
+  const validated = validateExtensionWrite(body);
+  if (!validated.ok) {
+    return { ok: false, kind: "invalid", errors: validated.error };
+  }
+  const outcome = await withTransaction(
+    async (tx): Promise<ExtensionResult | { seq: number }> => {
+      if (!(await lockObjective(tx, userId, objectiveId))) {
+        return { ok: false, kind: "not_found" };
+      }
+      const [row] = await getObjectiveRows(userId, objectiveId);
+      const decided = extensionDecision(
+        row,
+        validated.value,
+        localDayOf(now, row.user_tz),
+      );
+      if (!decided.ok) {
+        const e = decided.error;
+        return e.kind === "invalid"
+          ? { ok: false, kind: "invalid", errors: [e.error] }
+          : { ok: false, kind: e.kind, detail: e.detail };
+      }
+      await insertSegment(tx, objectiveId, decided.value);
+      return { seq: decided.value.seq };
+    },
+  );
+  if (!("seq" in outcome)) return outcome;
+  const [row] = await getObjectiveRows(userId, objectiveId);
+  const objective = assembleObjective(row, localDayOf(now, row.user_tz));
+  if (!objective.ok) throw new Error("createExtension: did not read back");
+  return {
+    ok: true,
+    segment: objective.value.segments.find(
+      (s) => s.seq === outcome.seq,
+    ) as PlanSegment,
+  };
 }

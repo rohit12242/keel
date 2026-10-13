@@ -12,6 +12,7 @@ import * as ideas from "@/app/v1/parked-ideas/route";
 import * as reviewsOf from "@/app/v1/objectives/[objectiveId]/reviews/route";
 import * as review from "@/app/v1/reviews/[reviewId]/route";
 import * as deviationVerdict from "@/app/v1/reviews/[reviewId]/deviation-verdicts/[deviationId]/route";
+import * as extensions from "@/app/v1/objectives/[objectiveId]/extensions/route";
 import * as save from "@/app/v1/reviews/[reviewId]/save/route";
 import * as verdicts from "@/app/v1/parked-ideas/[ideaId]/verdicts/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
@@ -310,6 +311,24 @@ export const AUTHORIZATION: AuthRow[] = [
       save.POST(
         req("POST", `/v1/reviews/${id}/save`, cookie),
         reviewParams(id),
+      ),
+  },
+  {
+    operationId: "createExtension",
+    resource: anObjective,
+    call: (cookie, id) =>
+      extensions.POST(
+        req("POST", `/v1/objectives/${id}/extensions`, cookie, {
+          review_id: "00000000-0000-0000-0000-00000000dead",
+          extend_by_days: 14,
+          reason: "r",
+          schedule: {
+            mode: "flexible",
+            days_per_week: 2,
+            minutes_per_planned_day: 30,
+          },
+        }),
+        objectiveParams(id),
       ),
   },
 ];

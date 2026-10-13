@@ -1,5 +1,6 @@
 import { query, type Queryable } from "@/shared/db";
 import type { NewObjective } from "./domain/validateObjectiveWrite";
+import type { NewSegment } from "./domain/validateExtension";
 import { weekdaysToBitmask } from "./domain/weekdays";
 import type { ListRow } from "./domain/rows";
 import type { StatusChange, StatusEventRow } from "./domain/statusTimeline";
@@ -131,6 +132,8 @@ day AS (
 rev AS (
   SELECT r.objective_id,
     json_agg(json_build_object(
+      'id', r.id,
+      'outcome', r.outcome,
       'period_start', to_char(r.period_start, 'YYYY-MM-DD'),
       'period_end', to_char(r.period_end, 'YYYY-MM-DD'),
       'kind', r.kind,
@@ -217,4 +220,49 @@ export async function insertStatusEvent(
     [objectiveId, occurredOn, change, reason],
   );
   return res.rows[0];
+}
+
+/** Lock the caller's objective for the rest of the transaction; false when it is not theirs. */
+export async function lockObjective(
+  tx: Queryable,
+  userId: string,
+  objectiveId: string,
+): Promise<boolean> {
+  const res = await tx.query(
+    `SELECT 1 FROM objective WHERE id = $2 AND user_id = $1 FOR UPDATE`,
+    [userId, objectiveId],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+/**
+ * Append a plan segment. The contiguity trigger (invariant 4) checks it
+ * starts the day after the last one ends.
+ */
+export async function insertSegment(
+  tx: Queryable,
+  objectiveId: string,
+  s: NewSegment,
+): Promise<void> {
+  await tx.query(
+    `INSERT INTO plan_segment
+       (objective_id, seq, schedule_mode, planned_weekdays, days_per_week,
+        minutes_per_planned_day, start_date, end_date, reason,
+        created_by_review_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [
+      objectiveId,
+      s.seq,
+      s.schedule.mode,
+      s.schedule.mode === "fixed"
+        ? weekdaysToBitmask(s.schedule.planned_weekdays)
+        : null,
+      s.schedule.mode === "flexible" ? s.schedule.days_per_week : null,
+      s.schedule.minutes_per_planned_day,
+      s.start_date,
+      s.end_date,
+      s.reason,
+      s.created_by_review_id,
+    ],
+  );
 }

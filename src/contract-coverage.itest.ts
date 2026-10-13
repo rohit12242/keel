@@ -10,16 +10,11 @@ import { AUTHORIZATION } from "@/test/authorization-table";
  *
  * - every route handler under src/app/v1 (and /health) is an operation the
  *   contract declares — no undeclared endpoint;
- * - every declared operation has a handler, unless it is named below as not
- *   built yet;
+ * - every declared operation has a handler;
  * - every operation with a handler that needs a session has a row in the
  *   authorisation table, so it is proven to 401 without one and 404 across
  *   users; an operation the contract makes public (`security: []`) has none.
- *
- * Each step that builds an operation removes it from NOT_YET_BUILT; the step
- * that builds the last one deletes the list.
  */
-const NOT_YET_BUILT = new Set(["createExtension"]);
 
 const METHODS = ["GET", "PUT", "POST", "PATCH", "DELETE"] as const;
 const APP = join(process.cwd(), "src", "app");
@@ -100,7 +95,6 @@ describe("the contract and the code agree", () => {
 
   it("names no operation the contract lacks", () => {
     const declared = new Set(operations.map((o) => o.operationId));
-    for (const id of NOT_YET_BUILT) expect(declared).toContain(id);
     for (const row of AUTHORIZATION)
       expect(declared).toContain(row.operationId);
   });
@@ -120,20 +114,19 @@ describe("the contract and the code agree", () => {
     }
   });
 
-  it("has a handler for every operation built so far, and none for the rest", async () => {
+  it("has a handler for every operation", async () => {
     for (const op of operations) {
       const file = routeFile(op.path);
       const built =
         existsSync(file) && (await handlersIn(file)).includes(op.method);
-      expect(built, op.operationId).toBe(!NOT_YET_BUILT.has(op.operationId));
+      expect(built, op.operationId).toBe(true);
     }
   });
 
-  it("checks the session of every built operation that needs one, and of no public one", () => {
+  it("checks the session of every operation that needs one, and of no public one", () => {
     const rows = new Set(AUTHORIZATION.map((r) => r.operationId));
     expect(rows.size, "an operation has two rows").toBe(AUTHORIZATION.length);
     for (const op of operations) {
-      if (NOT_YET_BUILT.has(op.operationId)) continue;
       expect(rows.has(op.operationId), op.operationId).toBe(!op.isPublic);
     }
   });

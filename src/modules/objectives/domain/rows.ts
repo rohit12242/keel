@@ -37,6 +37,8 @@ export type ObjectiveRow = {
   daily_minutes: DailyMinutesRow[];
   /** The reviews already saved, by period; a draft is not here. */
   saved_reviews: {
+    id: string;
+    outcome: "continued" | "completed" | "paused" | "ended" | null;
     period_start: string;
     period_end: string;
     kind: "weekly" | "monthly" | "plan_end";
