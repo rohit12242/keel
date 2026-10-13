@@ -4,6 +4,7 @@ import type { Objective } from "@/shared/contract";
 import { createObjective } from "@/modules/objectives/service";
 import { createEffortEntry } from "@/modules/effort/service";
 import { createParkedIdea } from "@/modules/parking/service";
+import { startReview } from "@/modules/reviews/service";
 import type { EffortEntry } from "@/shared/contract";
 import { cookieFor } from "./session";
 
@@ -107,4 +108,19 @@ export async function testIdea(
   );
   if (!result.ok) throw new Error(`testIdea: ${JSON.stringify(result)}`);
   return result.idea;
+}
+
+/**
+ * A draft review of `user`'s objective — by default a fresh objective wholly
+ * in the past, so its Week 1 (2026-09-14 … 2026-09-20) is the one due.
+ */
+export async function testReview(
+  user: TestUser,
+  objectiveId?: string,
+  period?: { period_start: string; period_end: string },
+): Promise<{ id: string; objective_id: string }> {
+  const id = objectiveId ?? (await testObjective(user)).id;
+  const result = await startReview(user.id, id, period, new Date());
+  if (!result.ok) throw new Error(`testReview: ${JSON.stringify(result)}`);
+  return { id: result.review.id, objective_id: id };
 }

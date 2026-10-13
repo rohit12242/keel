@@ -9,12 +9,15 @@ import * as effortMonth from "@/app/v1/objectives/[objectiveId]/effort/route";
 import * as patterns from "@/app/v1/deviation-patterns/route";
 import * as deviations from "@/app/v1/deviations/route";
 import * as ideas from "@/app/v1/parked-ideas/route";
+import * as reviewsOf from "@/app/v1/objectives/[objectiveId]/reviews/route";
+import * as review from "@/app/v1/reviews/[reviewId]/route";
 import * as verdicts from "@/app/v1/parked-ideas/[ideaId]/verdicts/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import {
   OBJECTIVE_BODY,
   testEntry,
   testIdea,
+  testReview,
   testObjective,
   type TestUser,
 } from "./fixtures";
@@ -59,6 +62,12 @@ const anObjective = async (user: TestUser) => (await testObjective(user)).id;
 
 const anEntry = async (user: TestUser) =>
   (await testEntry(user, await anObjective(user))).id;
+
+const aReview = async (user: TestUser) => (await testReview(user)).id;
+
+const reviewParams = (reviewId: string) => ({
+  params: Promise.resolve({ reviewId }),
+});
 
 const entryParams = (entryId: string) => ({
   params: Promise.resolve({ entryId }),
@@ -227,5 +236,29 @@ export const AUTHORIZATION: AuthRow[] = [
         }),
         { params: Promise.resolve({ ideaId: id }) },
       ),
+  },
+  {
+    operationId: "listReviews",
+    resource: anObjective,
+    call: (cookie, id) =>
+      reviewsOf.GET(
+        req("GET", `/v1/objectives/${id}/reviews`, cookie),
+        objectiveParams(id),
+      ),
+  },
+  {
+    operationId: "startReview",
+    resource: anObjective,
+    call: (cookie, id) =>
+      reviewsOf.POST(
+        req("POST", `/v1/objectives/${id}/reviews`, cookie),
+        objectiveParams(id),
+      ),
+  },
+  {
+    operationId: "getReview",
+    resource: aReview,
+    call: (cookie, id) =>
+      review.GET(req("GET", `/v1/reviews/${id}`, cookie), reviewParams(id)),
   },
 ];

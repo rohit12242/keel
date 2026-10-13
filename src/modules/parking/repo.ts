@@ -8,7 +8,7 @@ import type { IdeaRow, IdeaWrite, VerdictWrite } from "./domain/parking";
  */
 
 /** An idea `i` as IdeaRow: its verdicts oldest first, and the objective it became. */
-const IDEA_COLUMNS = `
+export const IDEA_COLUMNS = `
   i.id, i.idea, i.why,
   to_char(i.caught_on, 'YYYY-MM-DD') AS caught_on,
   to_char(i.locked_until, 'YYYY-MM-DD') AS locked_until,
