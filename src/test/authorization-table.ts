@@ -7,6 +7,7 @@ import * as session from "@/app/v1/session/route";
 import * as entry from "@/app/v1/effort-entries/[entryId]/route";
 import * as effortMonth from "@/app/v1/objectives/[objectiveId]/effort/route";
 import * as patterns from "@/app/v1/deviation-patterns/route";
+import * as deviations from "@/app/v1/deviations/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import {
   OBJECTIVE_BODY,
@@ -168,6 +169,30 @@ export const AUTHORIZATION: AuthRow[] = [
     call: (cookie) =>
       patterns.POST(
         req("POST", "/v1/deviation-patterns", cookie, { name: "itest" }),
+        undefined,
+      ),
+  },
+  {
+    operationId: "listDeviations",
+    call: (cookie) =>
+      deviations.GET(
+        req("GET", "/v1/deviations?from=2026-09-01&to=2026-09-30", cookie),
+        undefined,
+      ),
+  },
+  {
+    operationId: "createDeviation",
+    call: (cookie) =>
+      deviations.POST(
+        req("POST", "/v1/deviations", cookie, {
+          objective_ids: ["00000000-0000-0000-0000-00000000dead"],
+          local_date: "2026-09-16",
+          tz: "UTC",
+          kind: "chosen",
+          what_happened: "w",
+          reasoning: "r",
+          minutes: 5,
+        }),
         undefined,
       ),
   },
