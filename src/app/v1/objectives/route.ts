@@ -11,14 +11,14 @@ import { withRequestLog } from "@/shared/log";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /objectives — the caller's objectives, filtered by `status`
+ * GET /v1/objectives — the caller's objectives, filtered by `status`
  * (docs/keel-api.yaml). One query, whatever the count (NFR-03's reason).
  * No auth yet (E-06).
  */
 export async function GET(req: Request): Promise<Response> {
   const status = new URL(req.url).searchParams.get("status");
 
-  return withRequestLog("GET /objectives", {}, async () => {
+  return withRequestLog("GET /v1/objectives", {}, async () => {
     try {
       const result = await listObjectives(status);
       if (result.ok) {
@@ -43,13 +43,13 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 /**
- * POST /objectives — declare an objective: the objective, segment 0 and its
+ * POST /v1/objectives — declare an objective: the objective, segment 0 and its
  * created event in one transaction. `starts_on` comes from the body, never
  * from the server clock (NFR-12). 400 names each bad field; 422 is a schedule
  * that contradicts its mode.
  */
 export async function POST(req: Request): Promise<Response> {
-  return withRequestLog("POST /objectives", {}, async () => {
+  return withRequestLog("POST /v1/objectives", {}, async () => {
     let body: unknown;
     try {
       body = await req.json();

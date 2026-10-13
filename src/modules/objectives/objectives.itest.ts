@@ -5,10 +5,10 @@ import type {
   ObjectiveSummary,
   ScheduleGrid,
 } from "@/shared/contract";
-import * as objectives from "@/app/objectives/route";
-import * as one from "@/app/objectives/[objectiveId]/route";
-import * as schedule from "@/app/objectives/[objectiveId]/schedule/route";
-import * as effort from "@/app/objectives/[objectiveId]/effort-entries/route";
+import * as objectives from "@/app/v1/objectives/route";
+import * as one from "@/app/v1/objectives/[objectiveId]/route";
+import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
+import * as effort from "@/app/v1/objectives/[objectiveId]/effort-entries/route";
 
 /**
  * I-01's check, as intent.md states it, through the real route handlers.
@@ -37,7 +37,7 @@ const COMMON = {
 
 async function create(body: Record<string, unknown>): Promise<Objective> {
   const res = await objectives.POST(
-    new Request(`${BASE}/objectives`, {
+    new Request(`${BASE}/v1/objectives`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
@@ -52,7 +52,7 @@ async function logEffort(
   minutes: number,
 ) {
   const res = await effort.POST(
-    new Request(`${BASE}/objectives/${objectiveId}/effort-entries`, {
+    new Request(`${BASE}/v1/objectives/${objectiveId}/effort-entries`, {
       method: "POST",
       body: JSON.stringify({
         local_date,
@@ -68,7 +68,7 @@ async function logEffort(
 
 async function grid(objectiveId: string): Promise<ScheduleGrid> {
   const res = await schedule.GET(
-    new Request(`${BASE}/objectives/${objectiveId}/schedule`),
+    new Request(`${BASE}/v1/objectives/${objectiveId}/schedule`),
     params(objectiveId),
   );
   expect(res.status).toBe(200);
@@ -110,7 +110,7 @@ describe("I-01 — declare an objective (the intent's check)", () => {
   });
 
   it("lists both, active, with the schedule given and 0 of a real target", async () => {
-    const res = await objectives.GET(new Request(`${BASE}/objectives`));
+    const res = await objectives.GET(new Request(`${BASE}/v1/objectives`));
     expect(res.status).toBe(200);
     const all = ((await res.json()) as { objectives: ObjectiveSummary[] })
       .objectives;
@@ -146,7 +146,7 @@ describe("I-01 — declare an objective (the intent's check)", () => {
       [flexible, "monthly"],
     ] as const) {
       const res = await one.GET(
-        new Request(`${BASE}/objectives/${o.id}`),
+        new Request(`${BASE}/v1/objectives/${o.id}`),
         params(o.id),
       );
       expect(res.status).toBe(200);
@@ -181,7 +181,7 @@ describe("I-01 — declare an objective (the intent's check)", () => {
     expect(stateOn(g, "2026-11-08")).toBe("off_day");
 
     const res = await one.GET(
-      new Request(`${BASE}/objectives/${fixed.id}`),
+      new Request(`${BASE}/v1/objectives/${fixed.id}`),
       params(fixed.id),
     );
     expect(((await res.json()) as Objective).figures).toMatchObject({

@@ -11,7 +11,7 @@ import { withRequestLog } from "@/shared/log";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /objectives/{objectiveId} — one objective, with its segments, its
+ * GET /v1/objectives/{objectiveId} — one objective, with its segments, its
  * status history and its whole-run figures (docs/keel-api.yaml). Another
  * user's objective is a 404, not a 403 (NFR-10).
  */
@@ -22,7 +22,7 @@ export async function GET(
   const { objectiveId } = await ctx.params;
 
   return withRequestLog(
-    "GET /objectives/[objectiveId]",
+    "GET /v1/objectives/[objectiveId]",
     { objective_id: objectiveId },
     async () => {
       if (!isUuid(objectiveId)) return notFound("objective");

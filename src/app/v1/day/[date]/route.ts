@@ -12,7 +12,7 @@ function isIsoDate(s: string): boolean {
 }
 
 /**
- * GET /day/{date} — everything the Today screen needs, in one query
+ * GET /v1/day/{date} — everything the Today screen needs, in one query
  * (docs/keel-api.yaml, NFR-03). No auth yet (E-06); the current user is the
  * seeded user, resolved in the service.
  */
@@ -22,7 +22,7 @@ export async function GET(
 ): Promise<Response> {
   const { date } = await ctx.params;
 
-  return withRequestLog("GET /day/[date]", { date }, async () => {
+  return withRequestLog("GET /v1/day/[date]", { date }, async () => {
     if (!isIsoDate(date)) {
       return problem(
         400,

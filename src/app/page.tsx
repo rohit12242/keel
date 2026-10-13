@@ -14,7 +14,9 @@ function formatMinutes(minutes: number): string {
 async function fetchDay(date: string): Promise<Day | null> {
   const { appBaseUrl } = getConfig();
   try {
-    const res = await fetch(`${appBaseUrl}/day/${date}`, { cache: "no-store" });
+    const res = await fetch(`${appBaseUrl}/v1/day/${date}`, {
+      cache: "no-store",
+    });
     if (!res.ok) return null;
     return (await res.json()) as Day;
   } catch {

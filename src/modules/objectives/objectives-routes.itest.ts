@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPool, query } from "@/shared/db";
-import * as list from "@/app/objectives/route";
-import * as one from "@/app/objectives/[objectiveId]/route";
-import * as schedule from "@/app/objectives/[objectiveId]/schedule/route";
+import * as list from "@/app/v1/objectives/route";
+import * as one from "@/app/v1/objectives/[objectiveId]/route";
+import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
 
 /**
  * I-01 step 7: every response the contract declares for the four operations,
@@ -34,7 +34,7 @@ const BODY = {
 const URL_BASE = "http://keel.test";
 const post = (body: unknown) =>
   list.POST(
-    new Request(`${URL_BASE}/objectives`, {
+    new Request(`${URL_BASE}/v1/objectives`, {
       method: "POST",
       body: typeof body === "string" ? body : JSON.stringify(body),
     }),
@@ -43,10 +43,10 @@ const params = (objectiveId: string) => ({
   params: Promise.resolve({ objectiveId }),
 });
 const getOne = (id: string) =>
-  one.GET(new Request(`${URL_BASE}/objectives/${id}`), params(id));
+  one.GET(new Request(`${URL_BASE}/v1/objectives/${id}`), params(id));
 const getSchedule = (id: string, qs = "") =>
   schedule.GET(
-    new Request(`${URL_BASE}/objectives/${id}/schedule${qs}`),
+    new Request(`${URL_BASE}/v1/objectives/${id}/schedule${qs}`),
     params(id),
   );
 
@@ -126,7 +126,7 @@ describe("objectives routes (real Postgres)", () => {
 
   it("lists the caller's objectives and never another user's", async () => {
     const res = await list.GET(
-      new Request(`${URL_BASE}/objectives?status=active`),
+      new Request(`${URL_BASE}/v1/objectives?status=active`),
     );
     expect(res.status).toBe(200);
     const ids = (
@@ -138,7 +138,7 @@ describe("objectives routes (real Postgres)", () => {
 
   it("400s an unknown status filter", async () => {
     const res = await list.GET(
-      new Request(`${URL_BASE}/objectives?status=created`),
+      new Request(`${URL_BASE}/v1/objectives?status=created`),
     );
     expect(res.status).toBe(400);
     expect((await problemOf(res)).errors?.map((e) => e.field)).toEqual([

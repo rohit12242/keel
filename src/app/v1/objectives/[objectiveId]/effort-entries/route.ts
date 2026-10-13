@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * POST /objectives/{objectiveId}/effort-entries — log effort
+ * POST /v1/objectives/{objectiveId}/effort-entries — log effort
  * (docs/keel-api.yaml). local_date and tz come from the body, never from the
  * server clock (NFR-12). No auth yet (E-06). A row belonging to another user is
  * a 404, not a 403 (NFR-10).
@@ -19,7 +19,7 @@ export async function POST(
   const { objectiveId } = await ctx.params;
 
   return withRequestLog(
-    "POST /objectives/[objectiveId]/effort-entries",
+    "POST /v1/objectives/[objectiveId]/effort-entries",
     { objective_id: objectiveId },
     async () => {
       if (!UUID.test(objectiveId)) {

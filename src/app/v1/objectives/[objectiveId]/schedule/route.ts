@@ -13,7 +13,7 @@ import { withRequestLog } from "@/shared/log";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /objectives/{objectiveId}/schedule — the day-by-day grid, five states
+ * GET /v1/objectives/{objectiveId}/schedule — the day-by-day grid, five states
  * (docs/keel-api.yaml, docs/domain/day-states.md). Computed in one read,
  * never a request per day (NFR-03). `from` / `to` default to the objective's
  * own span and are clamped to it.
@@ -26,7 +26,7 @@ export async function GET(
   const params = new URL(req.url).searchParams;
 
   return withRequestLog(
-    "GET /objectives/[objectiveId]/schedule",
+    "GET /v1/objectives/[objectiveId]/schedule",
     { objective_id: objectiveId },
     async () => {
       if (!isUuid(objectiveId)) return notFound("objective");
