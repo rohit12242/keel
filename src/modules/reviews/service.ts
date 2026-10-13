@@ -2,6 +2,7 @@ import type { Deviation, ProblemError } from "@/shared/contract";
 import { parseVerdict, verdictDecision } from "./domain/deviationVerdict";
 import { withTransaction } from "@/shared/db";
 import { validateReviewEdit } from "./domain/reviewWrite";
+import { saveDecision } from "./domain/saveReview";
 import { isIsoDate } from "@/modules/effort/domain/validateWrite";
 import { planSlots } from "@/modules/objectives/domain/planSlots";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
@@ -28,6 +29,7 @@ import {
   insertDraft,
   lockDeviation,
   lockReview,
+  markSaved,
   setDeviationVerdict,
   updateReviewAnswers,
   type ObjectiveReviewFacts,
@@ -296,4 +298,56 @@ export async function setVerdict(
         };
     }
   });
+}
+
+export type SaveResult =
+  | { ok: true; review: Review }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "already_saved" }
+  | { ok: false; kind: "refused"; detail: string };
+
+/**
+ * Save a review. Checked against the record with the review locked, so a
+ * verdict or a deviation cannot slip in between the check and the save.
+ */
+export async function saveReview(
+  userId: string,
+  reviewId: string,
+  now: Date,
+): Promise<SaveResult> {
+  const outcome = await withTransaction(
+    async (tx): Promise<SaveResult | null> => {
+      const locked = await lockReview(tx, userId, reviewId);
+      if (!locked) return { ok: false, kind: "not_found" };
+      const raw = (await getReviewFacts(tx, userId, {
+        reviewId,
+      })) as ObjectiveReviewFacts;
+      const { facts } = contextOf(raw, now);
+      const decision = saveDecision(locked, facts);
+      switch (decision.kind) {
+        case "already_saved":
+          return { ok: false, kind: "already_saved" };
+        case "unjudged":
+          return {
+            ok: false,
+            kind: "refused",
+            detail: `${decision.deviation_ids.length} chosen deviation(s) in this period are not judged yet.`,
+          };
+        case "plan_end_not_yet":
+          return {
+            ok: false,
+            kind: "refused",
+            detail: "Saving a plan-end review is not available yet.",
+          };
+        case "save":
+          await markSaved(tx, reviewId, decision.previous_review_id);
+          return null;
+      }
+    },
+  );
+  if (outcome) return outcome;
+  return {
+    ok: true,
+    review: (await getReview(userId, reviewId, now)) as Review,
+  };
 }

@@ -246,3 +246,17 @@ export async function setDeviationVerdict(
   );
   return res.rows[0];
 }
+
+/** The draft becomes the record, answering `previousReviewId`. */
+export async function markSaved(
+  tx: Queryable,
+  reviewId: string,
+  previousReviewId: string | null,
+): Promise<void> {
+  await tx.query(
+    `UPDATE review
+     SET status = 'saved', saved_at = now(), previous_review_id = $2
+     WHERE id = $1 AND status = 'draft'`,
+    [reviewId, previousReviewId],
+  );
+}

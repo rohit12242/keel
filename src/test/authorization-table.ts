@@ -12,6 +12,7 @@ import * as ideas from "@/app/v1/parked-ideas/route";
 import * as reviewsOf from "@/app/v1/objectives/[objectiveId]/reviews/route";
 import * as review from "@/app/v1/reviews/[reviewId]/route";
 import * as deviationVerdict from "@/app/v1/reviews/[reviewId]/deviation-verdicts/[deviationId]/route";
+import * as save from "@/app/v1/reviews/[reviewId]/save/route";
 import * as verdicts from "@/app/v1/parked-ideas/[ideaId]/verdicts/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import {
@@ -301,5 +302,14 @@ export const AUTHORIZATION: AuthRow[] = [
         { params: Promise.resolve({ reviewId, deviationId }) },
       );
     },
+  },
+  {
+    operationId: "saveReview",
+    resource: aReview,
+    call: (cookie, id) =>
+      save.POST(
+        req("POST", `/v1/reviews/${id}/save`, cookie),
+        reviewParams(id),
+      ),
   },
 ];
