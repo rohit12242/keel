@@ -8,7 +8,14 @@ import { currentStatus } from "@/modules/objectives/domain/statusTimeline";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
 import { validateEffortEdit } from "./domain/validateEffortEdit";
 import {
+  effortMonth,
+  parseMonth,
+  type EffortMonth,
+} from "./domain/effortMonth";
+import { localDayOf } from "@/shared/time/localDay";
+import {
   deleteEffortEntry as deleteEntryRow,
+  getEffortMonthFacts,
   getEntryForEdit,
   getObjectiveForEffort,
   insertEffortEntry,
@@ -127,4 +134,36 @@ export async function deleteEffortEntry(
   }
   await deleteEntryRow(entryId);
   return { ok: true };
+}
+
+export type EffortMonthResult =
+  | { ok: true; month: EffortMonth }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" };
+
+/**
+ * The Effort tab for one month. Read-only; one query. "Today" — the last day
+ * a planned day can have been missed — is read in the caller's zone.
+ */
+export async function listObjectiveEffort(
+  userId: string,
+  objectiveId: string,
+  month: string | null,
+  now: Date,
+): Promise<EffortMonthResult> {
+  const range = parseMonth(month);
+  if (!range.ok) return { ok: false, kind: "invalid", errors: range.error };
+  const facts = await getEffortMonthFacts(userId, objectiveId);
+  if (!facts) return { ok: false, kind: "not_found" };
+  return {
+    ok: true,
+    month: effortMonth({
+      month: month as string,
+      range: range.value,
+      today: localDayOf(now, facts.tz),
+      segments: facts.segments.map(toSegment),
+      statusEvents: facts.status_events,
+      entries: facts.entries,
+    }),
+  };
 }

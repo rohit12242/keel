@@ -5,6 +5,7 @@ import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
 import * as effortEntries from "@/app/v1/objectives/[objectiveId]/effort-entries/route";
 import * as session from "@/app/v1/session/route";
 import * as entry from "@/app/v1/effort-entries/[entryId]/route";
+import * as effortMonth from "@/app/v1/objectives/[objectiveId]/effort/route";
 import {
   OBJECTIVE_BODY,
   testEntry,
@@ -132,6 +133,15 @@ export const AUTHORIZATION: AuthRow[] = [
       entry.DELETE(
         req("DELETE", `/v1/effort-entries/${id}`, cookie),
         entryParams(id),
+      ),
+  },
+  {
+    operationId: "listObjectiveEffort",
+    resource: anObjective,
+    call: (cookie, id) =>
+      effortMonth.GET(
+        req("GET", `/v1/objectives/${id}/effort?month=2026-09`, cookie),
+        objectiveParams(id),
       ),
   },
 ];

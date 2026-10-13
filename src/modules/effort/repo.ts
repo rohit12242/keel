@@ -1,6 +1,7 @@
 import { query } from "@/shared/db";
 import type { EffortEntryWrite } from "@/shared/contract";
 import type { EffortEdit } from "./domain/validateEffortEdit";
+import type { EffortEntryFact } from "./domain/effortMonth";
 import type { PlanSegmentRow } from "@/modules/objectives/domain/segmentRows";
 import type { StatusEventRow } from "@/modules/objectives/domain/statusTimeline";
 
@@ -156,4 +157,39 @@ export async function updateEffortEntry(
 /** Effort entries are the one thing Keel deletes (NFR-01). */
 export async function deleteEffortEntry(entryId: string): Promise<void> {
   await query(`DELETE FROM effort_entry WHERE id = $1`, [entryId]);
+}
+
+export type EffortMonthFacts = ObjectiveForEffort & {
+  /** The caller's zone, to read today in. */
+  tz: string;
+  /** Every entry, in the order the sessions happened. */
+  entries: EffortEntryFact[];
+};
+
+/**
+ * Everything the Effort tab computes from, in one query (NFR-03): the
+ * objective's segments and status events, the caller's zone, and every entry.
+ * Null when the objective is not the caller's.
+ */
+export async function getEffortMonthFacts(
+  userId: string,
+  objectiveId: string,
+): Promise<EffortMonthFacts | null> {
+  const res = await query<EffortMonthFacts>(
+    `SELECT ${OBJECTIVE_FACTS},
+       u.tz,
+       COALESCE((
+         SELECT json_agg(json_build_object(
+           'local_date', to_char(ee.local_date, 'YYYY-MM-DD'),
+           'minutes', ee.minutes,
+           'note', ee.note
+         ) ORDER BY ee.local_date, ee.occurred_at_local NULLS LAST, ee.logged_at)
+         FROM effort_entry ee WHERE ee.objective_id = o.id
+       ), '[]'::json) AS entries
+     FROM objective o
+     JOIN "user" u ON u.id = o.user_id
+     WHERE o.id = $2 AND o.user_id = $1`,
+    [userId, objectiveId],
+  );
+  return res.rows[0] ?? null;
 }
