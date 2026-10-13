@@ -3,11 +3,11 @@ import { bitmaskToWeekdays, weekdaysToBitmask } from "./weekdays";
 
 /**
  * The one conversion between the stored bitmask (plan_segment.planned_weekdays)
- * and ISO weekdays, 1 = Monday … 7 = Sunday. The seed writes through it, so a
+ * and ISO weekdays, 1 = Monday … 7 = Sunday. Every write goes through it, so a
  * wrong bit here plans the wrong days everywhere.
  */
 describe("weekdaysToBitmask", () => {
-  it("packs Mon–Fri into 31, the seed's schedule", () => {
+  it("packs Mon–Fri into 31", () => {
     expect(weekdaysToBitmask([1, 2, 3, 4, 5])).toBe(31);
   });
 

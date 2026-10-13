@@ -70,7 +70,7 @@ recreate it:
 ```
 docker compose down -v
 docker compose up -d
-npm run migrate && npm run seed
+npm run migrate
 ```
 
 ## 5. Configure
@@ -86,7 +86,6 @@ Open `.env` and set:
 | `DATABASE_URL` | `postgres://keel:keel_local_dev@localhost:5432/keel` |
 | `APP_BASE_URL` | `http://localhost:3000` |
 | `LOG_LEVEL` | `info` |
-| `SEED_DATA` | `false` |
 | `SESSION_SECRET` | any long random string — generate one with `openssl rand -hex 32` |
 | `COGNITO_DOMAIN` | `terraform -chdir=infra output -raw cognito_domain` |
 | `COGNITO_POOL_ID` | `aws ssm get-parameter --name /keel/COGNITO_POOL_ID --query Parameter.Value --output text` |

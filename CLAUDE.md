@@ -50,7 +50,6 @@ are in `docs/erd.md`; non-functional requirements in `docs/nfrs.md`.
 nvm use                          # Node 26, from .nvmrc
 docker compose up -d             # local Postgres (any Docker-compatible runtime)
 npm run migrate                  # apply migrations;  migrate:down rolls back one
-npm run seed                     # idempotent seed data
 npm run dev                      # local server
 ```
 

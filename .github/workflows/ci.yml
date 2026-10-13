@@ -105,7 +105,6 @@ jobs:
       DATABASE_URL: postgres://keel:keel_local_dev@localhost:5432/keel
       APP_BASE_URL: http://localhost:3000
       LOG_LEVEL: info
-      SEED_DATA: "false"
       SESSION_SECRET: ci-integration-session-secret
       # No itest reaches the provider (the token exchange is replaced), so
       # these only have to pass config validation.
@@ -123,8 +122,6 @@ jobs:
         run: npm ci
       - name: Migrate
         run: npm run migrate
-      - name: Seed
-        run: npm run seed
       - name: Integration tests (multi-timezone)
         run: npm run test:integration:tz
 

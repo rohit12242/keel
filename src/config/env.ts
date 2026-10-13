@@ -19,7 +19,6 @@ export type Config = {
   databaseUrl: string;
   appBaseUrl: string;
   logLevel: LogLevel;
-  seedData: boolean;
   sessionSecret: string;
   /** The identity provider (ADR-002). Required: there is no other sign-in. */
   cognito: {
@@ -84,11 +83,6 @@ export function loadConfig(
     problems.push(`LOG_LEVEL must be one of: ${LOG_LEVELS.join(", ")}`);
   }
 
-  const seedRaw = required("SEED_DATA");
-  if (seedRaw && seedRaw !== "true" && seedRaw !== "false") {
-    problems.push(`SEED_DATA must be "true" or "false"`);
-  }
-
   const sessionSecret = required("SESSION_SECRET");
   if (sessionSecret && sessionSecret.length < 16) {
     problems.push(`SESSION_SECRET must be at least 16 characters`);
@@ -127,7 +121,6 @@ export function loadConfig(
     databaseUrl,
     appBaseUrl,
     logLevel: logLevelRaw as LogLevel,
-    seedData: seedRaw === "true",
     sessionSecret,
     cognito: {
       domain: cognitoDomain.replace(/\/$/, ""),

@@ -42,3 +42,11 @@ affected is every comparison the server makes against *today in the user's zone*
 deviation dated in the future, an extension that must end after today, whether a
 parking lock has lifted. For someone in Asia/Kolkata, "today" turns over 5½ hours
 late. An intent that lets a user set their zone, or takes it at sign-in, closes this.
+
+### ADR-004 names a variable that no longer exists · found in I-02
+
+ADR-004 gives `SEED_DATA` as its example of configuration that differs between
+environments. I-02 removed the seed script and the variable with it: the integration
+tests make their own data, and a local sign-in creates its own user. The ADR's rule —
+code never branches on the environment's name — is untouched; only the example is
+stale. Not edited in I-02, which edits no ADR it does not decide.

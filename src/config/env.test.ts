@@ -5,7 +5,6 @@ const valid = {
   DATABASE_URL: "postgres://keel:keel_local_dev@localhost:5432/keel",
   APP_BASE_URL: "http://localhost:3000",
   LOG_LEVEL: "info",
-  SEED_DATA: "false",
   SESSION_SECRET: "0123456789abcdef0123",
   COGNITO_DOMAIN: "https://keel-1.auth.us-east-1.amazoncognito.com",
   COGNITO_POOL_ID: "us-east-1_AbC123",
@@ -25,7 +24,6 @@ describe("loadConfig", () => {
         "DATABASE_URL",
         "APP_BASE_URL",
         "LOG_LEVEL",
-        "SEED_DATA",
         "SESSION_SECRET",
         "COGNITO_DOMAIN",
         "COGNITO_POOL_ID",
@@ -47,11 +45,6 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...valid, SESSION_SECRET: "short" })).toThrow(
       /SESSION_SECRET/,
     );
-  });
-
-  it("coerces SEED_DATA to a boolean", () => {
-    expect(loadConfig({ ...valid, SEED_DATA: "true" }).seedData).toBe(true);
-    expect(loadConfig({ ...valid, SEED_DATA: "false" }).seedData).toBe(false);
   });
 
   it("passes the Cognito variables through, the domain without a trailing slash", () => {
