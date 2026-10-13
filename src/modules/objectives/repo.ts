@@ -1,7 +1,7 @@
 import { query, type Queryable } from "@/shared/db";
 import type { NewObjective } from "./domain/validateObjectiveWrite";
 import { weekdaysToBitmask } from "./domain/weekdays";
-import type { ObjectiveRow } from "./domain/rows";
+import type { ListRow } from "./domain/rows";
 import type { StatusChange, StatusEventRow } from "./domain/statusTimeline";
 
 /**
@@ -76,8 +76,10 @@ export async function insertObjective(
 const OBJECTIVES_SQL = `
 WITH obj AS (
   SELECT o.id, o.title, o.description, o.why_now, o.success_criteria,
-         o.plan_link, o.review_cadence, o.from_parked_idea_id
+         o.plan_link, o.review_cadence, o.from_parked_idea_id,
+         u.tz AS user_tz
   FROM objective o
+  JOIN "user" u ON u.id = o.user_id
   WHERE o.user_id = $1
     AND ($2::uuid IS NULL OR o.id = $2::uuid)
 ),
@@ -147,11 +149,8 @@ ORDER BY obj.title, obj.id
 export async function getObjectiveRows(
   userId: string,
   objectiveId: string | null,
-): Promise<ObjectiveRow[]> {
-  const result = await query<ObjectiveRow>(OBJECTIVES_SQL, [
-    userId,
-    objectiveId,
-  ]);
+): Promise<ListRow[]> {
+  const result = await query<ListRow>(OBJECTIVES_SQL, [userId, objectiveId]);
   return result.rows;
 }
 

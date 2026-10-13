@@ -55,7 +55,7 @@ describe("each objectives read is one query (real Postgres)", () => {
   });
 
   it("lists every objective in one query", async () => {
-    const r = await listObjectives(userId, null);
+    const r = await listObjectives(userId, null, new Date());
     expect(r.ok && r.objectives.length).toBe(3);
     expect(vi.mocked(query)).toHaveBeenCalledTimes(1);
   });

@@ -23,7 +23,7 @@ import type { ObjectiveRow, ObjectiveSegmentRow } from "./rows";
  *
  * Omitted on purpose, because the rules behind them are not in I-01 and
  * omitting is legal where guessing is not: `next_review_on`,
- * `committed_minutes_per_week`, `criteria_verdict`.
+ * `criteria_verdict`.
  */
 
 /**

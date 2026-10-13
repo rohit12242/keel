@@ -36,3 +36,9 @@ export type ObjectiveRow = {
   status_events: ObjectiveEventRow[];
   daily_minutes: DailyMinutesRow[];
 };
+
+/**
+ * A row as the read returns it: the facts, plus the caller's zone, which
+ * every row carries so the list can read "today" without a second query.
+ */
+export type ListRow = ObjectiveRow & { user_tz: string };

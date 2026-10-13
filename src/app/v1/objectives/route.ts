@@ -21,9 +21,12 @@ export const GET = withSession(
 
     return withRequestLog("GET /v1/objectives", {}, async () => {
       try {
-        const result = await listObjectives(userId, status);
+        const result = await listObjectives(userId, status, new Date());
         if (result.ok) {
-          return jsonResponse(200, { objectives: result.objectives });
+          return jsonResponse(200, {
+            objectives: result.objectives,
+            committed_minutes_per_week: result.committed_minutes_per_week,
+          });
         }
         switch (result.kind) {
           case "invalid":

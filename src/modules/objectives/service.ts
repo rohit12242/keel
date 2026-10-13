@@ -13,6 +13,8 @@ import {
 import { assembleGrid, parseGridRange } from "./domain/scheduleGrid";
 import { validateObjectiveWrite } from "./domain/validateObjectiveWrite";
 import { statusChange, validateStatusChange } from "./domain/statusChange";
+import { committedMinutesPerWeek } from "./domain/committedMinutes";
+import { localDayOf } from "@/shared/time/localDay";
 import type { StatusChange } from "./domain/statusTimeline";
 import {
   getObjectiveRows,
@@ -57,13 +59,23 @@ export async function createObjective(
 }
 
 export type ListObjectivesResult =
-  | { ok: true; objectives: ObjectiveSummary[] }
+  | {
+      ok: true;
+      objectives: ObjectiveSummary[];
+      committed_minutes_per_week: number;
+    }
   | { ok: false; kind: "invalid"; errors: ProblemError[] }
   | { ok: false; kind: "malformed" };
 
+/**
+ * The list, and what the active objectives commit per week as of today in
+ * the caller's zone. With no objectives there is nothing to commit, and no
+ * zone is needed.
+ */
 export async function listObjectives(
   userId: string,
   status: string | null,
+  now: Date,
 ): Promise<ListObjectivesResult> {
   const filter = parseStatusFilter(status);
   if (filter === null) {
@@ -81,9 +93,15 @@ export async function listObjectives(
 
   const rows = await getObjectiveRows(userId, null);
   const list = assembleList(rows, filter);
-  return list.ok
-    ? { ok: true, objectives: list.value }
-    : { ok: false, kind: "malformed" };
+  if (!list.ok) return { ok: false, kind: "malformed" };
+  return {
+    ok: true,
+    objectives: list.value,
+    committed_minutes_per_week:
+      rows.length === 0
+        ? 0
+        : committedMinutesPerWeek(rows, localDayOf(now, rows[0].user_tz)),
+  };
 }
 
 export type GetObjectiveResult =
