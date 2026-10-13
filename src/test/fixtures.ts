@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { query } from "@/shared/db";
 import type { Objective } from "@/shared/contract";
 import { createObjective } from "@/modules/objectives/service";
+import { createEffortEntry } from "@/modules/effort/service";
+import type { EffortEntry } from "@/shared/contract";
 import { cookieFor } from "./session";
 
 /**
@@ -70,4 +72,21 @@ export async function addStatusEvents(
       [objectiveId, occurredOn, change],
     );
   }
+}
+
+/** An effort entry on one of `user`'s objectives, through the real use case. */
+export async function testEntry(
+  user: TestUser,
+  objectiveId: string,
+  over: Record<string, unknown> = {},
+): Promise<EffortEntry> {
+  const result = await createEffortEntry(user.id, objectiveId, {
+    local_date: "2026-09-16",
+    tz: "Asia/Kolkata",
+    minutes: 60,
+    note: "itest entry",
+    ...over,
+  });
+  if (!result.ok) throw new Error(`testEntry: ${JSON.stringify(result)}`);
+  return result.entry;
 }

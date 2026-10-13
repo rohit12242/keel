@@ -1,5 +1,6 @@
 import { query } from "@/shared/db";
 import type { EffortEntryWrite } from "@/shared/contract";
+import type { EffortEdit } from "./domain/validateEffortEdit";
 import type { PlanSegmentRow } from "@/modules/objectives/domain/segmentRows";
 import type { StatusEventRow } from "@/modules/objectives/domain/statusTimeline";
 
@@ -12,21 +13,8 @@ export type ObjectiveForEffort = {
   status_events: StatusEventRow[];
 };
 
-/**
- * The facts the write rules need: the objective's plan segments and its status
- * events. Null when the objective does not exist or belongs to someone else
- * (→ 404, NFR-10).
- *
- * Since W4-29 this reads no `objective.status` column and no `plan_slot`: the
- * status is the latest status event and the covering slot is computed, both in
- * `domain/` (ADR-008). One query, as before.
- */
-export async function getObjectiveForEffort(
-  userId: string,
-  objectiveId: string,
-): Promise<ObjectiveForEffort | null> {
-  const res = await query<ObjectiveForEffort>(
-    `SELECT
+/** The facts the objective rules read, for the objective aliased `o`. */
+const OBJECTIVE_FACTS = `
        COALESCE((
          SELECT json_agg(json_build_object(
            'seq', s.seq,
@@ -45,7 +33,30 @@ export async function getObjectiveForEffort(
            'change', e.change
          ) ORDER BY e.occurred_on, e.recorded_at)
          FROM status_event e WHERE e.objective_id = o.id
-       ), '[]'::json) AS status_events
+       ), '[]'::json) AS status_events`;
+
+const ENTRY_COLUMNS = (alias: string) => `
+       ${alias}.id, ${alias}.objective_id,
+       to_char(${alias}.local_date, 'YYYY-MM-DD') AS local_date,
+       ${alias}.tz, ${alias}.minutes, ${alias}.note, ${alias}.link,
+       to_char(${alias}.occurred_at_local, 'HH24:MI') AS occurred_at_local,
+       to_char(${alias}.logged_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS logged_at`;
+
+/**
+ * The facts the write rules need: the objective's plan segments and its status
+ * events. Null when the objective does not exist or belongs to someone else
+ * (→ 404, NFR-10).
+ *
+ * Since W4-29 this reads no `objective.status` column and no `plan_slot`: the
+ * status is the latest status event and the covering slot is computed, both in
+ * `domain/` (ADR-008). One query, as before.
+ */
+export async function getObjectiveForEffort(
+  userId: string,
+  objectiveId: string,
+): Promise<ObjectiveForEffort | null> {
+  const res = await query<ObjectiveForEffort>(
+    `SELECT ${OBJECTIVE_FACTS}
      FROM objective o
      WHERE o.id = $2 AND o.user_id = $1`,
     [userId, objectiveId],
@@ -80,12 +91,7 @@ export async function insertEffortEntry(
     `INSERT INTO effort_entry
        (objective_id, local_date, occurred_at_local, tz, minutes, note, link)
      VALUES ($1, $2::date, $3, $4, $5, $6, $7)
-     RETURNING
-       id, objective_id,
-       to_char(local_date, 'YYYY-MM-DD') AS local_date,
-       tz, minutes, note, link,
-       to_char(occurred_at_local, 'HH24:MI') AS occurred_at_local,
-       to_char(logged_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS logged_at`,
+     RETURNING ${ENTRY_COLUMNS("effort_entry")}`,
     [
       objectiveId,
       w.local_date,
@@ -97,4 +103,57 @@ export async function insertEffortEntry(
     ],
   );
   return res.rows[0];
+}
+
+/**
+ * An entry, with the facts its objective's rules need, if the entry belongs
+ * to one of the caller's objectives. `effort_entry` has no user_id (ERD
+ * invariant 1): ownership is the join through `objective`. One query.
+ */
+export async function getEntryForEdit(
+  userId: string,
+  entryId: string,
+): Promise<(EffortEntryRow & ObjectiveForEffort) | null> {
+  const res = await query<EffortEntryRow & ObjectiveForEffort>(
+    `SELECT ${ENTRY_COLUMNS("ee")}, ${OBJECTIVE_FACTS}
+     FROM effort_entry ee
+     JOIN objective o ON o.id = ee.objective_id
+     WHERE ee.id = $2 AND o.user_id = $1`,
+    [userId, entryId],
+  );
+  return res.rows[0] ?? null;
+}
+
+/** Only these columns can change; the keys are fixed, never from the body. */
+const EDITABLE: Record<keyof EffortEdit, string> = {
+  minutes: "minutes = $%",
+  occurred_at_local: "occurred_at_local = $%::time",
+  note: "note = $%",
+  link: "link = $%",
+};
+
+/** Apply an edit already checked by the domain and by ownership. */
+export async function updateEffortEntry(
+  entryId: string,
+  edit: EffortEdit,
+): Promise<EffortEntryRow> {
+  const sets: string[] = [];
+  const params: unknown[] = [entryId];
+  for (const key of Object.keys(EDITABLE) as (keyof EffortEdit)[]) {
+    if (edit[key] === undefined) continue;
+    params.push(edit[key]);
+    sets.push(EDITABLE[key].replace("%", String(params.length)));
+  }
+  const res = await query<EffortEntryRow>(
+    `UPDATE effort_entry SET ${sets.join(", ")}
+     WHERE id = $1
+     RETURNING ${ENTRY_COLUMNS("effort_entry")}`,
+    params,
+  );
+  return res.rows[0];
+}
+
+/** Effort entries are the one thing Keel deletes (NFR-01). */
+export async function deleteEffortEntry(entryId: string): Promise<void> {
+  await query(`DELETE FROM effort_entry WHERE id = $1`, [entryId]);
 }

@@ -6,10 +6,15 @@ import {
 } from "@/modules/objectives/domain/coveringSlot";
 import { currentStatus } from "@/modules/objectives/domain/statusTimeline";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
+import { validateEffortEdit } from "./domain/validateEffortEdit";
 import {
+  deleteEffortEntry as deleteEntryRow,
+  getEntryForEdit,
   getObjectiveForEffort,
   insertEffortEntry,
+  updateEffortEntry as updateEntryRow,
   type EffortEntryRow,
+  type ObjectiveForEffort,
 } from "./repo";
 
 /**
@@ -69,4 +74,57 @@ export async function createEffortEntry(
 
   const row = await insertEffortEntry(objectiveId, validated.value);
   return { ok: true, entry: present(row, extra) };
+}
+
+/** Derived, never stored: an entry is extra when no day slot covers its date. */
+const isExtra = (facts: ObjectiveForEffort, date: string): boolean =>
+  coveringSlot(facts.segments.map(toSegment), facts.status_events, date) ===
+  null;
+
+export type EditEffortResult =
+  | { ok: true; entry: EffortEntry }
+  | { ok: false; kind: "validation"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "not_active" };
+
+/**
+ * Correct an entry. Only while its objective is running: effort on a paused,
+ * completed or ended objective is the record as it stood — the same rule that
+ * stops new effort being logged against it.
+ */
+export async function updateEffortEntry(
+  userId: string,
+  entryId: string,
+  body: unknown,
+): Promise<EditEffortResult> {
+  const validated = validateEffortEdit(body);
+  if (!validated.ok) {
+    return { ok: false, kind: "validation", errors: validated.errors };
+  }
+  const found = await getEntryForEdit(userId, entryId);
+  if (!found) return { ok: false, kind: "not_found" };
+  if (currentStatus(found.status_events) !== "active") {
+    return { ok: false, kind: "not_active" };
+  }
+  const row = await updateEntryRow(entryId, validated.value);
+  return { ok: true, entry: present(row, isExtra(found, row.local_date)) };
+}
+
+export type DeleteEffortResult =
+  | { ok: true }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "not_active" };
+
+/** Delete an entry, under the same rule as an edit. */
+export async function deleteEffortEntry(
+  userId: string,
+  entryId: string,
+): Promise<DeleteEffortResult> {
+  const found = await getEntryForEdit(userId, entryId);
+  if (!found) return { ok: false, kind: "not_found" };
+  if (currentStatus(found.status_events) !== "active") {
+    return { ok: false, kind: "not_active" };
+  }
+  await deleteEntryRow(entryId);
+  return { ok: true };
 }

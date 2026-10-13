@@ -20,8 +20,6 @@ import { AUTHORIZATION } from "@/test/authorization-table";
  * that builds the last one deletes the list.
  */
 const NOT_YET_BUILT = new Set([
-  "updateEffortEntry",
-  "deleteEffortEntry",
   "listObjectiveEffort",
   "createStatusChange",
   "createExtension",

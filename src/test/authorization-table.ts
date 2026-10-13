@@ -4,7 +4,13 @@ import * as objective from "@/app/v1/objectives/[objectiveId]/route";
 import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
 import * as effortEntries from "@/app/v1/objectives/[objectiveId]/effort-entries/route";
 import * as session from "@/app/v1/session/route";
-import { OBJECTIVE_BODY, testObjective, type TestUser } from "./fixtures";
+import * as entry from "@/app/v1/effort-entries/[entryId]/route";
+import {
+  OBJECTIVE_BODY,
+  testEntry,
+  testObjective,
+  type TestUser,
+} from "./fixtures";
 
 /**
  * One row per operation that needs a session (NFR-10, NFR-11's
@@ -43,6 +49,13 @@ const objectiveParams = (objectiveId: string) => ({
 });
 
 const anObjective = async (user: TestUser) => (await testObjective(user)).id;
+
+const anEntry = async (user: TestUser) =>
+  (await testEntry(user, await anObjective(user))).id;
+
+const entryParams = (entryId: string) => ({
+  params: Promise.resolve({ entryId }),
+});
 
 export const AUTHORIZATION: AuthRow[] = [
   {
@@ -101,6 +114,24 @@ export const AUTHORIZATION: AuthRow[] = [
           note: "itest: authorisation",
         }),
         objectiveParams(id),
+      ),
+  },
+  {
+    operationId: "updateEffortEntry",
+    resource: anEntry,
+    call: (cookie, id) =>
+      entry.PATCH(
+        req("PATCH", `/v1/effort-entries/${id}`, cookie, { minutes: 5 }),
+        entryParams(id),
+      ),
+  },
+  {
+    operationId: "deleteEffortEntry",
+    resource: anEntry,
+    call: (cookie, id) =>
+      entry.DELETE(
+        req("DELETE", `/v1/effort-entries/${id}`, cookie),
+        entryParams(id),
       ),
   },
 ];
