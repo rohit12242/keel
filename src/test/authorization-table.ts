@@ -9,10 +9,12 @@ import * as effortMonth from "@/app/v1/objectives/[objectiveId]/effort/route";
 import * as patterns from "@/app/v1/deviation-patterns/route";
 import * as deviations from "@/app/v1/deviations/route";
 import * as ideas from "@/app/v1/parked-ideas/route";
+import * as verdicts from "@/app/v1/parked-ideas/[ideaId]/verdicts/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import {
   OBJECTIVE_BODY,
   testEntry,
+  testIdea,
   testObjective,
   type TestUser,
 } from "./fixtures";
@@ -212,6 +214,18 @@ export const AUTHORIZATION: AuthRow[] = [
           caught_on: "2026-09-16",
         }),
         undefined,
+      ),
+  },
+  {
+    operationId: "createParkedIdeaVerdict",
+    resource: async (user) => (await testIdea(user)).id,
+    call: (cookie, id) =>
+      verdicts.POST(
+        req("POST", `/v1/parked-ideas/${id}/verdicts`, cookie, {
+          verdict: "dropped",
+          occurred_on: "2026-10-01",
+        }),
+        { params: Promise.resolve({ ideaId: id }) },
       ),
   },
 ];

@@ -3,6 +3,7 @@ import { query } from "@/shared/db";
 import type { Objective } from "@/shared/contract";
 import { createObjective } from "@/modules/objectives/service";
 import { createEffortEntry } from "@/modules/effort/service";
+import { createParkedIdea } from "@/modules/parking/service";
 import type { EffortEntry } from "@/shared/contract";
 import { cookieFor } from "./session";
 
@@ -89,4 +90,21 @@ export async function testEntry(
   });
   if (!result.ok) throw new Error(`testEntry: ${JSON.stringify(result)}`);
   return result.entry;
+}
+
+/**
+ * A parked idea for `user`, caught on `caughtOn`. With no objective running
+ * that day it is unlocked at once (docs/domain/parking-lock.md).
+ */
+export async function testIdea(
+  user: TestUser,
+  caughtOn = "2026-09-01",
+): Promise<{ id: string; locked_until: string }> {
+  const result = await createParkedIdea(
+    user.id,
+    { idea: "itest idea", why: "A test needs one.", caught_on: caughtOn },
+    new Date(),
+  );
+  if (!result.ok) throw new Error(`testIdea: ${JSON.stringify(result)}`);
+  return result.idea;
 }

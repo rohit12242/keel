@@ -28,7 +28,6 @@ const NOT_YET_BUILT = new Set([
   "discardReview",
   "saveReview",
   "setDeviationVerdict",
-  "createParkedIdeaVerdict",
 ]);
 
 const METHODS = ["GET", "PUT", "POST", "PATCH", "DELETE"] as const;
