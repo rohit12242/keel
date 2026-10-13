@@ -59,6 +59,14 @@ describe("statusChange — the transition table", () => {
     });
   });
 
+  it("finds the latest date whatever order the history arrives in", () => {
+    const unordered = [ev("2026-09-20", "paused"), ev("2026-09-14", "created")];
+    expect(statusChange(unordered, ask("resume", "2026-09-19"))).toEqual({
+      ok: false,
+      error: { kind: "before_latest", latest: "2026-09-20" },
+    });
+  });
+
   it("refuses a date before the latest event, and allows the same day", () => {
     expect(statusChange(PAUSED, ask("resume", "2026-09-19"))).toEqual({
       ok: false,
