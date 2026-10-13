@@ -2,6 +2,7 @@ import { query, type Queryable } from "@/shared/db";
 import type { NewObjective } from "./domain/validateObjectiveWrite";
 import { weekdaysToBitmask } from "./domain/weekdays";
 import type { ObjectiveRow } from "./domain/rows";
+import type { StatusChange, StatusEventRow } from "./domain/statusTimeline";
 
 /**
  * objectives/repo — the only file in this module with SQL (ADR-001).
@@ -152,4 +153,53 @@ export async function getObjectiveRows(
     objectiveId,
   ]);
   return result.rows;
+}
+
+/**
+ * The caller's objective's status history, with the objective row locked for
+ * the rest of the transaction, so two changes cannot both be checked against
+ * the same history and both appended. Null when the objective is not theirs.
+ */
+export async function lockStatusHistory(
+  tx: Queryable,
+  userId: string,
+  objectiveId: string,
+): Promise<StatusEventRow[] | null> {
+  const owned = await tx.query(
+    `SELECT 1 FROM objective WHERE id = $2 AND user_id = $1 FOR UPDATE`,
+    [userId, objectiveId],
+  );
+  if (owned.rowCount === 0) return null;
+  const events = await tx.query<StatusEventRow>(
+    `SELECT to_char(occurred_on, 'YYYY-MM-DD') AS occurred_on, change
+     FROM status_event WHERE objective_id = $1
+     ORDER BY occurred_on, recorded_at`,
+    [objectiveId],
+  );
+  return events.rows;
+}
+
+/** Append one status event. Nothing ever updates or deletes one. */
+export async function insertStatusEvent(
+  tx: Queryable,
+  objectiveId: string,
+  change: StatusChange,
+  occurredOn: string,
+  reason: string | null,
+): Promise<{
+  occurred_on: string;
+  change: StatusChange;
+  reason: string | null;
+}> {
+  const res = await tx.query<{
+    occurred_on: string;
+    change: StatusChange;
+    reason: string | null;
+  }>(
+    `INSERT INTO status_event (objective_id, occurred_on, change, reason)
+     VALUES ($1, $2::date, $3, $4)
+     RETURNING to_char(occurred_on, 'YYYY-MM-DD') AS occurred_on, change, reason`,
+    [objectiveId, occurredOn, change, reason],
+  );
+  return res.rows[0];
 }

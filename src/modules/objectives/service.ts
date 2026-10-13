@@ -12,7 +12,14 @@ import {
 } from "./domain/assembleObjective";
 import { assembleGrid, parseGridRange } from "./domain/scheduleGrid";
 import { validateObjectiveWrite } from "./domain/validateObjectiveWrite";
-import { getObjectiveRows, insertObjective } from "./repo";
+import { statusChange, validateStatusChange } from "./domain/statusChange";
+import type { StatusChange } from "./domain/statusTimeline";
+import {
+  getObjectiveRows,
+  insertObjective,
+  insertStatusEvent,
+  lockStatusHistory,
+} from "./repo";
 
 /**
  * objectives/service — one function per use case (ADR-001). Each read is one
@@ -117,4 +124,56 @@ export async function getObjectiveSchedule(
   return grid.ok
     ? { ok: true, grid: grid.value }
     : { ok: false, kind: "malformed" };
+}
+
+export type StatusChangeResult =
+  | {
+      ok: true;
+      event: {
+        occurred_on: string;
+        change: StatusChange;
+        reason: string | null;
+      };
+    }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "conflict"; detail: string };
+
+/**
+ * Pause, resume, complete or end: one appended event, checked against the
+ * history it follows, inside one transaction with the objective locked.
+ */
+export async function createStatusChange(
+  userId: string,
+  objectiveId: string,
+  body: unknown,
+): Promise<StatusChangeResult> {
+  const validated = validateStatusChange(body);
+  if (!validated.ok) {
+    return { ok: false, kind: "invalid", errors: validated.error };
+  }
+  const request = validated.value;
+  return withTransaction(async (tx): Promise<StatusChangeResult> => {
+    const history = await lockStatusHistory(tx, userId, objectiveId);
+    if (!history) return { ok: false, kind: "not_found" };
+    const decided = statusChange(history, request);
+    if (!decided.ok) {
+      return {
+        ok: false,
+        kind: "conflict",
+        detail:
+          decided.error.kind === "before_latest"
+            ? `occurred_on is before the latest status change (${decided.error.latest}); the history is append-only.`
+            : `A ${request.change} does not follow from ${decided.error.from ?? "no status"}.`,
+      };
+    }
+    const event = await insertStatusEvent(
+      tx,
+      objectiveId,
+      decided.value,
+      request.occurred_on,
+      request.reason,
+    );
+    return { ok: true, event };
+  });
 }

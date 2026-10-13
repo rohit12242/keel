@@ -6,6 +6,7 @@ import * as effortEntries from "@/app/v1/objectives/[objectiveId]/effort-entries
 import * as session from "@/app/v1/session/route";
 import * as entry from "@/app/v1/effort-entries/[entryId]/route";
 import * as effortMonth from "@/app/v1/objectives/[objectiveId]/effort/route";
+import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import {
   OBJECTIVE_BODY,
   testEntry,
@@ -141,6 +142,18 @@ export const AUTHORIZATION: AuthRow[] = [
     call: (cookie, id) =>
       effortMonth.GET(
         req("GET", `/v1/objectives/${id}/effort?month=2026-09`, cookie),
+        objectiveParams(id),
+      ),
+  },
+  {
+    operationId: "createStatusChange",
+    resource: anObjective,
+    call: (cookie, id) =>
+      statusChanges.POST(
+        req("POST", `/v1/objectives/${id}/status-changes`, cookie, {
+          change: "pause",
+          occurred_on: "2026-09-20",
+        }),
         objectiveParams(id),
       ),
   },
