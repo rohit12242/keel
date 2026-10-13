@@ -107,6 +107,12 @@ jobs:
       LOG_LEVEL: info
       SEED_DATA: "false"
       SESSION_SECRET: ci-integration-session-secret
+      # No itest reaches the provider (the token exchange is replaced), so
+      # these only have to pass config validation.
+      COGNITO_DOMAIN: https://keel-ci.auth.us-east-1.amazoncognito.com
+      COGNITO_POOL_ID: us-east-1_KeelCi
+      COGNITO_CLIENT_ID: ci-client
+      COGNITO_CLIENT_SECRET: ci-client-secret
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

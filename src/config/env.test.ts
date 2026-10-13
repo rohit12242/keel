@@ -7,6 +7,10 @@ const valid = {
   LOG_LEVEL: "info",
   SEED_DATA: "false",
   SESSION_SECRET: "0123456789abcdef0123",
+  COGNITO_DOMAIN: "https://keel-1.auth.us-east-1.amazoncognito.com",
+  COGNITO_POOL_ID: "us-east-1_AbC123",
+  COGNITO_CLIENT_ID: "client",
+  COGNITO_CLIENT_SECRET: "secret",
 };
 
 describe("loadConfig", () => {
@@ -23,6 +27,10 @@ describe("loadConfig", () => {
         "LOG_LEVEL",
         "SEED_DATA",
         "SESSION_SECRET",
+        "COGNITO_DOMAIN",
+        "COGNITO_POOL_ID",
+        "COGNITO_CLIENT_ID",
+        "COGNITO_CLIENT_SECRET",
       ]) {
         expect(msg).toContain(name);
       }
@@ -46,24 +54,34 @@ describe("loadConfig", () => {
     expect(loadConfig({ ...valid, SEED_DATA: "false" }).seedData).toBe(false);
   });
 
-  it("boots with the Cognito variables absent (required only from E-06)", () => {
-    const c = loadConfig(valid);
-    expect(c.cognito.poolId).toBeUndefined();
-    expect(c.cognito.clientId).toBeUndefined();
-    expect(c.cognito.clientSecret).toBeUndefined();
-  });
-
-  it("passes the Cognito variables through when present", () => {
+  it("passes the Cognito variables through, the domain without a trailing slash", () => {
     const c = loadConfig({
       ...valid,
-      COGNITO_POOL_ID: "pool",
-      COGNITO_CLIENT_ID: "client",
-      COGNITO_CLIENT_SECRET: "secret",
+      COGNITO_DOMAIN: "https://keel-1.auth.us-east-1.amazoncognito.com/",
     });
     expect(c.cognito).toEqual({
-      poolId: "pool",
+      domain: "https://keel-1.auth.us-east-1.amazoncognito.com",
+      poolId: "us-east-1_AbC123",
       clientId: "client",
       clientSecret: "secret",
     });
+  });
+
+  it("rejects a COGNITO_DOMAIN that is not an https origin", () => {
+    for (const bad of [
+      "http://keel-1.auth.us-east-1.amazoncognito.com",
+      "https://keel-1.auth.us-east-1.amazoncognito.com/login",
+      "keel-1",
+    ]) {
+      expect(() => loadConfig({ ...valid, COGNITO_DOMAIN: bad })).toThrow(
+        /COGNITO_DOMAIN/,
+      );
+    }
+  });
+
+  it("rejects a COGNITO_POOL_ID with no region", () => {
+    expect(() => loadConfig({ ...valid, COGNITO_POOL_ID: "pool" })).toThrow(
+      /COGNITO_POOL_ID/,
+    );
   });
 });
