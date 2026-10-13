@@ -261,4 +261,22 @@ export const AUTHORIZATION: AuthRow[] = [
     call: (cookie, id) =>
       review.GET(req("GET", `/v1/reviews/${id}`, cookie), reviewParams(id)),
   },
+  {
+    operationId: "updateReview",
+    resource: aReview,
+    call: (cookie, id) =>
+      review.PATCH(
+        req("PATCH", `/v1/reviews/${id}`, cookie, { review_summary: "x" }),
+        reviewParams(id),
+      ),
+  },
+  {
+    operationId: "discardReview",
+    resource: aReview,
+    call: (cookie, id) =>
+      review.DELETE(
+        req("DELETE", `/v1/reviews/${id}`, cookie),
+        reviewParams(id),
+      ),
+  },
 ];

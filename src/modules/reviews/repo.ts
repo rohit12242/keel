@@ -8,6 +8,7 @@ import type { ObjectiveSegmentRow } from "@/modules/objectives/domain/rows";
 import type { StatusEventRow } from "@/modules/objectives/domain/statusTimeline";
 import type { IdeaRow } from "@/modules/parking/domain/parking";
 import type { ReviewRow } from "./domain/assembleReview";
+import type { ReviewEdit } from "./domain/reviewWrite";
 
 /**
  * reviews/repo — the only file in this module with SQL (ADR-001). A review
@@ -140,4 +141,70 @@ export async function insertDraft(
     [objectiveId, w.period_start, w.period_end],
   );
   return { id: existing.rows[0].id, created: false };
+}
+
+/**
+ * The caller's review, locked for the rest of the transaction so an
+ * autosave, a verdict, a save and a discard cannot interleave. Null when it
+ * is not theirs.
+ */
+export async function lockReview(
+  tx: Queryable,
+  userId: string,
+  reviewId: string,
+): Promise<ReviewRow | null> {
+  const res = await tx.query<ReviewRow>(
+    `SELECT ${REVIEW_COLUMNS}
+     FROM review r JOIN objective o ON o.id = r.objective_id
+     WHERE r.id = $2 AND o.user_id = $1
+     FOR UPDATE OF r`,
+    [userId, reviewId],
+  );
+  return res.rows[0] ?? null;
+}
+
+/** Only these columns are written; the names are fixed, never from the body. */
+const EDITABLE: (keyof ReviewEdit)[] = [
+  "improvement_answer",
+  "improvement_answer_note",
+  "what_went_right",
+  "what_needs_improvement",
+  "review_summary",
+  "criteria_assessment",
+  "criteria_verdict",
+  "outcome",
+];
+
+export async function updateReviewAnswers(
+  tx: Queryable,
+  reviewId: string,
+  edit: ReviewEdit,
+): Promise<void> {
+  const sets: string[] = [];
+  const params: unknown[] = [reviewId];
+  for (const column of EDITABLE) {
+    if (!(column in edit)) continue;
+    params.push(edit[column]);
+    sets.push(`${column} = $${params.length}`);
+  }
+  if (sets.length === 0) return;
+  await tx.query(`UPDATE review SET ${sets.join(", ")} WHERE id = $1`, params);
+}
+
+/**
+ * Discard a draft. Verdicts it gave were never saved, so they go with it; the
+ * deviations themselves stay (NFR-01). Nothing else can point at a draft.
+ */
+export async function deleteDraft(
+  tx: Queryable,
+  reviewId: string,
+): Promise<void> {
+  await tx.query(
+    `UPDATE deviation SET verdict = NULL, verdict_review_id = NULL
+     WHERE verdict_review_id = $1`,
+    [reviewId],
+  );
+  await tx.query(`DELETE FROM review WHERE id = $1 AND status = 'draft'`, [
+    reviewId,
+  ]);
 }

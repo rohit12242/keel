@@ -1,4 +1,6 @@
 import type { ProblemError } from "@/shared/contract";
+import { withTransaction } from "@/shared/db";
+import { validateReviewEdit } from "./domain/reviewWrite";
 import { isIsoDate } from "@/modules/effort/domain/validateWrite";
 import { planSlots } from "@/modules/objectives/domain/planSlots";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
@@ -19,7 +21,14 @@ import {
   type StartRequest,
 } from "./domain/assembleReview";
 import { reviewSchedule } from "./domain/reviewWindows";
-import { getReviewFacts, insertDraft, type ObjectiveReviewFacts } from "./repo";
+import {
+  deleteDraft,
+  getReviewFacts,
+  insertDraft,
+  lockReview,
+  updateReviewAnswers,
+  type ObjectiveReviewFacts,
+} from "./repo";
 
 /**
  * reviews/service — one function per use case (ADR-001). Every read is the
@@ -182,4 +191,55 @@ export async function startReview(
         ],
       };
   }
+}
+
+export type UpdateResult =
+  | { ok: true; review: Review }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
+  | { ok: false; kind: "plan_end_only"; fields: string[] }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "saved" };
+
+/** Autosave a draft. A saved review is the record of what you concluded, and never changes. */
+export async function updateReview(
+  userId: string,
+  reviewId: string,
+  body: unknown,
+  now: Date,
+): Promise<UpdateResult> {
+  const outcome = await withTransaction(
+    async (tx): Promise<UpdateResult | null> => {
+      const review = await lockReview(tx, userId, reviewId);
+      if (!review) return { ok: false, kind: "not_found" };
+      if (review.status === "saved") return { ok: false, kind: "saved" };
+      const edit = validateReviewEdit(body, review.kind);
+      if (!edit.ok) return edit;
+      await updateReviewAnswers(tx, reviewId, edit.value);
+      return null;
+    },
+  );
+  if (outcome) return outcome;
+  return {
+    ok: true,
+    review: (await getReview(userId, reviewId, now)) as Review,
+  };
+}
+
+export type DiscardResult =
+  | { ok: true }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "saved" };
+
+/** Discard a draft. A saved review is never deleted (invariant 17). */
+export async function discardReview(
+  userId: string,
+  reviewId: string,
+): Promise<DiscardResult> {
+  return withTransaction(async (tx): Promise<DiscardResult> => {
+    const review = await lockReview(tx, userId, reviewId);
+    if (!review) return { ok: false, kind: "not_found" };
+    if (review.status === "saved") return { ok: false, kind: "saved" };
+    await deleteDraft(tx, reviewId);
+    return { ok: true };
+  });
 }

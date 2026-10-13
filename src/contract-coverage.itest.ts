@@ -21,8 +21,6 @@ import { AUTHORIZATION } from "@/test/authorization-table";
  */
 const NOT_YET_BUILT = new Set([
   "createExtension",
-  "updateReview",
-  "discardReview",
   "saveReview",
   "setDeviationVerdict",
 ]);
