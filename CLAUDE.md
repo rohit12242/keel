@@ -143,3 +143,7 @@ Before reviewing a pull request, read `REVIEW.md` and follow it.
   revert it.
 - Creating a branch from `origin/main` leaves it tracking `main`; unset the upstream
   and push with `git push -u origin <branch>`.
+- Reading a file at runtime that `.dockerignore` excludes (all of `docs/` is). The
+  local build reads it from the repository and passes; the deployed image does not
+  have it and the route 500s. Re-include the file in `.dockerignore`, and check a
+  real image build, not `npm run build`.
