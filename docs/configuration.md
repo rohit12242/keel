@@ -16,15 +16,15 @@ no `if (env === "production")` anywhere, by design (ADR-004).
 | `DATABASE_URL` | Postgres connection string the app connects with | **yes** (holds a password) | always |
 | `APP_BASE_URL` | The app's own base URL (scheme + host + port), used to build absolute links | no | always |
 | `LOG_LEVEL` | Log verbosity: `debug` \| `info` \| `warn` \| `error` | no | always |
-| `SEED_DATA` | Whether to load local seed data: `true` \| `false` | no | always |
 | `SESSION_SECRET` | Signs the session cookie | **yes** | always |
-| `COGNITO_POOL_ID` | Cognito user pool id | no | **from E-06** |
-| `COGNITO_CLIENT_ID` | Cognito app client id | no | **from E-06** |
-| `COGNITO_CLIENT_SECRET` | Cognito app client secret | **yes** | **from E-06** |
+| `COGNITO_DOMAIN` | The hosted login pages' origin, `https://…amazoncognito.com` | no | always |
+| `COGNITO_POOL_ID` | Cognito user pool id; its region prefix names the token issuer | no | always |
+| `COGNITO_CLIENT_ID` | Cognito app client id | no | always |
+| `COGNITO_CLIENT_SECRET` | Cognito app client secret | **yes** | always |
 
-The three `COGNITO_*` variables are optional today. Auth does not exist until
-E-06 and the app boots without them; when E-06 lands they become required and
-`src/config/env.ts` is tightened accordingly.
+The four `COGNITO_*` values come from `infra/cognito.tf`. Locally there is no
+separate pool: `.env` takes the deployed pool's values, whose app client accepts
+a callback on `http://localhost:3000` (I-02).
 
 ## Where each value comes from
 
@@ -42,7 +42,7 @@ configuration from AWS at container start:
 
 | Kind | Where it lives | Examples |
 |---|---|---|
-| Non-secret config | **SSM Parameter Store** (`String` parameters) | `APP_BASE_URL`, `LOG_LEVEL`, `SEED_DATA`, `COGNITO_POOL_ID`, `COGNITO_CLIENT_ID` |
+| Non-secret config | **SSM Parameter Store** (`String` parameters) | `APP_BASE_URL`, `LOG_LEVEL`, `COGNITO_DOMAIN`, `COGNITO_POOL_ID`, `COGNITO_CLIENT_ID` |
 | Secrets | **AWS Secrets Manager** (or SSM `SecureString`) | `SESSION_SECRET`, `COGNITO_CLIENT_SECRET`, and the credentials inside `DATABASE_URL` |
 
 **How a value gets from there into the running app:** the deploy (W3-17) defines

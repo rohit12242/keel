@@ -34,3 +34,16 @@ variable "app_base_url" {
   type    = string
   default = "http://localhost:3000"
 }
+
+# Where Cognito may send the browser back. Localhost only until the service
+# has an HTTPS address (I-02 step 30): Cognito accepts plain HTTP for
+# localhost and nothing else.
+variable "cognito_callback_urls" {
+  type    = list(string)
+  default = ["http://localhost:3000/v1/session/callback"]
+}
+
+variable "cognito_logout_urls" {
+  type    = list(string)
+  default = ["http://localhost:3000/"]
+}

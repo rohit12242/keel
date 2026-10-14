@@ -15,30 +15,18 @@
 export type LogLevel = "debug" | "info" | "warn" | "error";
 const LOG_LEVELS: readonly LogLevel[] = ["debug", "info", "warn", "error"];
 
-/**
- * The single seeded user id, standing in for authentication until E-06
- * (ground rule: no auth/sessions/middleware yet). Every read filters by this
- * id. The W3-12 seed inserts a user with exactly this id; keep them in step.
- */
-export const DEFAULT_SEED_USER_ID = "00000000-0000-0000-0000-000000000001";
-
 export type Config = {
   databaseUrl: string;
   appBaseUrl: string;
   logLevel: LogLevel;
-  seedData: boolean;
   sessionSecret: string;
-  /** The current user, until real auth (E-06). Defaults to the seeded user. */
-  seedUserId: string;
-  /**
-   * Required from E-06 (auth). Optional until then: the app boots without
-   * these. When present they are passed through; when absent, auth is simply
-   * not wired up yet.
-   */
+  /** The identity provider (ADR-002). Required: there is no other sign-in. */
   cognito: {
-    poolId?: string;
-    clientId?: string;
-    clientSecret?: string;
+    /** The hosted login pages' origin, e.g. https://keel-1.auth.us-east-1.amazoncognito.com */
+    domain: string;
+    poolId: string;
+    clientId: string;
+    clientSecret: string;
   };
 };
 
@@ -51,11 +39,6 @@ export class ConfigError extends Error {
     );
     this.name = "ConfigError";
   }
-}
-
-function optional(raw: string | undefined): string | undefined {
-  const v = raw?.trim();
-  return v ? v : undefined;
 }
 
 /**
@@ -100,25 +83,35 @@ export function loadConfig(
     problems.push(`LOG_LEVEL must be one of: ${LOG_LEVELS.join(", ")}`);
   }
 
-  const seedRaw = required("SEED_DATA");
-  if (seedRaw && seedRaw !== "true" && seedRaw !== "false") {
-    problems.push(`SEED_DATA must be "true" or "false"`);
-  }
-
   const sessionSecret = required("SESSION_SECRET");
   if (sessionSecret && sessionSecret.length < 16) {
     problems.push(`SESSION_SECRET must be at least 16 characters`);
   }
 
-  // Optional; defaults to the seeded user. Validated only if provided.
-  const seedUserId = env.SEED_USER_ID?.trim() || DEFAULT_SEED_USER_ID;
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      seedUserId,
-    )
-  ) {
-    problems.push(`SEED_USER_ID must be a UUID`);
+  const cognitoDomain = required("COGNITO_DOMAIN");
+  if (cognitoDomain) {
+    try {
+      const u = new URL(cognitoDomain);
+      if (u.protocol !== "https:" || u.pathname !== "/") {
+        problems.push(`COGNITO_DOMAIN must be an https:// origin, no path`);
+      }
+    } catch {
+      problems.push(`COGNITO_DOMAIN must be a valid https:// URL`);
+    }
   }
+
+  // The pool id names its region before the underscore (us-east-1_AbC123);
+  // the token issuer is built from it.
+  const cognitoPoolId = required("COGNITO_POOL_ID");
+  if (
+    cognitoPoolId &&
+    !/^[a-z]{2}(-[a-z]+)+-\d+_[A-Za-z0-9]+$/.test(cognitoPoolId)
+  ) {
+    problems.push(`COGNITO_POOL_ID must look like us-east-1_AbC123`);
+  }
+
+  const cognitoClientId = required("COGNITO_CLIENT_ID");
+  const cognitoClientSecret = required("COGNITO_CLIENT_SECRET");
 
   if (problems.length > 0) {
     throw new ConfigError(problems);
@@ -128,13 +121,12 @@ export function loadConfig(
     databaseUrl,
     appBaseUrl,
     logLevel: logLevelRaw as LogLevel,
-    seedData: seedRaw === "true",
     sessionSecret,
-    seedUserId,
     cognito: {
-      poolId: optional(env.COGNITO_POOL_ID),
-      clientId: optional(env.COGNITO_CLIENT_ID),
-      clientSecret: optional(env.COGNITO_CLIENT_SECRET),
+      domain: cognitoDomain.replace(/\/$/, ""),
+      poolId: cognitoPoolId,
+      clientId: cognitoClientId,
+      clientSecret: cognitoClientSecret,
     },
   };
 }

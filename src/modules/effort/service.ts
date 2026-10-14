@@ -1,4 +1,3 @@
-import { getConfig } from "@/config/env";
 import type { EffortEntry, ProblemError } from "@/shared/contract";
 import { validateEffortEntryWrite } from "./domain/validateWrite";
 import {
@@ -7,16 +6,27 @@ import {
 } from "@/modules/objectives/domain/coveringSlot";
 import { currentStatus } from "@/modules/objectives/domain/statusTimeline";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
+import { validateEffortEdit } from "./domain/validateEffortEdit";
 import {
+  effortMonth,
+  parseMonth,
+  type EffortMonth,
+} from "./domain/effortMonth";
+import { localDayOf } from "@/shared/time/localDay";
+import {
+  deleteEffortEntry as deleteEntryRow,
+  getEffortMonthFacts,
+  getEntryForEdit,
   getObjectiveForEffort,
   insertEffortEntry,
+  updateEffortEntry as updateEntryRow,
   type EffortEntryRow,
+  type ObjectiveForEffort,
 } from "./repo";
 
 /**
  * effort/service — the log-effort use case (ADR-001). Validates the body,
- * enforces the 404/422 rules, then inserts. The current user is the seeded
- * user until auth (E-06).
+ * enforces the 404/422 rules, then inserts, for the signed-in user.
  */
 export type CreateEffortResult =
   | { ok: true; entry: EffortEntry }
@@ -42,6 +52,7 @@ function present(row: EffortEntryRow, extra: boolean): EffortEntry {
 }
 
 export async function createEffortEntry(
+  userId: string,
   objectiveId: string,
   body: unknown,
 ): Promise<CreateEffortResult> {
@@ -50,8 +61,7 @@ export async function createEffortEntry(
     return { ok: false, kind: "validation", errors: validated.errors };
   }
 
-  const { seedUserId } = getConfig();
-  const objective = await getObjectiveForEffort(seedUserId, objectiveId);
+  const objective = await getObjectiveForEffort(userId, objectiveId);
   if (!objective) return { ok: false, kind: "not_found" };
 
   // The rules are pure functions over the facts (ADR-008): the status is the
@@ -71,4 +81,89 @@ export async function createEffortEntry(
 
   const row = await insertEffortEntry(objectiveId, validated.value);
   return { ok: true, entry: present(row, extra) };
+}
+
+/** Derived, never stored: an entry is extra when no day slot covers its date. */
+const isExtra = (facts: ObjectiveForEffort, date: string): boolean =>
+  coveringSlot(facts.segments.map(toSegment), facts.status_events, date) ===
+  null;
+
+export type EditEffortResult =
+  | { ok: true; entry: EffortEntry }
+  | { ok: false; kind: "validation"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "not_active" };
+
+/**
+ * Correct an entry. Only while its objective is running: effort on a paused,
+ * completed or ended objective is the record as it stood — the same rule that
+ * stops new effort being logged against it.
+ */
+export async function updateEffortEntry(
+  userId: string,
+  entryId: string,
+  body: unknown,
+): Promise<EditEffortResult> {
+  const validated = validateEffortEdit(body);
+  if (!validated.ok) {
+    return { ok: false, kind: "validation", errors: validated.errors };
+  }
+  const found = await getEntryForEdit(userId, entryId);
+  if (!found) return { ok: false, kind: "not_found" };
+  if (currentStatus(found.status_events) !== "active") {
+    return { ok: false, kind: "not_active" };
+  }
+  const row = await updateEntryRow(entryId, validated.value);
+  return { ok: true, entry: present(row, isExtra(found, row.local_date)) };
+}
+
+export type DeleteEffortResult =
+  | { ok: true }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "not_active" };
+
+/** Delete an entry, under the same rule as an edit. */
+export async function deleteEffortEntry(
+  userId: string,
+  entryId: string,
+): Promise<DeleteEffortResult> {
+  const found = await getEntryForEdit(userId, entryId);
+  if (!found) return { ok: false, kind: "not_found" };
+  if (currentStatus(found.status_events) !== "active") {
+    return { ok: false, kind: "not_active" };
+  }
+  await deleteEntryRow(entryId);
+  return { ok: true };
+}
+
+export type EffortMonthResult =
+  | { ok: true; month: EffortMonth }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" };
+
+/**
+ * The Effort tab for one month. Read-only; one query. "Today" — the last day
+ * a planned day can have been missed — is read in the caller's zone.
+ */
+export async function listObjectiveEffort(
+  userId: string,
+  objectiveId: string,
+  month: string | null,
+  now: Date,
+): Promise<EffortMonthResult> {
+  const range = parseMonth(month);
+  if (!range.ok) return { ok: false, kind: "invalid", errors: range.error };
+  const facts = await getEffortMonthFacts(userId, objectiveId);
+  if (!facts) return { ok: false, kind: "not_found" };
+  return {
+    ok: true,
+    month: effortMonth({
+      month: month as string,
+      range: range.value,
+      today: localDayOf(now, facts.tz),
+      segments: facts.segments.map(toSegment),
+      statusEvents: facts.status_events,
+      entries: facts.entries,
+    }),
+  };
 }

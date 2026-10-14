@@ -140,6 +140,12 @@ objective's status and its saved reviews:
 `next_review_on` on `ObjectiveSummary` is the `due_on` of this same window (or null
 when none is due) — one rule, two readers.
 
+**How many are due.** `reviews_due` on `ObjectiveSummary` is the number of windows that
+satisfy the same predicate — every closed, unsaved window with a planned day, not just
+the earliest. It is `0` exactly when `next_review_on` is null, and it is computed, never
+stored (invariant 15). A paused objective shows `0` like it shows no due date; the
+windows it owes come back, and are counted, on resume.
+
 ---
 
 ## Worked examples

@@ -2,14 +2,14 @@
 # Production runs on RDS (ADR-004); this file never reaches it.
 #
 # The schema is W3-12. This brings up an empty, reachable Postgres and nothing
-# more — no migrations, no seed.
+# more — no migrations.
 
 services:
   db:
     # Pinned to Postgres 18 to match RDS's major (ADR-006). Bump deliberately,
     # never float to :latest. A major bump like 17→18 is NOT in-place: the old
     # data dir won't load, so recreate the volume — `docker compose down -v`,
-    # then `up` and re-run migrate + seed.
+    # then `up` and re-run migrate.
     image: postgres:18
     container_name: keel-db
     restart: unless-stopped

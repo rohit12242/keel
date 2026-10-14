@@ -21,15 +21,15 @@
     "contract": "node scripts/validate-contract.mjs",
     "commitlint": "node scripts/check-commits.mjs",
     "migrate": "node scripts/migrate.mjs",
-    "migrate:down": "node scripts/migrate.mjs down",
-    "seed": "node scripts/seed.mjs"
+    "migrate:down": "node scripts/migrate.mjs down"
   },
   "dependencies": {
     "next": "16.3.5",
     "node-pg-migrate": "^9.0.0",
     "pg": "^8.23.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "swagger-ui-dist": "5.33.0"
   },
   "devDependencies": {
     "@seriousme/openapi-schema-validator": "^2.9.1",
@@ -43,5 +43,8 @@
     "prettier": "^3",
     "typescript": "^5",
     "vitest": "^3"
+  },
+  "scarfSettings": {
+    "enabled": false
   }
 }

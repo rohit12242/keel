@@ -43,7 +43,7 @@ function entry(over: Partial<DayEntryRow> = {}): DayEntryRow {
 
 describe("assembleDay", () => {
   it("returns empty objectives and zero totals for no rows", () => {
-    expect(assembleDay("2026-09-16", [])).toEqual({
+    expect(assembleDay("2026-09-16", [], null)).toEqual({
       date: "2026-09-16",
       objectives: [],
       totals: { today_minutes: 0, week_minutes: 0, extra_off_day_minutes: 0 },
@@ -52,7 +52,7 @@ describe("assembleDay", () => {
   });
 
   it("computes the slot for a planned day, with no id on it", () => {
-    const day = assembleDay("2026-09-16", [baseRow]); // a Wednesday
+    const day = assembleDay("2026-09-16", [baseRow], null); // a Wednesday
     const o = day.objectives[0];
     expect(o.slot).toEqual({
       period_kind: "day",
@@ -67,9 +67,11 @@ describe("assembleDay", () => {
   });
 
   it("has no slot on an off day, and the entry logged then is extra", () => {
-    const day = assembleDay("2026-09-19", [
-      { ...baseRow, entries: [entry({ local_date: "2026-09-19" })] },
-    ]); // a Saturday
+    const day = assembleDay(
+      "2026-09-19",
+      [{ ...baseRow, entries: [entry({ local_date: "2026-09-19" })] }],
+      null,
+    ); // a Saturday
     const o = day.objectives[0];
     expect(o.slot).toBeNull();
     expect(o.entries[0].extra).toBe(true);
@@ -91,34 +93,45 @@ describe("assembleDay", () => {
       ],
     };
 
-    const paused = assembleDay("2026-09-17", [
-      { ...resumedAfterAPause, entries: [entry({ local_date: "2026-09-17" })] },
-    ]); // a Thursday: a planned weekday, but paused that week
+    const paused = assembleDay(
+      "2026-09-17",
+      [
+        {
+          ...resumedAfterAPause,
+          entries: [entry({ local_date: "2026-09-17" })],
+        },
+      ],
+      null,
+    ); // a Thursday: a planned weekday, but paused that week
     expect(paused.objectives[0].slot).toBeNull();
     expect(paused.objectives[0].entries[0].extra).toBe(true);
     expect(paused.totals.extra_off_day_minutes).toBe(60);
 
     // ...and the plan is back the day it resumed.
-    const resumed = assembleDay("2026-09-21", [resumedAfterAPause]);
+    const resumed = assembleDay("2026-09-21", [resumedAfterAPause], null);
     expect(resumed.objectives[0].slot?.period_start).toBe("2026-09-21");
   });
 
   it("leaves out objectives that are not active, and their minutes", () => {
-    const day = assembleDay("2026-09-16", [
-      { ...baseRow, id: "active", week_minutes: 300, entries: [entry()] },
-      {
-        ...baseRow,
-        id: "paused",
-        week_minutes: 120,
-        status_events: [
-          { occurred_on: "2026-09-14", change: "created" },
-          { occurred_on: "2026-09-15", change: "paused" },
-        ],
-        entries: [entry({ id: "e2", minutes: 30 })],
-      },
-      // No events at all: no status, so not on Today (ERD invariant 16).
-      { ...baseRow, id: "statusless", status_events: [], week_minutes: 90 },
-    ]);
+    const day = assembleDay(
+      "2026-09-16",
+      [
+        { ...baseRow, id: "active", week_minutes: 300, entries: [entry()] },
+        {
+          ...baseRow,
+          id: "paused",
+          week_minutes: 120,
+          status_events: [
+            { occurred_on: "2026-09-14", change: "created" },
+            { occurred_on: "2026-09-15", change: "paused" },
+          ],
+          entries: [entry({ id: "e2", minutes: 30 })],
+        },
+        // No events at all: no status, so not on Today (ERD invariant 16).
+        { ...baseRow, id: "statusless", status_events: [], week_minutes: 90 },
+      ],
+      null,
+    );
     expect(day.objectives.map((o) => o.id)).toEqual(["active"]);
     expect(day.totals).toEqual({
       today_minutes: 60,
@@ -128,34 +141,42 @@ describe("assembleDay", () => {
   });
 
   it("names the next planned date", () => {
-    const day = assembleDay("2026-09-18", [baseRow]); // Friday
+    const day = assembleDay("2026-09-18", [baseRow], null); // Friday
     expect(day.objectives[0].next_planned_date).toBe("2026-09-21"); // Monday
   });
 
   it("sums today's minutes across objectives", () => {
-    const day = assembleDay("2026-09-16", [
-      { ...baseRow, id: "a", entries: [entry()], week_minutes: 300 },
-      {
-        ...baseRow,
-        id: "b",
-        entries: [entry({ id: "e2", objective_id: "b", minutes: 45 })],
-        week_minutes: 0,
-      },
-    ]);
+    const day = assembleDay(
+      "2026-09-16",
+      [
+        { ...baseRow, id: "a", entries: [entry()], week_minutes: 300 },
+        {
+          ...baseRow,
+          id: "b",
+          entries: [entry({ id: "e2", objective_id: "b", minutes: 45 })],
+          week_minutes: 0,
+        },
+      ],
+      null,
+    );
     expect(day.totals.today_minutes).toBe(105);
     expect(day.totals.week_minutes).toBe(300);
   });
 
   it("keeps the entry's time of day when one was given, and omits it when not", () => {
-    const day = assembleDay("2026-09-16", [
-      {
-        ...baseRow,
-        entries: [
-          entry({ occurred_at_local: "09:30" }),
-          entry({ id: "e2", occurred_at_local: null }),
-        ],
-      },
-    ]);
+    const day = assembleDay(
+      "2026-09-16",
+      [
+        {
+          ...baseRow,
+          entries: [
+            entry({ occurred_at_local: "09:30" }),
+            entry({ id: "e2", occurred_at_local: null }),
+          ],
+        },
+      ],
+      null,
+    );
     const [withTime, withoutTime] = day.objectives[0].entries;
     expect(withTime.occurred_at_local).toBe("09:30");
     expect("occurred_at_local" in withoutTime).toBe(false);
@@ -178,7 +199,7 @@ describe("assembleDay", () => {
       [SEG_1, MON_TO_FRI],
       [MON_TO_FRI, SEG_1],
     ]) {
-      const o = assembleDay("2026-11-04", [{ ...baseRow, segments }])
+      const o = assembleDay("2026-11-04", [{ ...baseRow, segments }], null)
         .objectives[0]; // a Wednesday, after both segments
       expect(o.slot).toBeNull();
       expect(o.schedule.planned_weekdays).toEqual([1, 3, 5]);
@@ -192,9 +213,11 @@ describe("assembleDay", () => {
     // degrades rather than throws if one ever arrives without. Pinned AS FOUND:
     // `mode` defaults to "fixed" while the fixed/flexible field choice defaults
     // to flexible, so the result mixes the two, outside the contract (G-18).
-    const o = assembleDay("2026-09-16", [
-      { ...baseRow, segments: [], entries: [entry()] },
-    ]).objectives[0];
+    const o = assembleDay(
+      "2026-09-16",
+      [{ ...baseRow, segments: [], entries: [entry()] }],
+      null,
+    ).objectives[0];
     expect(o.schedule).toEqual({
       mode: "fixed",
       minutes_per_planned_day: 0,
@@ -209,9 +232,11 @@ describe("assembleDay", () => {
   it("reads a fixed segment with no bitmask as no planned days", () => {
     // The row type allows null; toSegment makes the same choice, so the
     // schedule shown and the slot computed cannot disagree about the days.
-    const o = assembleDay("2026-09-16", [
-      { ...baseRow, segments: [{ ...MON_TO_FRI, planned_weekdays: null }] },
-    ]).objectives[0];
+    const o = assembleDay(
+      "2026-09-16",
+      [{ ...baseRow, segments: [{ ...MON_TO_FRI, planned_weekdays: null }] }],
+      null,
+    ).objectives[0];
     expect(o.schedule.planned_weekdays).toEqual([]);
     expect(o.slot).toBeNull();
   });
@@ -227,9 +252,11 @@ describe("assembleDay", () => {
       days_per_week: 3,
       minutes_per_planned_day: 60,
     };
-    const day = assembleDay("2026-09-16", [
-      { ...baseRow, segments: [FLEXIBLE], entries: [entry()] },
-    ]);
+    const day = assembleDay(
+      "2026-09-16",
+      [{ ...baseRow, segments: [FLEXIBLE], entries: [entry()] }],
+      null,
+    );
     const o = day.objectives[0];
     expect(o.schedule).toEqual({
       mode: "flexible",
@@ -253,20 +280,44 @@ describe("assembleDay", () => {
     // Unreachable through the schema (plan_segment requires days_per_week for
     // a flexible segment); pins that the assembler does not throw. The 0 is
     // below the contract's minimum of 1 — see G-18.
-    const o = assembleDay("2026-09-16", [
-      {
-        ...baseRow,
-        segments: [
-          {
-            ...MON_TO_FRI,
-            schedule_mode: "flexible" as const,
-            planned_weekdays: null,
-            days_per_week: null,
-          },
-        ],
-      },
-    ]).objectives[0];
+    const o = assembleDay(
+      "2026-09-16",
+      [
+        {
+          ...baseRow,
+          segments: [
+            {
+              ...MON_TO_FRI,
+              schedule_mode: "flexible" as const,
+              planned_weekdays: null,
+              days_per_week: null,
+            },
+          ],
+        },
+      ],
+      null,
+    ).objectives[0];
     expect(o.schedule.days_per_week).toBe(0);
     expect(o.schedule.label).toBe("FLEXIBLE · 0 DAYS/WEEK · 2h 00m PER DAY");
+  });
+
+  it("carries the last deviation it is given, unchanged", () => {
+    const deviation = {
+      id: "d",
+      objective_ids: ["o"],
+      local_date: "2026-09-15",
+      tz: "UTC",
+      kind: "drifted" as const,
+      what_happened: "w",
+      reasoning: "r",
+      minutes: 20,
+      pattern_id: null,
+      pattern_name: null,
+      verdict: null,
+      verdict_review_id: null,
+    };
+    expect(assembleDay("2026-09-16", [], deviation).last_deviation).toBe(
+      deviation,
+    );
   });
 });

@@ -64,8 +64,25 @@ export type Day = {
     week_minutes: number;
     extra_off_day_minutes: number;
   };
-  /** No deviation table yet (later story), so always null for now. */
-  last_deviation: null;
+  /** The most recent deviation on or before `date`, or null. */
+  last_deviation: Deviation | null;
+};
+
+/** A deviation as the contract shows it; `did_instead` only when there was one. */
+export type Deviation = {
+  id: string;
+  objective_ids: string[];
+  local_date: string;
+  tz: string;
+  kind: "chosen" | "drifted";
+  what_happened: string;
+  reasoning: string;
+  did_instead?: string;
+  minutes: number;
+  pattern_id: string | null;
+  pattern_name: string | null;
+  verdict: "worth_it" | "not_worth_it" | null;
+  verdict_review_id: string | null;
 };
 
 /** Every field computed at read time; none stored, none writable (NFR-09). */
@@ -105,7 +122,8 @@ export type ObjectiveSummary = {
   start_date: string;
   /** The latest segment's end. Derived. */
   end_date: string;
-  next_review_on?: string | null;
+  next_review_on: string | null;
+  reviews_due: number;
   from_parking_lot?: boolean;
   figures: Figures;
 };
@@ -139,6 +157,8 @@ export type Objective = ObjectiveSummary & {
   extension_count?: number;
   segments: PlanSegment[];
   status_history: StatusEvent[];
+  /** From the latest saved plan-end review; null before there is one. */
+  criteria_verdict: "met" | "partly_met" | "not_met" | null;
 };
 
 export type DayState =

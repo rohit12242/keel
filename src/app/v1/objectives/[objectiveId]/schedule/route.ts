@@ -1,0 +1,64 @@
+import { getObjectiveSchedule } from "@/modules/objectives/service";
+import {
+  isUuid,
+  jsonResponse,
+  malformedRecord,
+  notFound,
+  problem,
+  problemType,
+  unavailable,
+  withSession,
+} from "@/shared/http";
+import { withRequestLog } from "@/shared/log";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * GET /v1/objectives/{objectiveId}/schedule — the day-by-day grid, five states
+ * (docs/keel-api.yaml, docs/domain/day-states.md). Computed in one read,
+ * never a request per day (NFR-03). `from` / `to` default to the objective's
+ * own span and are clamped to it.
+ */
+export const GET = withSession(
+  async (
+    req: Request,
+    ctx: { params: Promise<{ objectiveId: string }> },
+    userId: string,
+  ): Promise<Response> => {
+    const { objectiveId } = await ctx.params;
+    const params = new URL(req.url).searchParams;
+
+    return withRequestLog(
+      "GET /v1/objectives/[objectiveId]/schedule",
+      { objective_id: objectiveId },
+      async () => {
+        if (!isUuid(objectiveId)) return notFound("objective");
+        try {
+          const result = await getObjectiveSchedule(
+            userId,
+            objectiveId,
+            params.get("from"),
+            params.get("to"),
+          );
+          if (result.ok) return jsonResponse(200, result.grid);
+          switch (result.kind) {
+            case "invalid":
+              return problem(
+                400,
+                "Invalid range",
+                problemType("invalid"),
+                "One or more parameters failed validation.",
+                result.errors,
+              );
+            case "not_found":
+              return notFound("objective");
+            case "malformed":
+              return malformedRecord();
+          }
+        } catch {
+          return unavailable();
+        }
+      },
+    );
+  },
+);

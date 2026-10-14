@@ -40,6 +40,8 @@ export type NewObjective = {
   starts_on: string;
   /** starts_on + runs_for_days − 1: a one-day objective starts and ends together. */
   end_date: string;
+  /** Started from a parked idea: taking it is creating this objective. */
+  from_parked_idea_id: string | null;
 };
 
 export type ObjectiveWriteResult =
@@ -108,19 +110,70 @@ export function validateObjectiveWrite(input: unknown): ObjectiveWriteResult {
   if (body.review_cadence !== "weekly" && body.review_cadence !== "monthly") {
     fail("review_cadence", "Required; weekly or monthly.");
   }
-  // Parked ideas do not exist yet (no table to check an id against), so a
-  // reference to one is refused rather than stored unverified.
+  // Whether the idea is the caller's and still parked is a fact, checked
+  // against the record when the objective is written; here, only its shape.
+  const idea = body.from_parked_idea_id;
   if (
-    body.from_parked_idea_id !== undefined &&
-    body.from_parked_idea_id !== null
+    idea !== undefined &&
+    idea !== null &&
+    !(
+      typeof idea === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idea,
+      )
+    )
   ) {
-    fail(
-      "from_parked_idea_id",
-      "Parked ideas are not available yet; send null.",
-    );
+    fail("from_parked_idea_id", "A parked idea's id, or null.");
   }
 
-  const schedule = asRecord(body.schedule);
+  const parsed = parseSchedule(body.schedule);
+  errors.push(...parsed.errors);
+  const mismatch = parsed.mismatch;
+
+  if (errors.length > 0) return { ok: false, kind: "invalid", errors };
+  if (mismatch !== null) {
+    return { ok: false, kind: "mode_mismatch", detail: mismatch };
+  }
+
+  // Every field is valid from here; the casts restate what was just checked.
+  const startsOn = body.starts_on as string;
+  const endDate = toIso(
+    parseIso(startsOn) + ((body.runs_for_days as number) - 1) * DAY_MS,
+  );
+  const normalised = normaliseSchedule(body.schedule);
+  const missed = missesEveryWeekday(normalised, startsOn, endDate);
+  if (missed) return { ok: false, kind: "invalid", errors: [missed] };
+
+  return {
+    ok: true,
+    value: {
+      title: body.title as string,
+      description: (body.description as string | undefined) ?? null,
+      why_now: body.why_now as string,
+      success_criteria: body.success_criteria as string,
+      plan_link: (link as string | null | undefined) ?? null,
+      review_cadence: body.review_cadence as "weekly" | "monthly",
+      schedule: normalised,
+      starts_on: startsOn,
+      end_date: endDate,
+      from_parked_idea_id: typeof idea === "string" ? idea : null,
+    },
+  };
+}
+
+/**
+ * A schedule on its own — shared by a new objective and an extension, which
+ * carries its own. Field errors are the 400; a well-formed schedule that
+ * contradicts its mode is the mismatch.
+ */
+export function parseSchedule(input: unknown): {
+  errors: ProblemError[];
+  mismatch: string | null;
+} {
+  const errors: ProblemError[] = [];
+  const fail = (field: string, message: string) =>
+    errors.push({ field, message });
+  const schedule = asRecord(input);
   let mismatch: string | null = null;
   if (schedule === null) {
     fail("schedule", "Required.");
@@ -162,71 +215,50 @@ export function validateObjectiveWrite(input: unknown): ObjectiveWriteResult {
       fail("schedule.mode", "Required; fixed or flexible.");
     }
   }
+  return { errors, mismatch };
+}
 
-  if (errors.length > 0) return { ok: false, kind: "invalid", errors };
-  if (mismatch !== null) {
-    return { ok: false, kind: "mode_mismatch", detail: mismatch };
-  }
-
-  // Every field is valid from here; the casts restate what was just checked.
-  const s = schedule as Record<string, unknown>;
+/** A schedule that `parseSchedule` accepted, normalised: weekdays sorted, once each. */
+export function normaliseSchedule(input: unknown): NewSchedule {
+  const s = input as Record<string, unknown>;
   const minutes = s.minutes_per_planned_day as number;
-  const startsOn = body.starts_on as string;
-  const endDate = toIso(
-    parseIso(startsOn) + ((body.runs_for_days as number) - 1) * DAY_MS,
-  );
-
-  let normalised: NewSchedule;
-  if (s.mode === "fixed") {
-    const weekdays = [...new Set(s.planned_weekdays as number[])].sort(
-      (a, b) => a - b,
-    );
-    // A fixed run that misses every planned weekday (two days, Saturday and
-    // Sunday, planning Mondays) commits nothing: no real target to record.
-    const slots = generateSlots({
-      scheduleMode: "fixed",
-      plannedWeekdays: weekdays,
-      minutesPerPlannedDay: minutes,
-      startDate: startsOn,
-      endDate,
-    });
-    if (slots.length === 0) {
-      return {
-        ok: false,
-        kind: "invalid",
-        errors: [
-          {
-            field: "schedule.planned_weekdays",
-            message: "None of these weekdays falls inside the run.",
-          },
-        ],
+  return s.mode === "fixed"
+    ? {
+        mode: "fixed",
+        planned_weekdays: [...new Set(s.planned_weekdays as number[])].sort(
+          (a, b) => a - b,
+        ),
+        minutes_per_planned_day: minutes,
+      }
+    : {
+        mode: "flexible",
+        days_per_week: s.days_per_week as number,
+        minutes_per_planned_day: minutes,
       };
-    }
-    normalised = {
-      mode: "fixed",
-      planned_weekdays: weekdays,
-      minutes_per_planned_day: minutes,
-    };
-  } else {
-    normalised = {
-      mode: "flexible",
-      days_per_week: s.days_per_week as number,
-      minutes_per_planned_day: minutes,
-    };
-  }
+}
 
-  return {
-    ok: true,
-    value: {
-      title: body.title as string,
-      description: (body.description as string | undefined) ?? null,
-      why_now: body.why_now as string,
-      success_criteria: body.success_criteria as string,
-      plan_link: (link as string | null | undefined) ?? null,
-      review_cadence: body.review_cadence as "weekly" | "monthly",
-      schedule: normalised,
-      starts_on: startsOn,
-      end_date: endDate,
-    },
-  };
+/**
+ * A fixed run that misses every planned weekday (two days, Saturday and
+ * Sunday, planning Mondays) commits nothing: there is no real target to
+ * record. The refusal, or null when the run plans at least one day.
+ */
+export function missesEveryWeekday(
+  schedule: NewSchedule,
+  startDate: string,
+  endDate: string,
+): ProblemError | null {
+  if (schedule.mode !== "fixed") return null;
+  const slots = generateSlots({
+    scheduleMode: "fixed",
+    plannedWeekdays: schedule.planned_weekdays,
+    minutesPerPlannedDay: schedule.minutes_per_planned_day,
+    startDate,
+    endDate,
+  });
+  return slots.length === 0
+    ? {
+        field: "schedule.planned_weekdays",
+        message: "None of these weekdays falls inside the run.",
+      }
+    : null;
 }

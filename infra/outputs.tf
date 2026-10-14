@@ -28,5 +28,18 @@ output "migrate_task_family" {
 }
 
 output "ssm_parameters" {
-  value = [aws_ssm_parameter.database_url.name, aws_ssm_parameter.session_secret.name]
+  value = [
+    aws_ssm_parameter.database_url.name,
+    aws_ssm_parameter.session_secret.name,
+    aws_ssm_parameter.cognito_domain.name,
+    aws_ssm_parameter.cognito_pool_id.name,
+    aws_ssm_parameter.cognito_client_id.name,
+    aws_ssm_parameter.cognito_client_secret.name,
+  ]
+}
+
+# Built from the domain, not read back from SSM: a parameter's value is
+# marked sensitive, which an output may not show.
+output "cognito_domain" {
+  value = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${var.region}.amazoncognito.com"
 }

@@ -6,12 +6,13 @@ import {
   getObjectiveSchedule,
   listObjectives,
 } from "./service";
+import { testUser } from "@/test/fixtures";
 
 /**
  * Neither read fans out per row (spec; NFR-03's reason applied to Keel's first
  * list). `query` is wrapped, and each read must make exactly one call however
- * many objectives exist — at least three here, so a per-objective query would
- * show up as three.
+ * many objectives exist — three here, owned by this suite's own user, so a
+ * per-objective query would show up as three.
  */
 vi.mock("@/shared/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/shared/db")>();
@@ -34,10 +35,12 @@ const BODY = {
 
 describe("each objectives read is one query (real Postgres)", () => {
   let id: string;
+  let userId: string;
 
   beforeAll(async () => {
+    userId = (await testUser()).id;
     for (const n of [1, 2, 3]) {
-      const r = await createObjective({
+      const r = await createObjective(userId, {
         ...BODY,
         title: `itest: I-01 one read ${n}`,
       });
@@ -52,20 +55,20 @@ describe("each objectives read is one query (real Postgres)", () => {
   });
 
   it("lists every objective in one query", async () => {
-    const r = await listObjectives(null);
-    expect(r.ok && r.objectives.length).toBeGreaterThanOrEqual(3);
+    const r = await listObjectives(userId, null, new Date());
+    expect(r.ok && r.objectives.length).toBe(3);
     expect(vi.mocked(query)).toHaveBeenCalledTimes(1);
   });
 
   it("opens one objective in one query", async () => {
     vi.mocked(query).mockClear();
-    expect((await getObjective(id)).ok).toBe(true);
+    expect((await getObjective(userId, id)).ok).toBe(true);
     expect(vi.mocked(query)).toHaveBeenCalledTimes(1);
   });
 
   it("computes the whole grid in one query", async () => {
     vi.mocked(query).mockClear();
-    const r = await getObjectiveSchedule(id, null, null);
+    const r = await getObjectiveSchedule(userId, id, null, null);
     expect(r.ok && r.grid.days.length).toBe(7);
     expect(vi.mocked(query)).toHaveBeenCalledTimes(1);
   });

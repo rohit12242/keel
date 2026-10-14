@@ -1,20 +1,21 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { getPool, query } from "@/shared/db";
-import * as list from "@/app/objectives/route";
-import * as one from "@/app/objectives/[objectiveId]/route";
-import * as schedule from "@/app/objectives/[objectiveId]/schedule/route";
+import { getPool } from "@/shared/db";
+import { testObjective, testUser, type TestUser } from "@/test/fixtures";
+import * as list from "@/app/v1/objectives/route";
+import * as one from "@/app/v1/objectives/[objectiveId]/route";
+import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
 
 /**
  * I-01 step 7: every response the contract declares for the four operations,
  * through the real route handlers against real Postgres (NFR-07: no
  * operation ships with only a happy path).
  *
- * Another user's objective is seeded with fixed ids, idempotently, so the
- * suite can run once per timezone against one database. It must 404 and must
- * never appear in a list (NFR-10).
+ * The suite signs in as its own user and makes a second user with an
+ * objective of their own, both new on every run. The other user's objective
+ * must 404 and must never appear in a list (NFR-10).
  */
-const OTHER_USER = "00000000-0000-0000-0000-00000000f001";
-const OTHER_OBJECTIVE = "00000000-0000-0000-0000-00000000f0a1";
+let me: TestUser;
+let OTHER_OBJECTIVE: string;
 
 const BODY = {
   title: "itest: I-01 routes",
@@ -32,21 +33,29 @@ const BODY = {
 };
 
 const URL_BASE = "http://keel.test";
+const asMe = () => ({ cookie: me.cookie });
 const post = (body: unknown) =>
   list.POST(
-    new Request(`${URL_BASE}/objectives`, {
+    new Request(`${URL_BASE}/v1/objectives`, {
       method: "POST",
+      headers: asMe(),
       body: typeof body === "string" ? body : JSON.stringify(body),
     }),
+    undefined,
   );
 const params = (objectiveId: string) => ({
   params: Promise.resolve({ objectiveId }),
 });
 const getOne = (id: string) =>
-  one.GET(new Request(`${URL_BASE}/objectives/${id}`), params(id));
+  one.GET(
+    new Request(`${URL_BASE}/v1/objectives/${id}`, { headers: asMe() }),
+    params(id),
+  );
 const getSchedule = (id: string, qs = "") =>
   schedule.GET(
-    new Request(`${URL_BASE}/objectives/${id}/schedule${qs}`),
+    new Request(`${URL_BASE}/v1/objectives/${id}/schedule${qs}`, {
+      headers: asMe(),
+    }),
     params(id),
   );
 
@@ -63,31 +72,9 @@ describe("objectives routes (real Postgres)", () => {
   let created: string;
 
   beforeAll(async () => {
-    await query(
-      `INSERT INTO "user" (id, email, tz) VALUES ($1, 'other@keel.local', 'UTC')
-       ON CONFLICT (id) DO NOTHING`,
-      [OTHER_USER],
-    );
-    await query(
-      `INSERT INTO objective (id, user_id, title, why_now, success_criteria, review_cadence)
-       VALUES ($1, $2, 'Someone else''s', 'Not yours.', 'Never shown.', 'weekly')
-       ON CONFLICT (id) DO NOTHING`,
-      [OTHER_OBJECTIVE, OTHER_USER],
-    );
-    await query(
-      `INSERT INTO plan_segment (objective_id, seq, schedule_mode, planned_weekdays,
-         minutes_per_planned_day, start_date, end_date, reason)
-       VALUES ($1, 0, 'fixed', 31, 60, '2026-11-02', '2026-11-15', 'Not yours.')
-       ON CONFLICT (objective_id, seq) DO NOTHING`,
-      [OTHER_OBJECTIVE],
-    );
-    // Invariant 16 holds for this fixture too.
-    await query(
-      `INSERT INTO status_event (objective_id, occurred_on, change)
-       VALUES ($1, '2026-11-02', 'created')
-       ON CONFLICT (objective_id) WHERE change = 'created' DO NOTHING`,
-      [OTHER_OBJECTIVE],
-    );
+    me = await testUser();
+    const other = await testUser();
+    OTHER_OBJECTIVE = (await testObjective(other)).id;
 
     const res = await post(BODY);
     expect(res.status).toBe(201);
@@ -126,19 +113,24 @@ describe("objectives routes (real Postgres)", () => {
 
   it("lists the caller's objectives and never another user's", async () => {
     const res = await list.GET(
-      new Request(`${URL_BASE}/objectives?status=active`),
+      new Request(`${URL_BASE}/v1/objectives?status=active`, {
+        headers: asMe(),
+      }),
+      undefined,
     );
     expect(res.status).toBe(200);
     const ids = (
       (await res.json()) as { objectives: { id: string }[] }
     ).objectives.map((o) => o.id);
-    expect(ids).toContain(created);
-    expect(ids).not.toContain(OTHER_OBJECTIVE);
+    expect(ids).toEqual([created]);
   });
 
   it("400s an unknown status filter", async () => {
     const res = await list.GET(
-      new Request(`${URL_BASE}/objectives?status=created`),
+      new Request(`${URL_BASE}/v1/objectives?status=created`, {
+        headers: asMe(),
+      }),
+      undefined,
     );
     expect(res.status).toBe(400);
     expect((await problemOf(res)).errors?.map((e) => e.field)).toEqual([

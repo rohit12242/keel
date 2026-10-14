@@ -4,6 +4,7 @@ import { getConfig } from "@/config/env";
 import { getPool, query } from "@/shared/db";
 import { insertEffortEntry, type EffortEntryRow } from "@/modules/effort/repo";
 import { getDayRows } from "@/modules/today/repo";
+import { testObjective, testUser } from "@/test/fixtures";
 
 /**
  * NFR-12 (kept half) against a REAL Postgres — this is where the pg DATE parser
@@ -14,28 +15,23 @@ import { getDayRows } from "@/modules/today/repo";
  *   - the database session timezone (asserted directly below), or
  *   - when the request arrived.
  *
- * Fixtures come from `npm run seed` (user, an objective created 2026-09-14 with
- * a fixed Mon–Fri segment covering 2026-09-18, a Friday). Slots are computed,
- * not seeded (W4-29). Run migrate + seed before this suite.
+ * The suite makes its own user and objective (created 2026-09-14, a fixed
+ * Mon–Fri segment covering 2026-09-18, a Friday), new on every run, so the
+ * four per-timezone runs never see each other's probe.
  */
-const USER_ID = "00000000-0000-0000-0000-000000000001";
-const OBJECTIVE_ID = "00000000-0000-0000-0000-0000000000a1";
-const DATE = "2026-09-18"; // a Friday, covered by the seeded plan
+const DATE = "2026-09-18"; // a Friday, covered by the plan
 const CLIENT_TZ = "Asia/Kolkata";
 const NOTE = "itest: NFR-12 date-storage probe";
 
+let USER_ID: string;
+let OBJECTIVE_ID: string;
 let inserted: EffortEntryRow;
-
-async function deleteProbe(): Promise<void> {
-  await query(
-    "DELETE FROM effort_entry WHERE objective_id = $1 AND note = $2",
-    [OBJECTIVE_ID, NOTE],
-  );
-}
 
 describe("effort entry date storage (real Postgres)", () => {
   beforeAll(async () => {
-    await deleteProbe(); // deterministic across the four per-timezone runs
+    const user = await testUser();
+    USER_ID = user.id;
+    OBJECTIVE_ID = (await testObjective(user)).id;
     inserted = await insertEffortEntry(OBJECTIVE_ID, {
       local_date: DATE,
       tz: CLIENT_TZ,
@@ -45,7 +41,6 @@ describe("effort entry date storage (real Postgres)", () => {
   });
 
   afterAll(async () => {
-    await deleteProbe();
     await getPool().end();
   });
 

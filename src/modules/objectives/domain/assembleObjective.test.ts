@@ -38,16 +38,20 @@ const ROW: ObjectiveRow = {
     { occurred_on: "2026-11-02", change: "created", reason: null },
   ],
   daily_minutes: [],
+  saved_reviews: [],
 };
 
-function summary(row: ObjectiveRow) {
-  const r = assembleSummary(row);
+/** Before the plan starts: no review window has closed. */
+const TODAY = "2026-11-01";
+
+function summary(row: ObjectiveRow, today = TODAY) {
+  const r = assembleSummary(row, today);
   if (!r.ok) throw new Error("expected a summary");
   return r.value;
 }
 
 function detail(row: ObjectiveRow) {
-  const r = assembleObjective(row);
+  const r = assembleObjective(row, TODAY);
   if (!r.ok) throw new Error("expected an objective");
   return r.value;
 }
@@ -66,6 +70,8 @@ describe("assembleSummary", () => {
       },
       start_date: "2026-11-02",
       end_date: "2026-11-15",
+      next_review_on: null,
+      reviews_due: 0,
       from_parking_lot: false,
       figures: {
         adherence_pct: 0,
@@ -160,17 +166,99 @@ describe("assembleSummary", () => {
   });
 
   it("fails rather than guessing with no status events (invariant 16)", () => {
-    expect(assembleSummary({ ...ROW, status_events: [] })).toEqual({
+    expect(assembleSummary({ ...ROW, status_events: [] }, TODAY)).toEqual({
       ok: false,
       error: "malformed",
     });
   });
 
   it("fails with no segments: an objective without a plan is malformed", () => {
-    expect(assembleSummary({ ...ROW, segments: [] })).toEqual({
+    expect(assembleSummary({ ...ROW, segments: [] }, TODAY)).toEqual({
       ok: false,
       error: "malformed",
     });
+  });
+});
+
+describe("criteria_verdict", () => {
+  it("is null until a plan-end review is saved, then the latest one's", () => {
+    expect(detail(ROW).criteria_verdict).toBeNull();
+    const saved = (
+      period_end: string,
+      kind: "weekly" | "plan_end",
+      v: "met" | "not_met" | null,
+    ) => ({
+      id: period_end,
+      outcome: null,
+      period_start: period_end,
+      period_end,
+      kind,
+      criteria_verdict: v,
+    });
+    expect(
+      detail({
+        ...ROW,
+        saved_reviews: [
+          saved("2026-11-08", "weekly", null),
+          saved("2026-11-15", "plan_end", "not_met"),
+          saved("2026-11-29", "plan_end", "met"),
+        ],
+      }).criteria_verdict,
+    ).toBe("met");
+  });
+});
+
+describe("next_review_on and reviews_due", () => {
+  // Segment 0 runs Mon 2 Nov … Sun 15 Nov: Week 1 closes 8 Nov, End of plan 15 Nov.
+  it("is the earliest closed, unsaved window, counting every one owed", () => {
+    expect(summary(ROW, "2026-11-07")).toMatchObject({
+      next_review_on: null,
+      reviews_due: 0,
+    });
+    expect(summary(ROW, "2026-11-08")).toMatchObject({
+      next_review_on: "2026-11-08",
+      reviews_due: 1,
+    });
+    expect(summary(ROW, "2026-11-20")).toMatchObject({
+      next_review_on: "2026-11-08",
+      reviews_due: 2,
+    });
+  });
+
+  it("skips a saved window", () => {
+    expect(
+      summary(
+        {
+          ...ROW,
+          saved_reviews: [
+            {
+              id: "r1",
+              outcome: null,
+              period_start: "2026-11-02",
+              period_end: "2026-11-08",
+              kind: "weekly",
+              criteria_verdict: null,
+            },
+          ],
+        },
+        "2026-11-20",
+      ),
+    ).toMatchObject({ next_review_on: "2026-11-15", reviews_due: 1 });
+  });
+
+  it("owes nothing while paused", () => {
+    expect(
+      summary(
+        {
+          ...ROW,
+          status_events: [
+            ...ROW.status_events,
+            { occurred_on: "2026-11-10", change: "paused", reason: null },
+          ],
+        },
+        "2026-11-20",
+      ),
+    ).toMatchObject({ next_review_on: null, reviews_due: 0 });
   });
 });
 
@@ -284,7 +372,9 @@ describe("assembleObjective — with an extension", () => {
   });
 
   it("fails rather than guessing when malformed", () => {
-    expect(assembleObjective({ ...ROW, status_events: [] }).ok).toBe(false);
+    expect(assembleObjective({ ...ROW, status_events: [] }, TODAY).ok).toBe(
+      false,
+    );
   });
 });
 
@@ -315,7 +405,7 @@ describe("assembleList", () => {
 
   it("returns every objective for all, and filters by status", () => {
     const ids = (filter: Parameters<typeof assembleList>[1]) => {
-      const r = assembleList([ROW, PAUSED], filter);
+      const r = assembleList([ROW, PAUSED], filter, TODAY);
       return r.ok ? r.value.map((o) => o.id) : r.error;
     };
     expect(ids("all")).toEqual(["obj-1", "obj-2"]);
@@ -326,7 +416,7 @@ describe("assembleList", () => {
 
   it("fails the whole list when one objective is malformed", () => {
     expect(
-      assembleList([ROW, { ...PAUSED, status_events: [] }], "active"),
+      assembleList([ROW, { ...PAUSED, status_events: [] }], "active", TODAY),
     ).toEqual({ ok: false, error: "malformed" });
   });
 });

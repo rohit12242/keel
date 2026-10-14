@@ -35,4 +35,19 @@ export type ObjectiveRow = {
   /** Ordered by occurred_on, then by when each was recorded. */
   status_events: ObjectiveEventRow[];
   daily_minutes: DailyMinutesRow[];
+  /** The reviews already saved, by period; a draft is not here. */
+  saved_reviews: {
+    id: string;
+    outcome: "continued" | "completed" | "paused" | "ended" | null;
+    period_start: string;
+    period_end: string;
+    kind: "weekly" | "monthly" | "plan_end";
+    criteria_verdict: "met" | "partly_met" | "not_met" | null;
+  }[];
 };
+
+/**
+ * A row as the read returns it: the facts, plus the caller's zone, which
+ * every row carries so the list can read "today" without a second query.
+ */
+export type ListRow = ObjectiveRow & { user_tz: string };

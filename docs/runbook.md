@@ -235,6 +235,28 @@ and the SSM `DATABASE_URL`.
 Still stuck after one honest pass? The site is on the old version and safe. Stop,
 note what you saw, and pick it up rested — that is the whole point of this page.
 
+## Reconnect a recreated sign-in account (rare, a production write)
+
+**When:** someone signs in and gets *"This email already belongs to another
+account"* (409). Their Cognito account was deleted and recreated with the same
+email, so it has a new subject, and their Keel record still points at the old one.
+The app refuses rather than guess (`docs/erd.md`, *User*): it cannot tell a
+recreated account from someone else holding the address.
+
+1. **Confirm it is the same person** — out of band, not from the email alone.
+2. Find the new subject: Cognito console → user pool `keel` → **Users** → the
+   user → `sub`.
+3. Point the existing row at it. RDS is private, so the statement runs where a
+   migration runs — a one-off task from the `keel-migrate` definition, with the
+   container command overridden:
+    ```
+    node -e "const pg=require('pg');const c=new pg.Client({connectionString:process.env.DATABASE_URL});c.connect().then(()=>c.query('UPDATE \"user\" SET idp_subject=\$1 WHERE email=\$2',[process.argv[1],process.argv[2]])).then(r=>{console.log('rows',r.rowCount);return c.end()})" <new-sub> <email>
+    ```
+   It must print `rows 1`. Anything else: stop.
+4. They sign in again and land on their record.
+
+Nothing is deleted, and the old subject is simply forgotten.
+
 ## Teardown — NOT a rollback (rare, destructive)
 
 **Stop.** This deletes the whole environment — service, database, load balancer,
