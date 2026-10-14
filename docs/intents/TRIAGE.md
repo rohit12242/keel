@@ -50,3 +50,25 @@ environments. I-02 removed the seed script and the variable with it: the integra
 tests make their own data, and a local sign-in creates its own user. The ADR's rule —
 code never branches on the environment's name — is untouched; only the example is
 stale. Not edited in I-02, which edits no ADR it does not decide.
+
+### Effort writes are not serialised against status changes · found in I-02
+
+Logging, correcting and deleting an entry (`effort/service.ts`) read the objective's
+status and then write in a separate statement, with nothing locked. A pause, complete
+or end that commits between the two is not seen: an entry is added, changed or removed
+on an objective that is no longer active, which the rule those operations check says
+cannot happen. Status changes and plan-end saves already take the objective's lock;
+effort writes do not.
+
+Likely only with two tabs open at once, for one user. Closed by taking the same lock
+in a transaction around the check and the write. Folding the user check into the
+update and delete queries themselves — today they match on the entry id alone, after
+the service has checked ownership — belongs in the same change.
+
+### The coverage test has never been seen to fail · found in I-02
+
+`contract-coverage.itest.ts` is what guards "every route is the caller's": it fails
+when an operation has no row in `authorization.itest.ts`. Plan step 6 called for
+checking that once by hand — remove a row, watch the test fail, put it back — and it
+was not done. Until it is, a passing coverage test proves less than it appears to.
+Ten minutes; no code changes unless the test does not fail.
