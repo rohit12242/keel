@@ -8,6 +8,10 @@ import {
   testUser,
   type TestUser,
 } from "@/test/fixtures";
+import {
+  insertStatusEvent,
+  lockStatusHistory,
+} from "@/modules/objectives/repo";
 import { saveReview, updateReview } from "./service";
 
 /**
@@ -101,5 +105,47 @@ describe("saving a plan-end review (real Postgres)", () => {
     const o = await objective();
     expect(o.status).toBe("active");
     expect(o.status_history.map((e) => e.change)).toEqual(["created"]);
+  });
+
+  it("waits for a status change in flight, then checks against it", async () => {
+    const id = await planEndDraft();
+    await updateReview(
+      me.id,
+      id,
+      { outcome: "completed", criteria_verdict: "met" },
+      new Date(),
+    );
+
+    // What createStatusChange does, held open: the objective locked and an
+    // end appended, not yet committed.
+    const other = await getPool().connect();
+    try {
+      await other.query("BEGIN");
+      const pid = (
+        await other.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")
+      ).rows[0].pid;
+      await lockStatusHistory(other, me.id, objectiveId);
+      await insertStatusEvent(other, objectiveId, "ended", "2026-10-11", null);
+
+      const saving = saveReview(me.id, id, new Date());
+      // The save is blocked on the objective lock, not merely slow.
+      for (let waited = 0; ; waited += 20) {
+        const blocked = await getPool().query(
+          `SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))`,
+          [pid],
+        );
+        if ((blocked.rowCount ?? 0) > 0) break;
+        if (waited > 5000) throw new Error("saveReview never waited");
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      await other.query("COMMIT");
+
+      expect(await saving).toMatchObject({ ok: false, kind: "refused" });
+    } finally {
+      other.release();
+    }
+    const o = await objective();
+    expect(o.status).toBe("ended");
+    expect(o.status_history.map((e) => e.change)).toEqual(["created", "ended"]);
   });
 });

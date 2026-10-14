@@ -3,7 +3,7 @@ import { parseVerdict, verdictDecision } from "./domain/deviationVerdict";
 import { withTransaction } from "@/shared/db";
 import { validateReviewEdit } from "./domain/reviewWrite";
 import { saveDecision } from "./domain/saveReview";
-import { insertStatusEvent } from "@/modules/objectives/repo";
+import { insertStatusEvent, lockObjective } from "@/modules/objectives/repo";
 import { isIsoDate } from "@/modules/effort/domain/validateWrite";
 import { planSlots } from "@/modules/objectives/domain/planSlots";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
@@ -308,8 +308,11 @@ export type SaveResult =
   | { ok: false; kind: "refused"; detail: string };
 
 /**
- * Save a review. Checked against the record with the review locked, so a
- * verdict or a deviation cannot slip in between the check and the save.
+ * Save a review. Checked against the record with the review and its
+ * objective locked, so a verdict, a deviation or a status change cannot slip
+ * in between the check and the save. The objective lock is the one
+ * createStatusChange takes, so a plan-end outcome and a status change are
+ * checked one after the other, never both against the same history.
  */
 export async function saveReview(
   userId: string,
@@ -320,6 +323,7 @@ export async function saveReview(
     async (tx): Promise<SaveResult | null> => {
       const locked = await lockReview(tx, userId, reviewId);
       if (!locked) return { ok: false, kind: "not_found" };
+      await lockObjective(tx, userId, locked.objective_id);
       const raw = (await getReviewFacts(tx, userId, {
         reviewId,
       })) as ObjectiveReviewFacts;
