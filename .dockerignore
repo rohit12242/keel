@@ -4,6 +4,8 @@ node_modules
 .github
 infra
 docs
+# The contract page serves the contract itself (I-02), so the image needs it.
+!docs/keel-api.yaml
 coverage
 npm-debug.log*
 .env
