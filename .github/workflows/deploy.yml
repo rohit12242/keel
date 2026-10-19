@@ -154,10 +154,12 @@ jobs:
       - name: Smoke check (/health app + database)
         run: |
           set -euo pipefail
-          ALB=$(aws elbv2 describe-load-balancers --names keel \
-            --query 'LoadBalancers[0].DNSName' --output text)
+          # Through CloudFront: the ALB refuses direct calls (ADR-006 R4).
+          CF=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='keel'].DomainName | [0]" \
+            --output text)
           for i in $(seq 1 10); do
-            BODY=$(curl -s --max-time 10 "http://$ALB/health" || true)
+            BODY=$(curl -s --max-time 10 "https://$CF/health" || true)
             echo "attempt $i: $BODY"
             if echo "$BODY" | grep -q '"app":"ok"' && echo "$BODY" | grep -q '"database":"ok"'; then
               echo "smoke check passed"

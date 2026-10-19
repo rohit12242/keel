@@ -72,3 +72,16 @@ when an operation has no row in `authorization.itest.ts`. Plan step 6 called for
 checking that once by hand — remove a row, watch the test fail, put it back — and it
 was not done. Until it is, a passing coverage test proves less than it appears to.
 Ten minutes; no code changes unless the test does not fail.
+
+### The origin leg is plain HTTP until there is a domain · found in T-07
+
+HTTPS reaches the deployed service through CloudFront on its default
+`*.cloudfront.net` certificate (ADR-006 revision 4). Two gaps against NFR-11 remain,
+both stated in the ADR: CloudFront talks to the ALB over plain HTTP, across a public
+address, carrying the session cookie and entry text; and the viewer leg's TLS floor is
+fixed at 1.0. Both close the same way: register a domain, put an ACM certificate on
+the ALB (`origin_protocol_policy = "https-only"`), and serve the domain from
+CloudFront on a custom certificate under `TLSv1.2_2021`. Cognito's callback and
+`APP_BASE_URL` move with it. ADR-006 makes this the gate before any real user's data
+goes in.
+

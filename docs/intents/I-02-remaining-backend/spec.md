@@ -19,6 +19,14 @@ changed four of them; those changes are in the same commit.
   clear (NFR-11). ADR-006 made this the precondition for sign-in, and the deployment
   is still HTTP-only today.
 
+  > **Amended 2026-10-19, after I-02 shipped (ADR-006 revision 4, on Rohit's
+  > decision).** HTTPS arrives through CloudFront on its default certificate, not on a
+  > registered domain. Viewer to CloudFront is HTTPS, with a TLS 1.0 floor that
+  > cannot be raised; CloudFront to the ALB is plain HTTP. So "no credential and no
+  > entry crosses the wire in clear" holds on the viewer's network and not on the
+  > origin leg: NFR-11 is knowingly unmet until a domain and an ACM certificate close
+  > it (TRIAGE). No real user's data goes in before then.
+
 **The contract, usable from a browser**
 
 - Every operation is served under `/v1`, as the contract's `servers` says — the six

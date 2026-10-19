@@ -2,6 +2,12 @@
 
 **Decision:** S1-E · **Story:** W3-17 · **Status:** Decided · **Date:** 2026-09-17
 
+> **Revision 4 — TLS through CloudFront, no domain.** R3's domain was never
+> registered, so the deployment stayed HTTP-only. CloudFront's default
+> certificate now works on this account, and it gives HTTPS **between the viewer
+> and AWS**. It does not give it between CloudFront and the ALB: that leg is
+> plain HTTP, which **does not meet NFR-11**. See *TLS through CloudFront*.
+>
 > **Revision 3 — TLS.** R2 specified TLS at the ALB but never said where the
 > certificate comes from, and on this account there was no working path. Resolved
 > by registering a domain; see *TLS and the certificate*. Found by trying to
@@ -40,7 +46,7 @@ provisioned with Terraform, deployed by GitHub Actions through an OIDC role.**
 | Concern | Choice |
 |---|---|
 | Compute | ECS Fargate task, image from ECR |
-| Ingress and TLS | Application Load Balancer, ACM certificate on a registered domain |
+| Ingress and TLS | CloudFront on its default certificate, in front of an Application Load Balancer that admits only CloudFront (R4) |
 | Database | RDS Postgres, `db.t4g.micro` |
 | Configuration and secrets | SSM Parameter Store |
 | Infrastructure as code | **Terraform** |
@@ -119,6 +125,69 @@ wire, HTTP is a defect, not a shortcut.
 
 Recorded this way so that "we were going to fix that" has a date attached rather
 than a good intention.
+
+## TLS through CloudFront — added in revision 4
+
+R3 chose a registered domain. It was never registered, so the service stayed on
+plain HTTP at the ALB's own name. CloudFront, which R3 recorded as blocked
+pending account verification, was tried again and accepted.
+
+**Decision: CloudFront in front of the ALB, on CloudFront's default
+`*.cloudfront.net` certificate.**
+
+- The public URL is `https://<id>.cloudfront.net`. Plain HTTP there redirects to
+  HTTPS.
+- Nothing is cached. Every method passes through, and so do all cookies, query
+  strings and viewer headers, Authorization included. Host is forwarded, so the
+  app sees the public hostname. `CloudFront-Forwarded-Proto` says the viewer
+  used HTTPS; the ALB's `X-Forwarded-Proto` will say `http`, because that is the
+  leg the ALB saw. Anything that decides on the scheme, such as a `Secure`
+  cookie, must read CloudFront's header, not the ALB's.
+- The ALB admits only the AWS-managed CloudFront origin-facing prefix list. Its
+  listener forwards only requests carrying a secret header that CloudFront adds,
+  and refuses the rest with 403. The prefix list admits *any* CloudFront
+  distribution; the header is what makes it ours. The secret lives in Terraform
+  state, which is encrypted in S3.
+- The target group's `/health` check is the ALB calling the task directly, so
+  it is unaffected. The deploy smoke check and the runbook use the CloudFront
+  URL, because the ALB refuses a direct call.
+
+### What this does not give — stated plainly
+
+**The CloudFront → ALB leg is plain HTTP.** The ALB has no certificate,
+because ACM issues certificates only for names we control, and an ALB's DNS name
+is not one. The ALB is internet-facing, so that leg runs to a public address. It
+is not guaranteed to stay on AWS's private network. It carries the session
+cookie, the Authorization header and any entry text in the clear.
+
+**The viewer leg's floor is TLS 1.0.** On the default certificate, CloudFront
+fixes the security policy at `TLSv1`, and it cannot be raised. Current browsers
+negotiate TLS 1.2 or 1.3, but the server does not *refuse* older versions.
+
+**Against NFR-11** ("TLS 1.2+ in transit"), both are misses:
+
+| Leg | Encrypted | TLS 1.2+ enforced | NFR-11 |
+|---|---|---|---|
+| Viewer → CloudFront | Yes | No — floor is TLS 1.0 | Not met as written |
+| CloudFront → ALB | **No** | — | **Not met** |
+| ALB → task | No, inside the VPC | — | Unchanged from R2 |
+| Task → RDS | Yes (`sslmode=no-verify`) | — | Unchanged |
+
+This closes the leg that crosses networks nobody here controls, such as café
+Wi-Fi and the ISP. That is where interception is cheapest. It does not close the
+one NFR-11 names.
+
+### Where it ends
+
+**Both gaps close the same way: a name we control.** With a domain, ACM issues a
+certificate for the ALB, so the origin leg becomes `https-only`. CloudFront can
+then serve the same domain on a custom certificate under `TLSv1.2_2021`. R3's
+reasoning for a domain still stands. R4 only removes the wait for one.
+
+**R3's gate on E-06 is restated, not relaxed.** E-06 may build and test
+authentication behind this arrangement. **No real user's credential or entry
+goes in until the origin leg is encrypted.** Until then, the deviation from
+NFR-11 is recorded here with its end condition, rather than discovered later.
 
 ## Controlling the cost, since the ALB does not pause
 
@@ -221,6 +290,9 @@ task and the database sit in the same VPC, so there is no reason to.
   back on the table as a cheaper option.
 - **E-06 begins.** HTTPS must be in place before authentication or any real entry
   exists. If it is not, that is the story that blocks, not a note to carry.
+- **The first real user's data is about to go in** (R4). The CloudFront → ALB
+  leg must be encrypted first, which means a domain and an ACM certificate on the
+  ALB. Until then NFR-11 is knowingly unmet on that leg.
 - Destroying and recreating the environment proves harder than described. That
   means the Terraform is incomplete, and it is the one failure that undermines
   every cost control here.
