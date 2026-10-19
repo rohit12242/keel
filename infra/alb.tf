@@ -23,20 +23,26 @@ resource "aws_lb_target_group" "app" {
   }
 }
 
+# Only CloudFront reaches this listener (see the security group), and only a
+# request carrying CloudFront's secret header is forwarded; anything else is
+# refused. The target group's /health check is the ALB calling the task
+# directly, so it does not pass through here.
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.app.arn
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Forbidden"
+      status_code  = "403"
+    }
   }
 }
 
-# Forwards requests carrying CloudFront's secret header. While the listener's
-# default action also forwards, this changes nothing; it exists so the default
-# can become a 403 without a gap.
+# Forwards requests carrying CloudFront's secret header — the only way in.
 resource "aws_lb_listener_rule" "from_cloudfront" {
   listener_arn = aws_lb_listener.http.arn
   priority     = 1

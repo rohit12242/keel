@@ -24,7 +24,7 @@ red smoke check only turns the run red. So if a deploy goes red, check
 | Migration task | `keel-migrate` |
 | ECR repo | `925513250944.dkr.ecr.us-east-1.amazonaws.com/keel` |
 | Deploy role | `arn:aws:iam::925513250944:role/keel-deploy-role` |
-| Health check | `http://keel-438695349.us-east-1.elb.amazonaws.com/health` |
+| Health check | `https://d2if31afu8lhjr.cloudfront.net/health` (through CloudFront; the load balancer refuses direct calls) |
 
 The service always runs the image tagged `:latest`. A release builds
 `keel:<sha>` (the commit's first 12 characters), pushes it as `:latest` too, and
@@ -209,7 +209,7 @@ manual deploy above), then:
 **Did it work?** One command — you want `app` and `database` both `ok`:
 
 ```
-curl -s http://keel-438695349.us-east-1.elb.amazonaws.com/health
+curl -s https://d2if31afu8lhjr.cloudfront.net/health
 ```
 
 Expected: `{"status":"ok","app":"ok","database":"ok", ...}`. If `database` is
