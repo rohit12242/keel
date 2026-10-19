@@ -28,16 +28,9 @@ variable "migrate_image_tag" {
   default = "migrate"
 }
 
-# Used by the Today page's internal fetch to /day; localhost works inside the
-# container. Public URL is the ALB.
-variable "app_base_url" {
-  type    = string
-  default = "http://localhost:3000"
-}
-
-# Where Cognito may send the browser back. Localhost only until the service
-# has an HTTPS address (I-02 step 30): Cognito accepts plain HTTP for
-# localhost and nothing else.
+# Where Cognito may also send the browser back, besides the CloudFront URL
+# (cognito.tf adds that): localhost, for signing in from `npm run dev`.
+# Cognito accepts plain HTTP for localhost and nothing else.
 variable "cognito_callback_urls" {
   type    = list(string)
   default = ["http://localhost:3000/v1/session/callback"]

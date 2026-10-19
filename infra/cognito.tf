@@ -54,8 +54,15 @@ resource "aws_cognito_user_pool_client" "app" {
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["openid", "email"]
   supported_identity_providers         = ["COGNITO"]
-  callback_urls                        = var.cognito_callback_urls
-  logout_urls                          = var.cognito_logout_urls
+  # The deployed service's HTTPS address, and localhost for development.
+  callback_urls = concat(
+    ["https://${aws_cloudfront_distribution.app.domain_name}/v1/session/callback"],
+    var.cognito_callback_urls,
+  )
+  logout_urls = concat(
+    ["https://${aws_cloudfront_distribution.app.domain_name}/"],
+    var.cognito_logout_urls,
+  )
 
   # No username/password API flow: sign-in happens only on the hosted pages.
   explicit_auth_flows           = ["ALLOW_REFRESH_TOKEN_AUTH"]

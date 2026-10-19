@@ -6,9 +6,9 @@ output "alb_dns_name" {
   value = aws_lb.main.dns_name
 }
 
-# STEP 1 public URL (HTTP-only until CloudFront/HTTPS is unblocked).
+# The public URL: HTTPS through CloudFront (ADR-006 R4).
 output "app_url" {
-  value = "http://${aws_lb.main.dns_name}"
+  value = "https://${aws_cloudfront_distribution.app.domain_name}"
 }
 
 output "cluster_name" {

@@ -23,9 +23,10 @@ resource "aws_ecs_task_definition" "app" {
       essential    = true
       portMappings = [{ containerPort = 3000, protocol = "tcp" }]
       environment = [
-        { name = "APP_BASE_URL", value = var.app_base_url },
+        # The public HTTPS address: the sign-in redirect is built from it, and
+        # the Today page fetches the API through it (ADR-006 R4).
+        { name = "APP_BASE_URL", value = "https://${aws_cloudfront_distribution.app.domain_name}" },
         { name = "LOG_LEVEL", value = "info" },
-        { name = "SEED_DATA", value = "false" },
       ]
       # DATABASE_URL, SESSION_SECRET and the Cognito values injected from SSM
       # at launch (never in the task definition as plaintext).

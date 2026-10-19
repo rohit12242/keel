@@ -33,3 +33,23 @@ resource "aws_lb_listener" "http" {
     target_group_arn = aws_lb_target_group.app.arn
   }
 }
+
+# Forwards requests carrying CloudFront's secret header. While the listener's
+# default action also forwards, this changes nothing; it exists so the default
+# can become a 403 without a gap.
+resource "aws_lb_listener_rule" "from_cloudfront" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 1
+
+  condition {
+    http_header {
+      http_header_name = local.origin_verify_header
+      values           = [random_password.origin_verify.result]
+    }
+  }
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+}
