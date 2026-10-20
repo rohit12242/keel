@@ -949,8 +949,10 @@ paths:
       tags: [Parking lot]
       summary: Give or change a verdict
       description: |
-        Append-only. Reviving a dropped idea adds a row rather than editing one,
-        which is what lets a review show the verdict as it stood at the time.
+        Append-only, which is what lets a review show the verdict as it stood at
+        the time. The lock does not refuse a verdict: one given before
+        `locked_until` is recorded as early (`docs/domain/parking-lock.md`).
+        Dropped is final.
       operationId: createParkedIdeaVerdict
       parameters:
         - name: ideaId
@@ -973,7 +975,10 @@ paths:
                     objective from it (`from_parked_idea_id`), which writes the
                     `taken` row itself.
                 occurred_on: { type: string, format: date, description: 'The day, in the user''s zone. Stored as sent.' }
-                note: { type: string, maxLength: 2000 }
+                note:
+                  type: string
+                  maxLength: 2000
+                  description: Why it ended. Required when `verdict` is `dropped`.
       responses:
         '201':
           description: Recorded.
@@ -985,15 +990,16 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: |
-            The idea has been taken. It became an objective, and the objective is
-            the record of it from then on; its verdict does not change again.
+            The idea's verdict is final: it was dropped, or it was taken and became
+            an objective, which is the record of it from then on.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
         '422':
           description: |
-            The idea is still locked. A verdict before the lock lifts is the one
-            thing the parking lot exists to prevent.
+            `dropped` was sent without a `note` saying why, or `occurred_on` is in
+            the future. A locked idea is not an error — the verdict is recorded as
+            early.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -1498,9 +1504,11 @@ components:
           type: [string, 'null']
           format: uuid
           description: Computed — the objective whose `from_parked_idea_id` names this idea. Not stored on the idea.
-        taken_early:
+        decided_early:
           type: boolean
-          description: Computed — taken before `locked_until`. False unless the verdict is `taken`.
+          description: |
+            Computed — the current verdict was given before `locked_until`. Always
+            false while the idea is parked.
 
     ReviewWrite:
       type: object

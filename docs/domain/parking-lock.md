@@ -1,8 +1,8 @@
 # Domain rule — the parking lock
 
-**Intent:** I-02 · **Layer:** `src/**/domain/**` — pure, no I/O.
+**Intent:** I-02, revised in I-03 · **Layer:** `src/**/domain/**` — pure, no I/O.
 
-How long a parked idea stays locked, and what the lock refuses. The contract says
+How long a parked idea stays locked, and what being locked means. The contract says
 only that "the lock length is set by the server"; this is the rule it sets. It is
 read off the Parking lot and New objective designs, where it was drawn but never
 written down.
@@ -44,14 +44,26 @@ This is the one place a date derived from the plan is stored rather than recompu
 and it is deliberate: the lock is a commitment made at the moment of parking, not a
 figure about the plan.
 
-## What the lock refuses, and what it does not
+## The lock records; it does not refuse
 
-| While locked | |
-|---|---|
-| A verdict — `parked` or `dropped` | **Refused** (`422`). Judging an idea before the lock lifts is the one thing the parking lot exists to prevent. |
-| Taking it — creating an objective from it | **Allowed.** The design shows an idea *"promoted before its unlock date"* and labels it *early*. Committing to an idea is a decision the lock does not forbid; judging it in a hurry is. |
+**No decision is refused because an idea is locked.** Dropping an idea or taking it
+while it is locked is allowed, and recorded as **early**. The approved design says
+it plainly: *"Taking it or dropping it before then is recorded as early, not
+blocked."* *(Revised in I-03. Until then a verdict was refused with `422` while the
+idea was locked, and only taking it was allowed.)*
 
-**Early** is computed, never stored: an idea was taken early when its `taken`
-verdict's date is before its `locked_until`.
+The lock's job is to make a hurried decision **visible**, not to prevent it. A dropped
+idea that reads *Dropped · early* says something about you that a refused request
+never would.
+
+**Early** is computed, never stored: a decision is early when its verdict's
+`occurred_on` is before the idea's `locked_until`. The response carries it for the
+idea's current verdict (`decided_early`); a parked idea is never early.
+
+## Dropped and taken are final
+
+Once an idea is dropped or taken, its verdict never changes again (ERD,
+invariant 13). Dropping always says why — the verdict's `note` is required — because
+the pair *why it grabbed you* and *why it ended* is what the parking lot is for.
 
 `locked` on the response is computed against today in the user's zone.

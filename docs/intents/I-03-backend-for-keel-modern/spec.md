@@ -21,7 +21,8 @@ at them rather than repeating them.
   or to Dropped.
 - Only an approved idea can be started as an objective, and starting one is what makes
   it Taken.
-- Taken and Dropped are final. Neither changes again; both still take notes.
+- Taken and Dropped are final. Neither changes again; both still take notes. Dropping
+  always says why.
 - The lock no longer refuses a decision. Approving, dropping or taking an idea before
   it opens is allowed, and recorded as early.
 
