@@ -1,6 +1,6 @@
 # Keel — entity model and invariants
 
-Sprint 00 · Story W2-09 · **Revision 5** · 11 entities, 17 invariants, 0 stored aggregates
+Sprint 00 · Story W2-09 · **Revision 5** · 13 entities, 17 invariants, 0 stored aggregates
 
 Built against the current 15 screens. **NFR-06 (offline logging) is out of scope for v1.**
 
@@ -14,6 +14,9 @@ I-03 brought the parking lot to the approved design.
   invariant 13 says so. Dropping requires a note saying why.
 - **`approved` is a new verdict.** It sits between parked and taken: only an approved
   idea can become an objective.
+- **Notes are new:** `objective_note` and `parked_idea_note`, append-only lists on an
+  objective and on a parked idea, open in every state. The entity count went from 11
+  to 13.
 
 ## What revision 4 changed
 
@@ -87,11 +90,13 @@ erDiagram
     OBJECTIVE ||--o{ EFFORT_ENTRY : receives
     OBJECTIVE ||--o{ REVIEW : "is reviewed by"
     OBJECTIVE ||--o{ STATUS_EVENT : "changes through"
+    OBJECTIVE ||--o{ OBJECTIVE_NOTE : "is noted in"
     REVIEW |o--o{ PLAN_SEGMENT : extends
     REVIEW |o--o{ DEVIATION : judges
     REVIEW |o--o| REVIEW : answers
     DEVIATION_PATTERN |o--o{ DEVIATION : classifies
     PARKED_IDEA ||--o{ PARKED_IDEA_VERDICT : "is judged by"
+    PARKED_IDEA ||--o{ PARKED_IDEA_NOTE : "is noted in"
     PARKED_IDEA |o--o| OBJECTIVE : becomes
 ```
 
@@ -199,6 +204,18 @@ erDiagram
         text note
         date occurred_on
     }
+    OBJECTIVE_NOTE {
+        uuid id PK
+        uuid objective_id FK
+        date written_on
+        text text
+    }
+    PARKED_IDEA_NOTE {
+        uuid id PK
+        uuid parked_idea_id FK
+        date written_on
+        text text
+    }
     STATUS_EVENT {
         uuid id PK
         uuid objective_id FK
@@ -216,11 +233,13 @@ erDiagram
     OBJECTIVE ||--o{ EFFORT_ENTRY : receives
     OBJECTIVE ||--o{ REVIEW : "is reviewed by"
     OBJECTIVE ||--o{ STATUS_EVENT : "changes through"
+    OBJECTIVE ||--o{ OBJECTIVE_NOTE : "is noted in"
     REVIEW |o--o{ PLAN_SEGMENT : extends
     REVIEW |o--o{ DEVIATION : judges
     REVIEW |o--o| REVIEW : answers
     DEVIATION_PATTERN |o--o{ DEVIATION : classifies
     PARKED_IDEA ||--o{ PARKED_IDEA_VERDICT : "is judged by"
+    PARKED_IDEA ||--o{ PARKED_IDEA_NOTE : "is noted in"
     PARKED_IDEA |o--o| OBJECTIVE : becomes
 ```
 
@@ -362,6 +381,24 @@ The lock is a commitment, not a gate. It does not stop a decision; it records wh
 | note | text null | "Why it ended." **Required when the verdict is `dropped`.** Written once, with the row. |
 | occurred_on | date | Current verdict = the latest row. *Status then* = the latest row on or before the review's period end. |
 
+### Notes — `objective_note`, `parked_idea_note`
+
+A line you add later — to an objective, or to a parked idea. Two tables with the same
+shape rather than one table with two nullable parents, so every row has exactly one
+owner and a foreign key that says which.
+
+| Column | Type | Why |
+|---|---|---|
+| id | uuid PK |  |
+| objective_id / parked_idea_id | uuid FK | The parent. Ownership travels through it, so there is no `user_id` — the `status_event` reasoning. |
+| written_on | date | The day you wrote it, in your zone, sent by the client (NFR-12). |
+| text | text | Short: the design holds it to 120 characters; the contract's outer bound is 2000. |
+
+**Append-only, and open in every state.** A note is never edited or deleted, and one
+can be added after the objective is completed or terminated, or the idea dropped or
+taken — the parent being final is exactly when a note is worth writing. A note is not
+the drop reason: that is part of the decision, and lives on the `dropped` verdict row.
+
 ### Deviation pattern — `deviation_pattern`
 
 A named shape you recognise — "Planning instead of doing". The "3 before" count is computed, never stored.
@@ -425,7 +462,7 @@ the address, so reconnecting the two is an operator's decision (`docs/runbook.md
 
 ## Invariants
 
-1. **Ownership.** Every plan segment, effort entry, review and status event belongs to exactly one objective, and every objective, deviation, parked idea and pattern belongs to exactly one user. Every objective a deviation names belongs to the deviation's own user. No row is reachable without passing through a user. *(NFR-10)*
+1. **Ownership.** Every plan segment, effort entry, review, status event and objective note belongs to exactly one objective; every verdict and note on a parked idea belongs to exactly one parked idea; and every objective, deviation, parked idea and pattern belongs to exactly one user. Every objective a deviation names belongs to the deviation's own user. No row is reachable without passing through a user. *(NFR-10)*
 2. **The day never moves.** An effort entry's `local_date` is set when it is written and never changes — not when the user travels, not across a daylight-saving boundary, not when the row is edited. *(NFR-12)*
 3. **The schedule lives on the segment.** An objective has no schedule and no end date of its own. Its current end date is the end date of its latest segment; its original end date is segment 0's. Neither is stored, so neither can disagree with the segments.
 4. **Segments are contiguous and never overlap.** Segment *n* starts the day after segment *n−1* ends. No two segments of one objective cover the same date, and there are no gaps.
@@ -441,7 +478,7 @@ the address, so reconnecting the two is an operator's decision (`docs/runbook.md
 14. **One draft, and it holds no figures.** At most one draft review per objective and period; saving replaces it. A draft stores answers only — adherence, totals, the per-day bars and deviation costs are recomputed every time the review is opened.
 15. **Nothing is ever counted twice.** No adherence, total, streak, extension count or sequence number is stored anywhere. Every figure on every screen — including "longest streak", "review 7 of the plan" and "the sentence that repeats" — is computed at read time. *(NFR-09)*
 16. **Every objective starts with a `created` event.** An objective's status is the latest status event, so an objective with no events has no status rather than a default one. The `created` event is written in the same transaction as the objective, and the W4-10 migration backfills one for every objective that predates `status_event`. A read that meets an objective with no events therefore fails loudly: the stored facts are malformed, and substituting `active` would hide it. *(ADR-008)*
-17. **Nothing is deleted.** There is no delete for an objective, a review, a deviation or a parked idea. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
+17. **Nothing is deleted.** There is no delete for an objective, a review, a deviation, a parked idea or a note. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
 
 ## Modelling calls worth challenging
 

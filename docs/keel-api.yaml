@@ -445,6 +445,37 @@ paths:
         '500': { $ref: '#/components/responses/MalformedRecord' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /objectives/{objectiveId}/notes:
+    post:
+      tags: [Objectives]
+      summary: Add a note to an objective
+      description: |
+        Append-only: a note is never edited or deleted. Open in every state,
+        including after an objective has reached a final one.
+      operationId: createObjectiveNote
+      parameters:
+        - { $ref: '#/components/parameters/objectiveId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NoteWrite' }
+      responses:
+        '201':
+          description: Added.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Note' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: '`written_on` is in the future.'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   /objectives/{objectiveId}/status-changes:
     post:
       tags: [Objectives]
@@ -1006,6 +1037,40 @@ paths:
               schema: { $ref: '#/components/schemas/Problem' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /parked-ideas/{ideaId}/notes:
+    post:
+      tags: [Parking lot]
+      summary: Add a note to a parked idea
+      description: |
+        Append-only: a note is never edited or deleted. Open in every state,
+        including after a parked idea has reached a final one.
+      operationId: createParkedIdeaNote
+      parameters:
+        - name: ideaId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NoteWrite' }
+      responses:
+        '201':
+          description: Added.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Note' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: '`written_on` is in the future.'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -1338,7 +1403,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ObjectiveSummary'
         - type: object
-          required: [why_now, success_criteria, segments, status_history]
+          required: [why_now, success_criteria, segments, status_history, notes]
           properties:
             description: { type: string }
             why_now: { type: string }
@@ -1356,10 +1421,29 @@ components:
                 Status events and extensions merged by date. The two are stored
                 separately and joined for display, never written twice.
               items: { $ref: '#/components/schemas/StatusEvent' }
+            notes:
+              type: array
+              description: Oldest first. Returned with the objective, so reading notes is not a second call.
+              items: { $ref: '#/components/schemas/Note' }
             criteria_verdict:
               type: [string, 'null']
               enum: [met, partly_met, not_met, null]
               description: From the final plan-end review. Derived.
+
+    NoteWrite:
+      type: object
+      required: [written_on, text]
+      properties:
+        written_on: { type: string, format: date, description: 'The day, in the user''s zone. Stored as sent.' }
+        text: { type: string, minLength: 1, maxLength: 2000 }
+
+    Note:
+      allOf:
+        - $ref: '#/components/schemas/NoteWrite'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
 
     StatusEvent:
       type: object
@@ -1492,7 +1576,7 @@ components:
 
     ParkedIdea:
       type: object
-      required: [id, idea, why, caught_on, locked_until, verdict, locked]
+      required: [id, idea, why, caught_on, locked_until, verdict, locked, notes]
       properties:
         id: { type: string, format: uuid }
         idea: { type: string }
@@ -1500,6 +1584,10 @@ components:
         caught_on: { type: string, format: date }
         locked_until: { type: string, format: date }
         locked: { type: boolean, description: 'Computed against today.' }
+        notes:
+          type: array
+          description: Oldest first. Returned on every idea in the list, so the parking lot is one read.
+          items: { $ref: '#/components/schemas/Note' }
         verdict: { type: string, enum: [parked, approved, taken, dropped], description: 'The latest verdict row.' }
         note: { type: [string, 'null'] }
         became_objective_id:
