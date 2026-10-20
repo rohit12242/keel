@@ -12,6 +12,8 @@ I-03 brought the parking lot to the approved design.
   allowed and recorded as early (`docs/domain/parking-lock.md`).
 - **Dropped and taken are final.** A dropped idea can no longer be revived;
   invariant 13 says so. Dropping requires a note saying why.
+- **`approved` is a new verdict.** It sits between parked and taken: only an approved
+  idea can become an objective.
 
 ## What revision 4 changed
 
@@ -235,7 +237,7 @@ What you committed to. Note what is *not* here: no schedule, no end date. Those 
 | title / description / why_now / success_criteria | text | From the New objective screen. |
 | plan_link | text null | The external spreadsheet. Keel stores the link, never the plan. |
 | review_cadence | enum('weekly','monthly') | A plan-end review is always created regardless of cadence. |
-| from_parked_idea_id | uuid null FK | Drives the "FROM PARKING LOT" badge on the objectives list. **The only pointer between an idea and the objective it became.** Taking an idea *is* creating an objective from it: the `taken` verdict row is written in the same transaction, and nowhere else. |
+| from_parked_idea_id | uuid null FK | Drives the "FROM PARKING LOT" badge on the objectives list. **The only pointer between an idea and the objective it became.** Taking an idea *is* creating an objective from it, and only an `approved` idea can be taken: the `taken` verdict row is written in the same transaction, and nowhere else. |
 | — not stored — |  | **Current status** is the latest status event — there is no status column (ADR-008). **Current end date** is the latest segment's end. **Original end date** is segment 0's end. **Extension count** is a row count. **The plan slots** for any date range. All derived. |
 
 ### Plan segment — `plan_segment`
@@ -356,7 +358,7 @@ The lock is a commitment, not a gate. It does not stop a decision; it records wh
 |---|---|---|
 | id | uuid PK |  |
 | parked_idea_id | uuid FK |  |
-| verdict | enum('parked','taken','dropped') |  |
+| verdict | enum('parked','approved','taken','dropped') | `parked` ↔ `approved` freely; either → `dropped`; only `approved` → `taken`. |
 | note | text null | "Why it ended." **Required when the verdict is `dropped`.** Written once, with the row. |
 | occurred_on | date | Current verdict = the latest row. *Status then* = the latest row on or before the review's period end. |
 
@@ -435,7 +437,7 @@ the address, so reconnecting the two is an operator's decision (`docs/runbook.md
 10. **Slots follow the status.** A generated slot exists only for dates inside its segment and only for stretches the objective was active, according to its status events. Pausing suppresses slots for the paused stretch; resuming produces them again. Effort logged while paused is covered by no slot and therefore counts as extra. Because slots are derived, this can no longer drift from the status history — it *is* the status history *(ADR-008)*.
 11. **A deviation names the objectives it pulled you off.** At least one, chosen by you; one deviation can name several. A review shows the deviations that **name its objective** and whose `local_date` falls inside its period, so a deviation naming three objectives appears in all three of their reviews — by choice, not by accident. *(Revision 4, your answer; it replaces the earlier one, where a deviation named no objective.)*
 12. **Only chosen deviations are judged.** A verdict may exist only on a deviation of kind `chosen`, and must name the review that gave it — a review of one of the objectives the deviation names. The first such review to judge it gives the verdict; the others show it. Verdict and `verdict_review_id` are null together or set together. Once saved, a later review never changes it. *(NFR-01)*
-13. **Verdicts accumulate, they do not overwrite.** A parked idea's verdict history is append-only. The current verdict is the latest row; the verdict a review shows is the latest row on or before that review's period end. **Dropped and taken are final:** once an idea's latest row is either, no row follows it. *(NFR-01; revision 5 — a dropped idea used to be revivable.)*
+13. **Verdicts accumulate, they do not overwrite.** A parked idea's verdict history is append-only. The current verdict is the latest row; the verdict a review shows is the latest row on or before that review's period end. **Parked and approved move freely; dropped and taken are final:** once an idea's latest row is either, no row follows it, and `taken` follows only `approved`. *(NFR-01; revision 5 — a dropped idea used to be revivable.)*
 14. **One draft, and it holds no figures.** At most one draft review per objective and period; saving replaces it. A draft stores answers only — adherence, totals, the per-day bars and deviation costs are recomputed every time the review is opened.
 15. **Nothing is ever counted twice.** No adherence, total, streak, extension count or sequence number is stored anywhere. Every figure on every screen — including "longest streak", "review 7 of the plan" and "the sentence that repeats" — is computed at read time. *(NFR-09)*
 16. **Every objective starts with a `created` event.** An objective's status is the latest status event, so an objective with no events has no status rather than a default one. The `created` event is written in the same transaction as the objective, and the W4-10 migration backfills one for every objective that predates `status_event`. A read that meets an objective with no events therefore fails loudly: the stored facts are malformed, and substituting `active` would hide it. *(ADR-008)*

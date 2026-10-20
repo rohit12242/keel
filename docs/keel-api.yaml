@@ -351,9 +351,9 @@ paths:
           description: |
             The schedule is inconsistent with its mode — weekdays given for a
             flexible schedule, or a day count for a fixed one — or the parked
-            idea named is not the caller's, or is not currently parked. A locked
-            idea **may** be taken; that is an early take, not an error
-            (`docs/domain/parking-lock.md`).
+            idea named is not the caller's, or is not **approved** — only an
+            approved idea can be taken. A locked one may be; that is an early
+            take, not an error (`docs/domain/parking-lock.md`).
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -969,11 +969,12 @@ paths:
               properties:
                 verdict:
                   type: string
-                  enum: [parked, dropped]
+                  enum: [parked, approved, dropped]
                   description: |
-                    `taken` is not sent here. An idea is taken by creating an
-                    objective from it (`from_parked_idea_id`), which writes the
-                    `taken` row itself.
+                    An idea moves between `parked` and `approved` freely, and from
+                    either to `dropped`. `taken` is not sent here: an approved idea
+                    is taken by creating an objective from it
+                    (`from_parked_idea_id`), which writes the `taken` row itself.
                 occurred_on: { type: string, format: date, description: 'The day, in the user''s zone. Stored as sent.' }
                 note:
                   type: string
@@ -1253,9 +1254,10 @@ components:
           type: [string, 'null']
           format: uuid
           description: |
-            Start this objective from a parked idea. Taking an idea *is* creating
-            an objective from it: the idea's `taken` verdict is written in the same
-            transaction as the objective, and there is no other way to take one.
+            Start this objective from an **approved** parked idea. Taking an idea
+            *is* creating an objective from it: the idea's `taken` verdict is
+            written in the same transaction as the objective, and there is no other
+            way to take one.
 
     Figures:
       type: object
@@ -1498,7 +1500,7 @@ components:
         caught_on: { type: string, format: date }
         locked_until: { type: string, format: date }
         locked: { type: boolean, description: 'Computed against today.' }
-        verdict: { type: string, enum: [parked, taken, dropped], description: 'The latest verdict row.' }
+        verdict: { type: string, enum: [parked, approved, taken, dropped], description: 'The latest verdict row.' }
         note: { type: [string, 'null'] }
         became_objective_id:
           type: [string, 'null']

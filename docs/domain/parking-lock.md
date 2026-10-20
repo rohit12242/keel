@@ -46,8 +46,8 @@ figure about the plan.
 
 ## The lock records; it does not refuse
 
-**No decision is refused because an idea is locked.** Dropping an idea or taking it
-while it is locked is allowed, and recorded as **early**. The approved design says
+**No decision is refused because an idea is locked.** Approving, dropping or taking
+an idea while it is locked is allowed, and recorded as **early**. The approved design says
 it plainly: *"Taking it or dropping it before then is recorded as early, not
 blocked."* *(Revised in I-03. Until then a verdict was refused with `422` while the
 idea was locked, and only taking it was allowed.)*
@@ -58,7 +58,8 @@ never would.
 
 **Early** is computed, never stored: a decision is early when its verdict's
 `occurred_on` is before the idea's `locked_until`. The response carries it for the
-idea's current verdict (`decided_early`); a parked idea is never early.
+idea's current verdict (`decided_early`) — approved, dropped or taken; a parked idea
+is never early.
 
 ## Dropped and taken are final
 
