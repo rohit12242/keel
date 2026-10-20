@@ -20,6 +20,27 @@ Checked against `docs/keel-api.yaml`, `docs/domain/*.md` and ADR-002 on 20 Oct 2
 | G12 | **Pause** needs a reason ("Why are you pausing?") | `reason` is optional on status changes. | The UI requires it; the contract may stay optional. Same for Terminate (`end`). | No |
 | G13 | **Undo** in the toast after Approve and Drop | Verdicts are append-only, and Dropped is final (decided in I-03). Nothing can be taken back once sent. | The UI holds the verdict request until the toast closes; Undo cancels it before it is sent. No backend change. *(Decided in I-03.)* | No |
 
+## Decided in I-03
+
+The table above is the gap as the design found it. This is how each was closed
+(`docs/intents/I-03-backend-for-keel-modern/`).
+
+| # | Decision |
+|---|---|
+| G1 | Out of I-03 — branding Cognito's managed login is not backend work. |
+| G2 | `POST /objectives/{objectiveId}/notes`; notes return inside the objective. Append-only, open in every state. |
+| G3 | `POST /parked-ideas/{ideaId}/notes`; notes return on every idea. A note is separate from the drop reason, which stays on the `dropped` verdict and is now required. |
+| G4 | `approved` verdict; only an approved idea can be taken. **Also changed:** the lock no longer refuses any decision — approving, dropping or taking early is recorded as early (`decided_early`) — and dropped and taken are final. |
+| G5 | `reasoning` required only for a `chosen` deviation (`422` otherwise). |
+| G6 | `improvement_answer` gains `not_tried`. |
+| G7 | Fields renamed for what they hold: `what_worked`, `what_got_in_the_way`, `what_changes_next` (quoted back as `previous_what_changes_next`). `review_summary` stays. |
+| G8 | `figures.over_target_minutes`; adherence stays capped (`docs/domain/adherence.md`, rule 7). |
+| G9 | Kept: the UI sends `completed`, or `continued` then an extension. |
+| G10 | `last_saved_at` on the review and in the reviews list. Autosave and the Save draft button both write the draft. |
+| G11 | Kept: no backend change. |
+| G12 | Kept: the UI requires the reason; the contract leaves it optional. |
+| G13 | Kept: the UI holds a verdict until its toast closes. |
+
 ## Names that differ (not gaps — map them in the UI)
 
 | Design says | Contract value |

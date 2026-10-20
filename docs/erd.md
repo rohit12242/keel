@@ -14,6 +14,10 @@ I-03 brought the parking lot to the approved design.
   invariant 13 says so. Dropping requires a note saying why.
 - **`approved` is a new verdict.** It sits between parked and taken: only an approved
   idea can become an objective.
+- **Reviews reflect in three fields** named for what they hold — `what_worked`,
+  `what_got_in_the_way`, `what_changes_next` — and the improvement answer gains
+  `not_tried`. A draft records when it was last saved. A drifted deviation has no
+  reasoning.
 - **Notes are new:** `objective_note` and `parked_idea_note`, append-only lists on an
   objective and on a parked idea, open in every state. The entity count went from 11
   to 13.
@@ -158,13 +162,15 @@ erDiagram
         uuid previous_review_id FK
         enum improvement_answer
         text improvement_answer_note
-        text what_went_right
-        text what_needs_improvement
+        text what_worked
+        text what_got_in_the_way
+        text what_changes_next
         text review_summary
         text criteria_assessment
         enum criteria_verdict
         enum outcome
         timestamptz saved_at
+        timestamptz last_saved_at
     }
     DEVIATION {
         uuid id PK
@@ -313,16 +319,18 @@ Per objective, per period. The three free-text fields are marked on screen as *r
 | period_start / period_end | date | Every figure on the screen covers this window only. |
 | due_on | date |  |
 | status | enum('draft','saved') | The draft is S24. At most one per objective and period. |
-| previous_review_id | uuid null FK | Whose `what_needs_improvement` this one answers. |
-| improvement_answer | enum('yes','partly','no') null | "Did it happen?" |
+| previous_review_id | uuid null FK | Whose `what_changes_next` this one answers. |
+| improvement_answer | enum('yes','partly','no','not_tried') null | "Did it work?" `not_tried` is its own finding: the change was never attempted, which says something different from "it didn't work". |
 | improvement_answer_note | text null |  |
-| what_went_right | text null | **Was missing.** From the plan spreadsheet. |
-| what_needs_improvement | text null | **Was missing.** This is the sentence the *next* review quotes back at you, and the one "the sentence that repeats" is detected from. |
+| what_worked | text null | What worked. |
+| what_got_in_the_way | text null | What got in the way. |
+| what_changes_next | text null | What changes next. The sentence the *next* review quotes back at you, and the one "the sentence that repeats" is detected from. |
 | review_summary | text null | **Was missing.** The one line shown in the reviews list. |
 | criteria_assessment | text null | **Was missing.** Plan-end only — "two of three, one still with notes open". A weekly review says explicitly that it does not assess this. |
 | criteria_verdict | enum('met','partly_met','not_met') null | **Was missing.** Plan-end only. Drives "Completed · partly met". |
 | outcome | enum('continued','completed','paused','ended') null | Plan-end only. |
 | saved_at | timestamptz null | Null while a draft. |
+| last_saved_at | timestamptz null | The last write to the draft — what "Draft saved · 5 Sep, 18:40" shows. A fact about the row, not a figure. |
 | — not stored — |  | Adherence, logged/target, planned days, target met, the per-day bars, deviation costs, "review 7 of the plan". All recomputed when the review is opened. |
 
 ### Deviation — `deviation`
@@ -337,7 +345,7 @@ objective's review that covered its date.)*
 | user_id | uuid FK | The owner. A deviation can name several objectives, so ownership cannot travel through one of them. |
 | local_date | date |  |
 | kind | enum('chosen','drifted') |  |
-| what_happened / reasoning / did_instead | text | Reasoning is recorded now and tested at review. |
+| what_happened / reasoning / did_instead | text | Reasoning is recorded now and tested at review. **`reasoning` is null on a drifted deviation and required on a chosen one** — drifting has no reasoning; a chosen deviation is the reasoning you will be judged against. |
 | minutes | int | The cost. Never subtracted from effort — a separate ledger. |
 | pattern_id | uuid null FK | Null means "a genuine one-off", which is a real answer. |
 | verdict | enum('worth_it','not_worth_it') null | Chosen deviations only. |

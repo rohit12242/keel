@@ -872,8 +872,9 @@ paths:
         '422':
           description: |
             An objective named is not yours, is not active, or has no plan segment
-            covering `local_date`; `local_date` is in the future; or the pattern
-            named does not exist. Each objective named must be one that could take
+            covering `local_date`; `local_date` is in the future; the pattern
+            named does not exist; or a `chosen` deviation came without its
+            reasoning. Each objective named must be one that could take
             effort on that day.
           content:
             application/problem+json:
@@ -1336,6 +1337,11 @@ components:
         planned_days_worked: { type: integer }
         target_met_days: { type: integer }
         extra_off_day_minutes: { type: integer }
+        over_target_minutes:
+          type: integer
+          description: |
+            Minutes logged above target on planned days, from the same pass
+            (`docs/domain/adherence.md`). Never in adherence, which stays capped.
 
     ScheduleGrid:
       type: object
@@ -1528,7 +1534,7 @@ components:
 
     DeviationWrite:
       type: object
-      required: [objective_ids, local_date, tz, kind, what_happened, reasoning, minutes]
+      required: [objective_ids, local_date, tz, kind, what_happened, minutes]
       properties:
         objective_ids:
           type: array
@@ -1540,7 +1546,11 @@ components:
         tz: { type: string }
         kind: { type: string, enum: [chosen, drifted] }
         what_happened: { type: string, minLength: 1, maxLength: 2000 }
-        reasoning: { type: string, minLength: 1, maxLength: 2000 }
+        reasoning:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Required when `kind` is `chosen`; a drifted deviation has none.
         did_instead: { type: string, maxLength: 2000 }
         minutes: { type: integer, minimum: 1, maximum: 1440 }
         pattern_id: { type: [string, 'null'], format: uuid, description: 'Null means a genuine one-off.' }
@@ -1603,10 +1613,17 @@ components:
     ReviewWrite:
       type: object
       properties:
-        improvement_answer: { type: [string, 'null'], enum: [yes, partly, no, null] }
+        improvement_answer:
+          type: [string, 'null']
+          enum: [yes, partly, no, not_tried, null]
+          description: Did last review's change work. `not_tried` is not `no` — the change was never attempted.
         improvement_answer_note: { type: [string, 'null'], maxLength: 2000 }
-        what_went_right: { type: [string, 'null'], maxLength: 4000 }
-        what_needs_improvement: { type: [string, 'null'], maxLength: 4000 }
+        what_worked: { type: [string, 'null'], maxLength: 4000 }
+        what_got_in_the_way: { type: [string, 'null'], maxLength: 4000 }
+        what_changes_next:
+          type: [string, 'null']
+          maxLength: 4000
+          description: The one the next review quotes back.
         review_summary: { type: [string, 'null'], maxLength: 1000 }
         criteria_assessment:
           type: [string, 'null']
@@ -1632,6 +1649,10 @@ components:
         period_end: { type: string, format: date }
         status: { type: string, enum: [draft, saved] }
         saved_at: { type: [string, 'null'], format: date-time }
+        last_saved_at:
+          type: [string, 'null']
+          format: date-time
+          description: When the draft was last written — the "Draft saved" time. Null until the first save.
         outcome: { type: [string, 'null'] }
         review_summary: { type: [string, 'null'] }
         adherence_pct: { type: [number, 'null'], description: 'Computed for the period.' }
@@ -1646,9 +1667,9 @@ components:
             objective_id: { type: string, format: uuid }
             due_on: { type: string, format: date }
             previous_review_id: { type: [string, 'null'], format: uuid }
-            previous_improvement_note:
+            previous_what_changes_next:
               type: [string, 'null']
-              description: Quoted back as "last week you said this needed improvement".
+              description: The previous saved review's `what_changes_next`, quoted back so this review can answer whether it worked.
             figures: { $ref: '#/components/schemas/Figures' }
             minutes_per_day:
               type: array

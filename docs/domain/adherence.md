@@ -40,6 +40,7 @@ Figures = {
   planned_days_worked:   integer
   target_met_days:       integer
   extra_off_day_minutes: integer
+  over_target_minutes:   integer
 }
 ```
 
@@ -72,6 +73,13 @@ in minutes, and it carries the days inside it the objective was active on.
    - *target met*: a day slot whose minutes reach its target; a week, its active days
      whose minutes reach the per-day target, capped at `target_days`.
 
+7. **Over target** = for each slot, the minutes logged on its active days **above the
+   slot's target** — what rule 3 does not credit. Never in adherence. *(I-03.)*
+
+So every minute logged lands in exactly one place:
+**logged = credited + over target + extra on off days.** A test that checks that sum
+catches any rule that counts a minute twice or loses one.
+
 The cap in 6 is the flexible schedule's version of rule 3: working five days of a
 three-day week is three planned days worked, not five.
 
@@ -81,12 +89,12 @@ three-day week is three planned days worked, not five.
 
 Fixed Mon–Fri, 60 minutes a day, one week (target 300 minutes, 5 planned days):
 
-| Logged | Credited | Adherence | Worked | Met | Extra |
-|---|---|---|---|---|---|
-| nothing | 0 | **0%** of 300 | 0 | 0 | 0 |
-| Mon 60, Tue 30 | 90 | **30%** | 2 | 1 | 0 |
-| Mon 120 | 60 (capped) | **20%** | 1 | 1 | 0 |
-| Mon 60, Sat 45 | 60 | **20%** | 1 | 1 | 45 |
+| Logged | Credited | Adherence | Worked | Met | Extra | Over |
+|---|---|---|---|---|---|---|
+| nothing | 0 | **0%** of 300 | 0 | 0 | 0 | 0 |
+| Mon 60, Tue 30 | 90 | **30%** | 2 | 1 | 0 | 0 |
+| Mon 120 | 60 (capped) | **20%** | 1 | 1 | 0 | 60 |
+| Mon 60, Sat 45 | 60 | **20%** | 1 | 1 | 45 | 0 |
 
 Flexible, 3 days a week, 60 minutes a day (one week: target 180, 3 planned days):
 
