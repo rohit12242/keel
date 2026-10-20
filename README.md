@@ -19,7 +19,7 @@ before the code.
 | `docs/keel-api.yaml` | OpenAPI 3.1 contract, written before the code |
 | `docs/adr/` | Architecture decision records |
 | `docs/intents/` | One folder per intent, and the triage queue |
-| `docs/design/` | Fifteen screen designs, and the same screens on one canvas |
+| `docs/design/` | Keel Modern design handoff: clickable prototype, tokens, screen specs, contract gaps |
 | `docs/flows.md` | Screen flow diagrams |
 | `docs/domain/` | Rules too long for the ERD — review windows |
 | `docs/contributing.md` | Branching, commit convention and the review gate |

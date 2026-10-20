@@ -1,0 +1,105 @@
+/*
+ * Keel Modern design tokens. Generated from the Keel Modern design system.
+ * Drop-in replacement for src/app/tokens.css (see docs/design/tokens.md for the
+ * old-to-new name map). Light is the default; dark applies when the user picks
+ * Dark (data-theme="dark" on <html>). Consume from CSS Modules; never hard-code hex.
+ */
+:root {
+  --bg: #F5F5F3;
+  --surface-side: #FAFAF9;
+  --surface: #FFFFFF;
+  --surface-row: #F7F7F5;
+  --surface-muted: #EEEEEB;
+  --line: #E6E6E2;
+  --line-control: #868991;
+  --track: #ECECE8;
+  --text: #16171A;
+  --text-2: #53565E;
+  --text-3: #686B73;
+  --accent: #6F42F8;
+  --accent-text: #5A2FE0;
+  --accent-tint: #F0EBFF;
+  --on-accent: #FFFFFF;
+  --kbd-line: rgba(255, 255, 255, 0.5);
+  --on-text: #FFFFFF;
+  --effort: #2B7449;
+  --effort-tint: #E6F3EB;
+  --deviation: #B93A33;
+  --deviation-tint: #FBEBEA;
+  --caution: #8A5D00;
+  --caution-tint: #FBF1DD;
+  --scrim: rgba(16, 17, 20, 0.32);
+  --shadow-card: 0 1px 2px rgba(16, 17, 20, 0.04), 0 6px 20px rgba(16, 17, 20, 0.05);
+  --shadow-thumb: 0 1px 2px rgba(16, 17, 20, 0.08);
+  --shadow-dialog: 0 2px 4px rgba(16, 17, 20, 0.04), 0 16px 40px rgba(16, 17, 20, 0.12);
+  --shadow-fab: 0 8px 20px rgba(111, 66, 248, 0.35);
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-18: 18px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --radius-xs: 4px;
+  --radius-sm: 7px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-panel: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-full: 999px;
+  --size-sidebar: 240px;
+  --size-rail: 320px;
+  --size-ring: 112px;
+  --size-ring-sm: 76px;
+  --size-fab: 60px;
+  --size-tabbar: 84px;
+  --size-avatar: 32px;
+  --size-target: 40px;
+  --size-bar: 8px;
+  --size-bar-sm: 6px;
+  --border-hairline: 1px;
+  --border-selected: 1.5px;
+  --border-focus: 2px;
+  --font-sans: Geist, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --font-brand: Spectral, Georgia, serif;
+}
+:root[data-theme="dark"] {
+  --bg: #0E0F11;
+  --surface-side: #121316;
+  --surface: #18191D;
+  --surface-row: #1E2024;
+  --surface-muted: #222428;
+  --line: #2A2C31;
+  --line-control: #6B6E76;
+  --track: #2A2C31;
+  --text: #EDEEF0;
+  --text-2: #B0B3BA;
+  --text-3: #9A9DA4;
+  --accent: #9B80FF;
+  --accent-text: #B4A0FF;
+  --accent-tint: #262040;
+  --on-accent: #0E0F11;
+  --kbd-line: rgba(14, 15, 17, 0.4);
+  --on-text: #0E0F11;
+  --effort: #5CCB93;
+  --effort-tint: #15291F;
+  --deviation: #F27D73;
+  --deviation-tint: #2F1A19;
+  --caution: #E2B455;
+  --caution-tint: #2E2510;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-thumb: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-dialog: 0 2px 4px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.5);
+  --shadow-fab: 0 8px 20px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
