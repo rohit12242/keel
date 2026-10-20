@@ -52,8 +52,6 @@ at them rather than repeating them.
 
 - Notes are scoped to the caller like everything else (NFR-10), and reading an
   objective or the parking lot with its notes does not fan out per row (NFR-03).
-- Nothing already recorded changes meaning: existing verdicts, reviews and deviations
-  read the same after this intent as before it.
 
 ## Out of scope
 
