@@ -48,6 +48,9 @@ at them rather than repeating them.
 - The final review offering only *Complete* or *Extend*, onboarding shown to a user
   with no objectives, and a required reason when pausing or terminating need nothing
   new from the backend.
+- **Undo** after a verdict needs nothing either: the UI holds the request until its
+  toast closes, and Undo cancels it before it is sent. A verdict that reached the
+  server is final.
 
 **Reading it all back**
 

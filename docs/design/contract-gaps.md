@@ -18,6 +18,7 @@ Checked against `docs/keel-api.yaml`, `docs/domain/*.md` and ADR-002 on 20 Oct 2
 | G10 | **Save draft** button with "Draft saved · 5 Sep, 18:40" | `PATCH /reviews/{id}` is described as autosave. | Do both: autosave on change, keep the button as an explicit save, show the last-saved time. | No |
 | G11 | **Onboarding** shows once, after an account is created | No user flag for "has onboarded". | Show it on the first sign-in callback when the user has **zero objectives** and hasn't skipped; remember a skip in a cookie. No contract change needed until it must follow the user across devices. | No |
 | G12 | **Pause** needs a reason ("Why are you pausing?") | `reason` is optional on status changes. | The UI requires it; the contract may stay optional. Same for Terminate (`end`). | No |
+| G13 | **Undo** in the toast after Approve and Drop | Verdicts are append-only, and Dropped is final (decided in I-03). Nothing can be taken back once sent. | The UI holds the verdict request until the toast closes; Undo cancels it before it is sent. No backend change. *(Decided in I-03.)* | No |
 
 ## Names that differ (not gaps — map them in the UI)
 
