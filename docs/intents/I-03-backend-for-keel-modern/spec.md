@@ -1,6 +1,6 @@
 # Spec — I-03 · Fit the backend to the Keel Modern design
 
-**Intent:** `intent.md` in this folder · **Status:** Drafted · **Written:** 2026-10-20
+**Intent:** `intent.md` in this folder · **Status:** Accepted · **Written:** 2026-10-20 · **Accepted:** 2026-10-20
 
 What the screens in `docs/design/` need from the backend, gap by gap
 (`docs/design/contract-gaps.md`). The design is in the repository; the contract, the

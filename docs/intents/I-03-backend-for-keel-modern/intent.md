@@ -1,6 +1,6 @@
 # I-03 — Fit the backend to the Keel Modern design
 
-**Author:** Rohit · **Status:** Drafted · **Raised:** 2026-10-20
+**Author:** Rohit · **Status:** Accepted · **Raised:** 2026-10-20 · **Accepted:** 2026-10-20
 
 ## Intent description
 
