@@ -1,6 +1,6 @@
 # Spec — I-04 · Sign in on Keel's own screens
 
-**Intent:** `intent.md` in this folder · **Status:** Drafted · **Written:** 2026-10-21
+**Intent:** `intent.md` in this folder · **Status:** Accepted · **Written:** 2026-10-21 · **Accepted:** 2026-10-21
 
 The design this needs is in the repository: ADR-002 (revised for this intent) and
 `docs/keel-api.yaml` (`POST /v1/session`). This file does not repeat them.
