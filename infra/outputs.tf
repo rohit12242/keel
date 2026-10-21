@@ -38,6 +38,12 @@ output "ssm_parameters" {
   ]
 }
 
+# The public client Keel's own screens use (I-04). Not secret: the browser
+# needs it. Locally, COGNITO_CLIENT_ID takes this value.
+output "cognito_web_client_id" {
+  value = aws_cognito_user_pool_client.web.id
+}
+
 # Built from the domain, not read back from SSM: a parameter's value is
 # marked sensitive, which an output may not show.
 output "cognito_domain" {
