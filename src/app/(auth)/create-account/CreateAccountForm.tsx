@@ -27,6 +27,7 @@ import {
   LengthMeter,
   PasswordInput,
   SubmitButton,
+  useFocusWhenIdle,
   useResendWait,
   useToast,
 } from "../ui";
@@ -69,6 +70,8 @@ export function CreateAccountForm() {
   const passwordRef = useRef<HTMLInputElement>(null);
   const agreeRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
+
+  const focusWhenIdle = useFocusWhenIdle(busy);
 
   useEffect(() => dropCarried(), []);
 
@@ -135,10 +138,10 @@ export function CreateAccountForm() {
           </>
         ),
       });
-      emailRef.current?.focus();
+      focusWhenIdle(emailRef);
     } else if (a.where === "password") {
       setErrors({ password: a.text });
-      passwordRef.current?.focus();
+      focusWhenIdle(passwordRef);
     } else {
       setAnswer(a);
     }
@@ -161,7 +164,7 @@ export function CreateAccountForm() {
     if (a.where === "code") {
       setErrors({ code: a.text });
       setReplaceCode(true);
-      setTimeout(() => codeRef.current?.select(), 0);
+      focusWhenIdle(codeRef, true);
     } else if (result.reason === "ExpiredCodeException") {
       setAnswer(a);
       await sendNewCode();

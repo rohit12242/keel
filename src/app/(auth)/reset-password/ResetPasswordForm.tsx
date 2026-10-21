@@ -21,6 +21,7 @@ import {
   LengthMeter,
   PasswordInput,
   SubmitButton,
+  useFocusWhenIdle,
   useResendWait,
   useToast,
 } from "../ui";
@@ -54,6 +55,8 @@ export function ResetPasswordForm() {
   const emailRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+
+  const focusWhenIdle = useFocusWhenIdle(busy);
 
   useEffect(() => dropCarried(), []);
 
@@ -106,18 +109,18 @@ export function ResetPasswordForm() {
     if (result.reason === "ExpiredCodeException") {
       // A new code goes out at once; the banner says to use the newest email.
       setAnswer(answerFor(result.reason));
+      focusWhenIdle(codeRef);
       await sendNewCode();
-      codeRef.current?.focus();
       return;
     }
     const a = answerFor(result.reason);
     if (a.where === "code") {
       setErrors({ code: a.text });
       setReplaceCode(true);
-      setTimeout(() => codeRef.current?.select(), 0);
+      focusWhenIdle(codeRef, true);
     } else if (a.where === "password") {
       setErrors({ password: a.text });
-      passwordRef.current?.focus();
+      focusWhenIdle(passwordRef);
     } else {
       setAnswer(a);
     }

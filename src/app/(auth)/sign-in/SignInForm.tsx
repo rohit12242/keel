@@ -10,7 +10,14 @@ import {
 } from "@/modules/session/domain/authScreens";
 import { signInToKeel } from "@/modules/session/browser";
 import { carriedHere, carry, dropCarried } from "../carry";
-import { Banner, described, Field, PasswordInput, SubmitButton } from "../ui";
+import {
+  Banner,
+  described,
+  Field,
+  PasswordInput,
+  SubmitButton,
+  useFocusWhenIdle,
+} from "../ui";
 import styles from "../auth.module.css";
 
 /**
@@ -28,6 +35,8 @@ export function SignInForm() {
   const [busy, setBusy] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+
+  const focusWhenIdle = useFocusWhenIdle(busy);
 
   useEffect(() => dropCarried(), []);
 
@@ -62,8 +71,7 @@ export function SignInForm() {
     setBusy(false);
     setAnswer(answerFor(result.reason));
     setPassword("");
-    // The banner renders first; then the empty password takes the focus.
-    setTimeout(() => passwordRef.current?.focus(), 0);
+    focusWhenIdle(passwordRef);
   }
 
   return (

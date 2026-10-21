@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CODE_LENGTH,
   cleanCode,
@@ -332,5 +332,27 @@ export function useToast(): {
       </div>
     ),
     show: setText,
+  };
+}
+
+/**
+ * Focus a field once the form is no longer busy. While an answer from
+ * Cognito is awaited every field is disabled, and a disabled field cannot
+ * take the focus; this waits for the render that enables it again.
+ */
+export function useFocusWhenIdle(busy: boolean) {
+  const pending = useRef<{
+    field: React.RefObject<HTMLInputElement | null>;
+    select: boolean;
+  } | null>(null);
+  useEffect(() => {
+    if (busy || !pending.current) return;
+    const { field, select } = pending.current;
+    pending.current = null;
+    if (select) field.current?.select();
+    else field.current?.focus();
+  }, [busy]);
+  return (field: React.RefObject<HTMLInputElement | null>, select = false) => {
+    pending.current = { field, select };
   };
 }
