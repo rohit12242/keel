@@ -84,6 +84,7 @@ try {
     await call("POST", `/v1/objectives/${o.id}/effort-entries`, 201, {
       local_date,
       tz: "UTC",
+      occurred_at_local: "09:00",
       minutes,
       note: "story-check",
     });

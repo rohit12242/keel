@@ -110,6 +110,7 @@ describe("I-02 — the whole story, through the API", () => {
         {
           local_date,
           tz: "Asia/Kolkata",
+          occurred_at_local: "09:00",
           minutes,
           note: "Worked on it.",
         },

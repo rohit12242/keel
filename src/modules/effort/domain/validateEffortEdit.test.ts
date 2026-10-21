@@ -74,6 +74,7 @@ describe("validateEffortEdit", () => {
     ["minutes", 1.5],
     ["minutes", "30"],
     ["occurred_at_local", "07:60"],
+    ["occurred_at_local", "24:00"],
     ["occurred_at_local", 730],
     ["note", "n".repeat(2001)],
     ["note", 1],

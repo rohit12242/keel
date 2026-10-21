@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { validateEffortEntryWrite } from "./validateWrite";
+import {
+  overlapping,
+  spanLabel,
+  validateEffortEntryWrite,
+} from "./validateWrite";
 
 const valid = {
   local_date: "2026-09-16",
   tz: "Asia/Kolkata",
+  occurred_at_local: "09:20",
   minutes: 120,
   note: "Wrote the day read.",
 };
@@ -19,13 +24,20 @@ describe("validateEffortEntryWrite", () => {
     const r = validateEffortEntryWrite({
       local_date: "16-09-2026",
       tz: "Not/AZone",
+      occurred_at_local: "24:00",
       minutes: 0,
       note: "",
     });
     expect(r.ok).toBe(false);
     if (!r.ok) {
       const fields = r.errors.map((e) => e.field).sort();
-      expect(fields).toEqual(["local_date", "minutes", "note", "tz"]);
+      expect(fields).toEqual([
+        "local_date",
+        "minutes",
+        "note",
+        "occurred_at_local",
+        "tz",
+      ]);
     }
   });
 
@@ -35,9 +47,21 @@ describe("validateEffortEntryWrite", () => {
     if (r.ok) expect("extra" in r.value).toBe(false);
   });
 
-  it("rejects a malformed occurred_at_local", () => {
-    const r = validateEffortEntryWrite({ ...valid, occurred_at_local: "9am" });
-    expect(r.ok).toBe(false);
+  it("rejects a malformed or missing occurred_at_local — every entry has a start", () => {
+    const noStart: Record<string, unknown> = { ...valid };
+    delete noStart.occurred_at_local;
+    for (const body of [
+      { ...valid, occurred_at_local: "9am" },
+      { ...valid, occurred_at_local: "24:00" },
+      { ...valid, occurred_at_local: "29:59" },
+      noStart,
+    ]) {
+      const r = validateEffortEntryWrite(body);
+      expect(r.ok).toBe(false);
+      if (!r.ok) {
+        expect(r.errors.map((e) => e.field)).toEqual(["occurred_at_local"]);
+      }
+    }
   });
 
   it("accepts a well-formed occurred_at_local and keeps it", () => {
@@ -66,6 +90,7 @@ describe("validateEffortEntryWrite", () => {
           "local_date",
           "minutes",
           "note",
+          "occurred_at_local",
           "tz",
         ]);
       }
@@ -103,5 +128,38 @@ describe("validateEffortEntryWrite", () => {
       expect(r.ok).toBe(true);
       if (r.ok) expect("link" in r.value).toBe(false);
     });
+  });
+});
+
+describe("overlapping — no two of a user's entries on one day overlap (G29)", () => {
+  const at = (occurred_at_local: string, minutes: number, id = "e") => ({
+    id,
+    occurred_at_local,
+    minutes,
+  });
+  const day = [at("09:20", 60, "a"), at("13:00", 30, "b")];
+
+  it("allows spans that only touch", () => {
+    expect(overlapping(at("10:20", 30), day)).toBeNull(); // starts as a ends
+    expect(overlapping(at("08:20", 60), day)).toBeNull(); // ends as a starts
+  });
+
+  it("finds a partial overlap at either end, and names the entry hit", () => {
+    expect(overlapping(at("10:00", 60), day)?.id).toBe("a");
+    expect(overlapping(at("12:45", 30), day)?.id).toBe("b");
+  });
+
+  it("finds a span nested inside another, or around it", () => {
+    expect(overlapping(at("09:30", 10), day)?.id).toBe("a");
+    expect(overlapping(at("09:00", 180), day)?.id).toBe("a");
+  });
+
+  it("compares within the day, with no wrap past midnight", () => {
+    expect(overlapping(at("23:30", 60), [at("00:10", 30)])).toBeNull();
+  });
+
+  it("labels a span by its start and end", () => {
+    expect(spanLabel(at("09:20", 60))).toBe("09:20–10:20");
+    expect(spanLabel(at("23:30", 60))).toBe("23:30–00:30");
   });
 });

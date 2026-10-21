@@ -56,6 +56,7 @@ async function logEffort(
   objectiveId: string,
   local_date: string,
   minutes: number,
+  occurred_at_local = "09:00",
 ) {
   const res = await effort.POST(
     new Request(`${BASE}/v1/objectives/${objectiveId}/effort-entries`, {
@@ -64,6 +65,7 @@ async function logEffort(
       body: JSON.stringify({
         local_date,
         tz: "Asia/Kolkata",
+        occurred_at_local,
         minutes,
         note: "itest: I-01 check",
       }),
@@ -209,8 +211,10 @@ describe("I-01 — declare an objective (the intent's check)", () => {
   });
 
   it("reads the flexible schedule as worked or not", async () => {
-    await logEffort(flexible.id, "2026-11-02", 60);
-    await logEffort(flexible.id, "2026-11-03", 20);
+    // Afternoons: the fixed objective's entries hold the mornings, and no two
+    // of a user's entries on one day overlap.
+    await logEffort(flexible.id, "2026-11-02", 60, "13:00");
+    await logEffort(flexible.id, "2026-11-03", 20, "13:00");
 
     const g = await grid(flexible.id);
     expect(stateOn(g, "2026-11-02")).toBe("target_met");

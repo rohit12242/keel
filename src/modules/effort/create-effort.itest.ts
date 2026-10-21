@@ -26,6 +26,7 @@ function body(over: Record<string, unknown> = {}) {
   return {
     local_date: WEDNESDAY,
     tz: "Asia/Kolkata",
+    occurred_at_local: "09:20",
     minutes: 60,
     note: NOTE,
     ...over,
@@ -91,6 +92,35 @@ describe("createEffortEntry (real Postgres)", () => {
     const result = await log(OBJECTIVE_ID, body({ local_date: "2026-11-02" }));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.kind).toBe("outside_plan");
+  });
+
+  it("is overlap for an entry that overlaps another of the user's that day, under any objective — and writes nothing", async () => {
+    const other = (await testObjective(user)).id;
+    expect((await log(other, body())).ok).toBe(true); // 09:20–10:20
+    const result = await log(
+      OBJECTIVE_ID,
+      body({ occurred_at_local: "10:00", note: "overlap probe" }),
+    );
+    expect(result).toMatchObject({ ok: false, kind: "overlap" });
+    if (!result.ok && result.kind === "overlap") {
+      expect(result.detail).toContain("09:20–10:20");
+    }
+    const written = await query(
+      "SELECT 1 FROM effort_entry WHERE note = 'overlap probe' AND objective_id = $1",
+      [OBJECTIVE_ID],
+    );
+    expect(written.rowCount).toBe(0);
+  });
+
+  it("allows an entry that only touches another, or overlaps another user's", async () => {
+    expect((await log(OBJECTIVE_ID, body())).ok).toBe(true); // 09:20–10:20
+    expect(
+      (await log(OBJECTIVE_ID, body({ occurred_at_local: "10:20" }))).ok,
+    ).toBe(true);
+    const someoneElse = await testUser();
+    const theirs = (await testObjective(someoneElse)).id;
+    const theirLog = await createEffortEntry(someoneElse.id, theirs, body());
+    expect(theirLog.ok).toBe(true);
   });
 
   // --- what it writes -------------------------------------------------------

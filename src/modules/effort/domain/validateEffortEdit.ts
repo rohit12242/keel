@@ -1,4 +1,5 @@
 import type { ProblemError } from "@/shared/contract";
+import { START_TIME } from "./validateWrite";
 
 /**
  * Validate an edit to an effort entry (ADR-001 domain: pure). Every field is
@@ -51,8 +52,11 @@ export function validateEffortEdit(input: unknown): EffortEditResult {
 
   if ("occurred_at_local" in body) {
     const t = body.occurred_at_local;
-    if (typeof t !== "string" || !/^[0-2][0-9]:[0-5][0-9]$/.test(t)) {
-      errors.push({ field: "occurred_at_local", message: "Must be HH:MM." });
+    if (typeof t !== "string" || !START_TIME.test(t)) {
+      errors.push({
+        field: "occurred_at_local",
+        message: "HH:MM, 00:00–23:59.",
+      });
     } else value.occurred_at_local = t;
   }
 

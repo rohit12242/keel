@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { getPool, query } from "@/shared/db";
 import type { EffortEntry } from "@/shared/contract";
+import type { EffortEntryRow } from "./repo";
 import * as route from "@/app/v1/effort-entries/[entryId]/route";
 import {
   addStatusEvents,
@@ -17,7 +18,7 @@ import {
  */
 let me: TestUser;
 let objectiveId: string;
-let entry: EffortEntry;
+let entry: EffortEntryRow;
 
 const params = (entryId: string) => ({
   params: Promise.resolve({ entryId }),
@@ -55,7 +56,7 @@ describe("editing and deleting effort (real Postgres)", () => {
   beforeEach(async () => {
     me = await testUser();
     objectiveId = (await testObjective(me)).id;
-    entry = await testEntry(me, objectiveId); // Wednesday 2026-09-16, planned
+    entry = await testEntry(objectiveId); // Wednesday 2026-09-16, planned
   });
 
   afterAll(async () => {
@@ -79,11 +80,33 @@ describe("editing and deleting effort (real Postgres)", () => {
   });
 
   it("keeps an off-day entry extra after an edit — derived, not stored", async () => {
-    const saturday = await testEntry(me, objectiveId, {
+    const saturday = await testEntry(objectiveId, {
       local_date: "2026-09-19",
     });
     const res = await patch(saturday.id, { minutes: 20 });
     expect(((await res.json()) as EffortEntry).extra).toBe(true);
+  });
+
+  it("422s an edit that moves into another of the user's entries that day, and changes nothing", async () => {
+    // entry is 09:00–10:00; another objective has 10:30–11:30.
+    const other = (await testObjective(me)).id;
+    await testEntry(other, { occurred_at_local: "10:30" });
+    const res = await patch(entry.id, { minutes: 45 }); // 09:00–09:45: fine
+    expect(res.status).toBe(200);
+    expect((await patch(entry.id, { occurred_at_local: "10:00" })).status).toBe(
+      422,
+    );
+    expect((await patch(entry.id, { minutes: 120 })).status).toBe(422);
+    expect(await stored(entry.id)).toEqual({
+      minutes: 45,
+      local_date: "2026-09-16",
+    });
+  });
+
+  it("200s an edit that keeps its own time — an entry never overlaps itself", async () => {
+    const res = await patch(entry.id, { occurred_at_local: "09:00" });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as EffortEntry).occurred_at_local).toBe("09:00");
   });
 
   it("400s a change of day, and changes nothing", async () => {

@@ -67,7 +67,7 @@ const objectiveParams = (objectiveId: string) => ({
 const anObjective = async (user: TestUser) => (await testObjective(user)).id;
 
 const anEntry = async (user: TestUser) =>
-  (await testEntry(user, await anObjective(user))).id;
+  (await testEntry(await anObjective(user))).id;
 
 const aReview = async (user: TestUser) => (await testReview(user)).id;
 
@@ -132,6 +132,7 @@ export const AUTHORIZATION: AuthRow[] = [
         req("POST", `/v1/objectives/${id}/effort-entries`, cookie, {
           local_date: "2026-09-16",
           tz: "Asia/Kolkata",
+          occurred_at_local: "09:00",
           minutes: 30,
           note: "itest: authorisation",
         }),

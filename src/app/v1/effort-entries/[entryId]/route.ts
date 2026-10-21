@@ -61,6 +61,13 @@ export const PATCH = withSession(
               return notFound("entry");
             case "not_active":
               return notActive();
+            case "overlap":
+              return problem(
+                422,
+                "Overlaps another entry",
+                problemType("entry-overlaps"),
+                result.detail,
+              );
           }
         } catch {
           return unavailable();

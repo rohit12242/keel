@@ -34,14 +34,14 @@ describe("the Effort tab (real Postgres)", () => {
   beforeAll(async () => {
     me = await testUser();
     objectiveId = (await testObjective(me)).id;
-    await testEntry(me, objectiveId, {
+    await testEntry(objectiveId, {
       local_date: "2026-09-14",
       minutes: 120,
     });
-    await testEntry(me, objectiveId, { local_date: "2026-09-15", minutes: 30 });
-    await testEntry(me, objectiveId, { local_date: "2026-09-15", minutes: 30 });
-    await testEntry(me, objectiveId, { local_date: "2026-09-19", minutes: 45 });
-    await testEntry(me, objectiveId, { local_date: "2026-10-01", minutes: 60 });
+    await testEntry(objectiveId, { local_date: "2026-09-15", minutes: 30 });
+    await testEntry(objectiveId, { local_date: "2026-09-15", minutes: 30 });
+    await testEntry(objectiveId, { local_date: "2026-09-19", minutes: 45 });
+    await testEntry(objectiveId, { local_date: "2026-10-01", minutes: 60 });
   });
 
   afterAll(async () => {

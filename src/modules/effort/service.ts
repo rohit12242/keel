@@ -1,5 +1,10 @@
 import type { EffortEntry, ProblemError } from "@/shared/contract";
-import { validateEffortEntryWrite } from "./domain/validateWrite";
+import { withTransaction } from "@/shared/db";
+import {
+  overlapping,
+  spanLabel,
+  validateEffortEntryWrite,
+} from "./domain/validateWrite";
 import {
   coveringSlot,
   isDateInPlan,
@@ -19,6 +24,7 @@ import {
   getEntryForEdit,
   getObjectiveForEffort,
   insertEffortEntry,
+  lockUserDay,
   updateEffortEntry as updateEntryRow,
   type EffortEntryRow,
   type ObjectiveForEffort,
@@ -33,7 +39,8 @@ export type CreateEffortResult =
   | { ok: false; kind: "validation"; errors: ProblemError[] }
   | { ok: false; kind: "not_found" }
   | { ok: false; kind: "not_active" }
-  | { ok: false; kind: "outside_plan" };
+  | { ok: false; kind: "outside_plan" }
+  | { ok: false; kind: "overlap"; detail: string };
 
 function present(row: EffortEntryRow, extra: boolean): EffortEntry {
   const entry: EffortEntry = {
@@ -46,8 +53,8 @@ function present(row: EffortEntryRow, extra: boolean): EffortEntry {
     link: row.link,
     logged_at: row.logged_at,
     extra,
+    occurred_at_local: row.occurred_at_local,
   };
-  if (row.occurred_at_local) entry.occurred_at_local = row.occurred_at_local;
   return entry;
 }
 
@@ -79,9 +86,25 @@ export async function createEffortEntry(
   // Derived, never stored: an entry is extra when no day slot covers its date.
   const extra = coveringSlot(segments, objective.status_events, date) === null;
 
-  const row = await insertEffortEntry(objectiveId, validated.value);
-  return { ok: true, entry: present(row, extra) };
+  // No two of the user's entries on one day overlap, under any objective
+  // (invariant 18): checked and written under the user's row lock.
+  const written = await withTransaction(async (tx) => {
+    const day = await lockUserDay(tx, userId, date, null);
+    const hit = overlapping(validated.value, day);
+    if (hit) return { written: false as const, hit };
+    return {
+      written: true as const,
+      row: await insertEffortEntry(tx, objectiveId, validated.value),
+    };
+  });
+  if (!written.written) {
+    return { ok: false, kind: "overlap", detail: overlapDetail(written.hit) };
+  }
+  return { ok: true, entry: present(written.row, extra) };
 }
+
+const overlapDetail = (hit: { occurred_at_local: string; minutes: number }) =>
+  `Overlaps ${spanLabel(hit)}. Change the times.`;
 
 /** Derived, never stored: an entry is extra when no day slot covers its date. */
 const isExtra = (facts: ObjectiveForEffort, date: string): boolean =>
@@ -92,7 +115,8 @@ export type EditEffortResult =
   | { ok: true; entry: EffortEntry }
   | { ok: false; kind: "validation"; errors: ProblemError[] }
   | { ok: false; kind: "not_found" }
-  | { ok: false; kind: "not_active" };
+  | { ok: false; kind: "not_active" }
+  | { ok: false; kind: "overlap"; detail: string };
 
 /**
  * Correct an entry. Only while its objective is running: effort on a paused,
@@ -113,8 +137,29 @@ export async function updateEffortEntry(
   if (currentStatus(found.status_events) !== "active") {
     return { ok: false, kind: "not_active" };
   }
-  const row = await updateEntryRow(entryId, validated.value);
-  return { ok: true, entry: present(row, isExtra(found, row.local_date)) };
+  // The span as it will stand, checked against the user's other entries that
+  // day — the entry itself left out.
+  const span = {
+    occurred_at_local:
+      validated.value.occurred_at_local ?? found.occurred_at_local,
+    minutes: validated.value.minutes ?? found.minutes,
+  };
+  const written = await withTransaction(async (tx) => {
+    const day = await lockUserDay(tx, userId, found.local_date, entryId);
+    const hit = overlapping(span, day);
+    if (hit) return { written: false as const, hit };
+    return {
+      written: true as const,
+      row: await updateEntryRow(tx, entryId, validated.value),
+    };
+  });
+  if (!written.written) {
+    return { ok: false, kind: "overlap", detail: overlapDetail(written.hit) };
+  }
+  return {
+    ok: true,
+    entry: present(written.row, isExtra(found, written.row.local_date)),
+  };
 }
 
 export type DeleteEffortResult =

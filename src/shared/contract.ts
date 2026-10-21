@@ -27,7 +27,8 @@ export type EffortEntryWrite = {
   tz: string;
   minutes: number;
   note: string;
-  occurred_at_local?: string;
+  /** When the work started, HH:MM. With minutes, the entry's span. */
+  occurred_at_local: string;
   link?: string | null;
 };
 

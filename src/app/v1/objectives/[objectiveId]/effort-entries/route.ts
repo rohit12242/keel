@@ -79,6 +79,13 @@ export const POST = withSession(
                 problemType("date-outside-plan"),
                 "local_date falls outside every plan segment for this objective.",
               );
+            case "overlap":
+              return problem(
+                422,
+                "Overlaps another entry",
+                problemType("entry-overlaps"),
+                result.detail,
+              );
           }
         } catch {
           return problem(

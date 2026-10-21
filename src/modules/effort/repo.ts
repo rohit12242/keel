@@ -1,4 +1,4 @@
-import { query } from "@/shared/db";
+import { query, type Queryable } from "@/shared/db";
 import type { EffortEntryWrite } from "@/shared/contract";
 import type { EffortEdit } from "./domain/validateEffortEdit";
 import type { EffortEntryFact } from "./domain/effortMonth";
@@ -65,7 +65,7 @@ export async function getObjectiveForEffort(
   return res.rows[0] ?? null;
 }
 
-/** A row as returned by the insert (occurred_at_local/link may be null). */
+/** A row as returned by the insert (link may be null). */
 export type EffortEntryRow = {
   id: string;
   objective_id: string;
@@ -73,7 +73,7 @@ export type EffortEntryRow = {
   tz: string;
   minutes: number;
   note: string;
-  occurred_at_local: string | null;
+  occurred_at_local: string;
   link: string | null;
   logged_at: string;
 };
@@ -85,10 +85,11 @@ export type EffortEntryRow = {
  * worked out in SQL.
  */
 export async function insertEffortEntry(
+  q: Queryable,
   objectiveId: string,
   w: EffortEntryWrite,
 ): Promise<EffortEntryRow> {
-  const res = await query<EffortEntryRow>(
+  const res = await q.query<EffortEntryRow>(
     `INSERT INTO effort_entry
        (objective_id, local_date, occurred_at_local, tz, minutes, note, link)
      VALUES ($1, $2::date, $3, $4, $5, $6, $7)
@@ -96,7 +97,7 @@ export async function insertEffortEntry(
     [
       objectiveId,
       w.local_date,
-      w.occurred_at_local ?? null,
+      w.occurred_at_local,
       w.tz,
       w.minutes,
       w.note,
@@ -135,6 +136,7 @@ const EDITABLE: Record<keyof EffortEdit, string> = {
 
 /** Apply an edit already checked by the domain and by ownership. */
 export async function updateEffortEntry(
+  q: Queryable,
   entryId: string,
   edit: EffortEdit,
 ): Promise<EffortEntryRow> {
@@ -145,13 +147,48 @@ export async function updateEffortEntry(
     params.push(edit[key]);
     sets.push(EDITABLE[key].replace("%", String(params.length)));
   }
-  const res = await query<EffortEntryRow>(
+  const res = await q.query<EffortEntryRow>(
     `UPDATE effort_entry SET ${sets.join(", ")}
      WHERE id = $1
      RETURNING ${ENTRY_COLUMNS("effort_entry")}`,
     params,
   );
   return res.rows[0];
+}
+
+/** One of the user's entries on a day, as the overlap rule reads it. */
+export type DayEntrySpan = {
+  id: string;
+  occurred_at_local: string;
+  minutes: number;
+};
+
+/**
+ * The caller's entries on `localDate`, across every objective, with the
+ * user's row locked for the rest of the transaction. Two writes for one user
+ * are then checked one after the other, never both against the same day —
+ * the schema cannot hold "no overlap" itself, because `effort_entry` reaches
+ * its user only through `objective` (invariant 1, invariant 18). `exceptId`
+ * leaves out the entry being edited.
+ */
+export async function lockUserDay(
+  tx: Queryable,
+  userId: string,
+  localDate: string,
+  exceptId: string | null,
+): Promise<DayEntrySpan[]> {
+  await tx.query(`SELECT 1 FROM "user" WHERE id = $1 FOR UPDATE`, [userId]);
+  const res = await tx.query<DayEntrySpan>(
+    `SELECT ee.id, to_char(ee.occurred_at_local, 'HH24:MI') AS occurred_at_local,
+            ee.minutes
+     FROM effort_entry ee
+     JOIN objective o ON o.id = ee.objective_id
+     WHERE o.user_id = $1 AND ee.local_date = $2::date
+       AND ($3::uuid IS NULL OR ee.id <> $3::uuid)
+     ORDER BY ee.occurred_at_local`,
+    [userId, localDate, exceptId],
+  );
+  return res.rows;
 }
 
 /** Effort entries are the one thing Keel deletes (NFR-01). */

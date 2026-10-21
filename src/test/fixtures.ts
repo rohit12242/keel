@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { query } from "@/shared/db";
+import { getPool, query } from "@/shared/db";
 import type { Objective } from "@/shared/contract";
 import { createObjective } from "@/modules/objectives/service";
-import { createEffortEntry } from "@/modules/effort/service";
+import { insertEffortEntry, type EffortEntryRow } from "@/modules/effort/repo";
 import { createParkedIdea } from "@/modules/parking/service";
 import { startReview } from "@/modules/reviews/service";
 import { createDeviation } from "@/modules/deviations/service";
 import type { Deviation } from "@/shared/contract";
-import type { EffortEntry } from "@/shared/contract";
+import type { EffortEntryWrite } from "@/shared/contract";
 import { cookieFor } from "./session";
 
 /**
@@ -82,21 +82,24 @@ export async function addStatusEvents(
   }
 }
 
-/** An effort entry on one of `user`'s objectives, through the real use case. */
+/**
+ * An effort entry on an objective, written straight through the repo — setup,
+ * not a request. Since effort is logged only for today and entries never
+ * overlap (invariant 18), the use case cannot seed history; the write rules
+ * are tested through the routes instead. Starts at 09:00 unless told.
+ */
 export async function testEntry(
-  user: TestUser,
   objectiveId: string,
-  over: Record<string, unknown> = {},
-): Promise<EffortEntry> {
-  const result = await createEffortEntry(user.id, objectiveId, {
+  over: Partial<EffortEntryWrite> = {},
+): Promise<EffortEntryRow> {
+  return insertEffortEntry(getPool(), objectiveId, {
     local_date: "2026-09-16",
     tz: "Asia/Kolkata",
+    occurred_at_local: "09:00",
     minutes: 60,
     note: "itest entry",
     ...over,
   });
-  if (!result.ok) throw new Error(`testEntry: ${JSON.stringify(result)}`);
-  return result.entry;
 }
 
 /**
