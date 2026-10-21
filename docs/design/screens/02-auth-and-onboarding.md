@@ -1,22 +1,54 @@
 # Sign-in, sign-up, reset and onboarding
 
-## Auth screens (brief for Cognito managed login — see G1)
+## Auth screens (Keel's own, not Cognito managed login)
 
-One layout for all three: a left hero on desktop ("The **evidence**, not guesswork, decides what you do next." with "evidence" highlighted, a one-line sub, and three dots: Effort against your plan · Deviations you declare · Ideas you parked) and a card on the right. On phone the hero collapses above the card. Footer line: "A private record of your time. Never shared."
+Keel shows its own sign-in, sign-up and reset screens. Cognito still holds the accounts and checks the password; the screens talk to it from the browser (SRP), so the password never reaches Keel's server. This changes ADR-002, which chose managed login. That revision is not made yet.
+
+One layout for all five: a left hero on desktop ("The **evidence**, not guesswork, decides what you do next." with "evidence" highlighted, a one-line sub, and three dots: Effort against your plan · Deviations you declare · Ideas you parked) and a card on the right. On phone the hero becomes a violet band above the form. Footer line: "A private record of your time. Never shared."
 
 | Screen | Fields and copy |
 |---|---|
 | **Sign in** | Title "Sign in", sub "Welcome back." Email; Password with **Show**; "Forgot password?" link by the password label. Button **Sign in**. "No account yet? Create one". |
-| **Create account** | Name (placeholder "Joe"); Email; Password (7–12 characters, **Show**); checkbox "I understand that Keel records what I actually do, and that it only helps if the record is honest." Button **Create account**. "Already have an account? Sign in". |
-| **Reset password** | "Enter the email you signed up with. We'll send you a reset link." Email. Button **Send reset link**. Note: "The link works once and expires after an hour." After sending: "**Check your inbox.** If {email} has an account, a reset link is on its way. It expires in an hour." and the button becomes **Send it again**. |
+| **Create account** | Name (placeholder "Joe"); Email; Password (placeholder "At least 12 characters", **Show**) with a length counter and the hint "At least 12 characters. A short sentence you'll remember works well."; checkbox "I understand that Keel records what I actually do, and that it only helps if the record is honest." Button **Create account**. "Already have an account? Sign in". |
+| **Check your email** | Mail icon, title "Check your email", "We sent a 6-digit code to **{email}**. Enter it to finish creating your account." Six code boxes. Hint "The code works for 24 hours. Pasting it works too." Button **Confirm email**, disabled until six digits are in. "Didn't get it? Check spam, or send a new code." and "Wrong email? Go back" (to Create account). |
+| **Reset, step 1** | Eyebrow "Step 1 of 2", title "Reset your password", "Enter the email you signed up with. We'll send you a 6-digit code." Email. Button **Send code**. Note: "The code works once and expires after an hour." "Remembered it? Back to sign in". |
+| **Reset, step 2** | Eyebrow "Step 2 of 2", title "Set a new password", "If **{email}** has an account, a 6-digit code is on its way. It expires in an hour." Code boxes with "Send a new code" by the label; New password with **Show** and the length counter. Button **Save password and sign in**. "Wrong email? Start again" (to step 1). |
 
-Errors (inline, under the field): "Enter the email on your account." · "Check the email: it needs an @ and a domain, like you@example.com." · "Enter your password." · "Enter your name. Only you will see it." · "Password is incorrect. Use 7-12 characters." · "Tick this to continue."
+### Behaviour
+
+- **The code boxes are one input.** `inputmode="numeric"`, `autocomplete="one-time-code"`, six digits; anything else typed or pasted is dropped. The boxes only draw it: the next empty box has the focus ring and a caret. After a wrong code, the first keystroke replaces the whole code.
+- **Length counter.** A bar and a count: empty "0 of 12"; short "9 of 12 · 3 more" (caution); long enough "✓ 20 characters" (effort, full bar). No upper limit and no character rules, matching the Cognito policy (minimum 12, nothing else).
+- **Busy.** The button shows a spinner and "Signing in…", "Creating your account…", "Confirming…", "Sending…" or "Saving…", and the form's fields are disabled until the answer comes.
+- **Send a new code** starts a 60-second wait: on Check your email the line becomes "New code sent. You can ask again in 0:59."; on reset step 2 the link becomes "new code in 0:59". A toast says "New code sent to {email}." and the code boxes empty.
+- **Emails carry over.** "Forgot password?" and "reset your password" fill step 1 with the email already typed on Sign in; "Sign in instead" fills Sign in with the email from Create account.
+- **After a reset, the user is signed straight in** and lands on Today with the toast "Password changed. You're signed in."
+- **After confirming the email**, onboarding starts.
+
+### Errors
+
+Field errors sit under the field: "Enter the email on your account." · "Check the email: it needs an @ and a domain, like you@example.com." · "Enter your email, like you@example.com." · "Enter your password." · "Enter your name. Only you will see it." · "Enter a password of at least 12 characters." · "Use at least 12 characters. 3 more to go." · "Tick this to continue." · "Enter the 6-digit code from the email." · "Enter a new password of at least 12 characters."
+
+Answers from Cognito:
+
+| When | Where | Copy |
+|---|---|---|
+| Wrong email or password | Red banner above the fields; email kept, password emptied and focused | "**Email or password is incorrect.** Check both, or reset your password." It never says which one was wrong. |
+| Too many attempts | Same banner | "**Too many attempts.** Wait a few minutes and try again." |
+| Email already has an account | Under Email on Create account | "An account with this email already exists. Sign in instead." |
+| Wrong code | Under the code boxes, which turn red; the hint hides | "That code is wrong. Check the latest email from Keel and try again." |
+| Expired reset code | Amber banner on step 2; a new code is sent and the wait starts | "**That code has expired.** We've sent a new one. Use the newest email." |
+
+Reset step 1 never says whether the email has an account; step 2's "If {email} has an account" covers both cases.
 
 There is no in-app password change. A signed-in user who wants a new password signs out and uses "Forgot password?".
 
+### In the prototype
+
+Fakes stand in for Cognito, written in the **Prototype** panel: a password under 12 characters counts as wrong (the third in a row shows "Too many attempts"); any 6-digit code works except `000000` (wrong) and `999999` (expired, reset only); `taken@example.com` already has an account. These are prototype rules, not requirements.
+
 ## Onboarding
 
-Shown once, right after an account is created (G11). Full screen, no sidebar or tab bar. A top bar with the wordmark on the left and progress on the right: three 28 × 6 px bars (filled `--accent` up to the current step) and "Step n of 3".
+Shown once, right after the new account's email is confirmed (G11). Full screen, no sidebar or tab bar. A top bar with the wordmark on the left and progress on the right: three 28 × 6 px bars (filled `--accent` up to the current step) and "Step n of 3".
 
 ### Step 1 — How Keel works
 
