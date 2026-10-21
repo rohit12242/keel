@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CODE_LENGTH,
   cleanCode,
   lengthCounter,
+  RESEND_WAIT_SECONDS,
   type Answer,
 } from "@/modules/session/domain/authScreens";
 import styles from "./auth.module.css";
@@ -297,4 +298,39 @@ export function SubmitButton({
       )}
     </button>
   );
+}
+
+/**
+ * The wait after "Send a new code": seconds left, counting down once a
+ * second, and how to start it again.
+ */
+export function useResendWait(): { left: number; start: () => void } {
+  const [left, setLeft] = useState(0);
+  useEffect(() => {
+    if (left <= 0) return;
+    const t = setTimeout(() => setLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [left]);
+  return { left, start: () => setLeft(RESEND_WAIT_SECONDS) };
+}
+
+/** A short message at the bottom of the screen, read out as it appears. */
+export function useToast(): {
+  toast: React.ReactNode;
+  show: (text: string) => void;
+} {
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    if (!text) return;
+    const t = setTimeout(() => setText(null), 4000);
+    return () => clearTimeout(t);
+  }, [text]);
+  return {
+    toast: (
+      <div role="status" aria-live="polite">
+        {text ? <div className={styles.toast}>{text}</div> : null}
+      </div>
+    ),
+    show: setText,
+  };
 }
