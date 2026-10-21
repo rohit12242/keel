@@ -1,11 +1,22 @@
 # Spec — I-04 · Sign in on Keel's own screens
 
-**Intent:** `intent.md` in this folder · **Status:** Accepted · **Written:** 2026-10-21 · **Accepted:** 2026-10-21
+**Intent:** `intent.md` in this folder · **Status:** Accepted · **Written:** 2026-10-21 · **Revised and accepted:** 2026-10-21
 
-The design this needs is in the repository: ADR-002 (revised for this intent) and
-`docs/keel-api.yaml` (`POST /v1/session`). This file does not repeat them.
+The design this needs is in the repository: ADR-002 (revised for this intent),
+`docs/keel-api.yaml` (`POST /v1/session`) and the screens in
+`docs/design/screens/02-auth-and-onboarding.md`. This file does not repeat them.
 
 ## What must be true
+
+**Keel's own screens**
+
+- Sign in, Create account, Check your email, and Reset password (both steps) behave
+  and read as designed in `02-auth-and-onboarding.md`.
+- These screens use the Keel Modern look. The rest of the app keeps its current look
+  until the app-shell intent.
+- A newly confirmed account lands on Today; onboarding comes later.
+- Today shows who is signed in and a way to sign out, until the app shell's account
+  menu replaces it.
 
 **The password stays out of Keel**
 
@@ -45,9 +56,10 @@ The design this needs is in the repository: ADR-002 (revised for this intent) an
 
 **The emails say they are from Keel**
 
-- The confirmation and reset emails carry Keel's wording: they name Keel, give the
-  6-digit code, and say how long it lasts — 24 hours to confirm, an hour to reset —
-  as the screens do. They are still sent from Cognito's own address.
+- The confirmation and reset emails are one Keel-worded email, because Cognito has a
+  single code template: it names Keel, gives the 6-digit code, and states both
+  expiries — 24 hours to confirm, an hour to reset. It is still sent from Cognito's
+  own address.
 
 **What does not change**
 
@@ -66,6 +78,7 @@ The design this needs is in the repository: ADR-002 (revised for this intent) an
 
 ## Out of scope
 
-The screens, designed in `docs/design/screens/02-auth-and-onboarding.md`. MFA.
-Social sign-in. Sending the emails from Keel's own address, which needs Amazon SES and
-a verified domain.
+Onboarding. The app shell and the Keel Modern look outside the sign-in screens. MFA.
+Social sign-in. Separate confirmation and reset emails, which need a CustomMessage
+Lambda (considered 2026-10-21, not chosen). Sending the emails from Keel's own
+address, which needs Amazon SES and a verified domain.
