@@ -90,59 +90,48 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Health' }
 
-  /session/sign-in:
-    get:
+  /session:
+    post:
       tags: [Session]
-      summary: Start signing in
+      summary: Turn a fresh Cognito sign-in into a Keel session
       description: |
-        Redirects to the identity provider's managed login (ADR-002). Keel never
-        sees a password: creating an account, resetting a password and lockout
-        all happen at the provider, which is why this contract has no endpoint
-        for any of them.
-
-        Sets a short-lived HttpOnly cookie holding the OIDC `state` and the PKCE
-        verifier, so the callback can prove the response answers this request.
-      operationId: startSignIn
+        The browser has just proved the password to Cognito itself (SRP, through
+        Amplify Auth on Keel's sign-in screen) and holds Cognito's tokens in
+        memory. It sends the ID token here; Keel verifies it locally against
+        Cognito's published keys, finds the local user by subject or creates it
+        (`docs/erd.md`, *User*), and sets its own session cookie. The browser then
+        discards every Cognito token (ADR-002). No password ever reaches this
+        endpoint, and the token is never logged.
+      operationId: createSession
       security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token]
+              properties:
+                id_token: { type: string, minLength: 1 }
       responses:
-        '302':
-          description: To the provider's login page.
+        '204':
+          description: Signed in. The session cookie is set.
           headers:
-            Location: { schema: { type: string, format: uri } }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /session/callback:
-    get:
-      tags: [Session]
-      summary: Finish signing in
-      description: |
-        Where the provider sends the browser back. Exchanges the authorization
-        code for the user's identity, finds the local user by subject or creates
-        it (`docs/erd.md`, *User*), and issues Keel's own session cookie. No later request reaches the provider:
-        the cookie is validated locally (NFR-08).
-      operationId: completeSignIn
-      security: []
-      parameters:
-        - { name: code, in: query, required: true, schema: { type: string } }
-        - { name: state, in: query, required: true, schema: { type: string } }
-      responses:
-        '302':
-          description: Signed in. The session cookie is set and the browser goes to Today.
-          headers:
-            Location: { schema: { type: string } }
             Set-Cookie: { schema: { type: string } }
-        '400':
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401':
           description: |
-            `state` does not match the sign-in this browser started, or the
-            sign-in cookie is missing or expired. Nothing is exchanged.
+            The token is not one Keel accepts: a bad signature, another pool's or
+            client's token, an access token instead of an ID token, expired, an
+            unverified email, or a sign-in older than five minutes. Nothing is
+            written and no session is issued.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
-        '401':
+        '403':
           description: |
-            The provider refused the code — expired, reused or forged — or the
-            identity it returned is not one Keel accepts: another pool's or
-            client's token, expired, or an unverified email.
+            The request's `Origin` is not Keel's own. A session is only ever
+            created from Keel's sign-in screen.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -156,8 +145,6 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
         '503': { $ref: '#/components/responses/Unavailable' }
-
-  /session:
     delete:
       tags: [Session]
       summary: Sign out

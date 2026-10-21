@@ -1,6 +1,6 @@
 # I-04 — Sign in on Keel's own screens
 
-**Author:** Rohit · **Status:** Drafted · **Raised:** 2026-10-21
+**Author:** Rohit · **Status:** Accepted · **Raised:** 2026-10-21 · **Accepted:** 2026-10-21
 
 ## Intent description
 
