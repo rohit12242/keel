@@ -62,6 +62,12 @@ describe("autosave and discard (real Postgres)", () => {
     expect(cleared.review_summary).toBe("A steady week.");
   });
 
+  it("keeps not_tried apart from no", async () => {
+    const res = await patch({ improvement_answer: "not_tried" });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Review).improvement_answer).toBe("not_tried");
+  });
+
   it("422s a plan-end field on a weekly review", async () => {
     expect((await patch({ outcome: "completed" })).status).toBe(422);
   });

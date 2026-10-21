@@ -25,7 +25,7 @@ export type ReviewRow = {
   period_end: string;
   status: "draft" | "saved";
   previous_review_id: string | null;
-  improvement_answer: "yes" | "partly" | "no" | null;
+  improvement_answer: "yes" | "partly" | "no" | "not_tried" | null;
   improvement_answer_note: string | null;
   what_worked: string | null;
   what_got_in_the_way: string | null;

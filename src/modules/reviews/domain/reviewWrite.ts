@@ -32,7 +32,7 @@ export const PLAN_END_FIELDS = [
 type FieldRule = { text: number } | { oneOf: readonly string[] };
 
 const RULES: Record<keyof ReviewEdit, FieldRule> = {
-  improvement_answer: { oneOf: ["yes", "partly", "no"] },
+  improvement_answer: { oneOf: ["yes", "partly", "no", "not_tried"] },
   improvement_answer_note: { text: 2000 },
   what_worked: { text: 4000 },
   what_got_in_the_way: { text: 4000 },

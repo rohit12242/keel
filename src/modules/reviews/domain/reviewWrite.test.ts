@@ -27,6 +27,12 @@ describe("validateReviewEdit", () => {
     expect(validateReviewEdit({}, "weekly")).toEqual({ ok: true, value: {} });
   });
 
+  it("takes not_tried, which is not the same answer as no", () => {
+    expect(
+      validateReviewEdit({ improvement_answer: "not_tried" }, "weekly"),
+    ).toEqual({ ok: true, value: { improvement_answer: "not_tried" } });
+  });
+
   it("takes the plan-end fields on a plan-end review", () => {
     expect(
       validateReviewEdit(
