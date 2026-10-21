@@ -303,8 +303,10 @@ describe("the real key fetch", () => {
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     const { port } = server.address() as AddressInfo;
 
+    // The module is mocked for the exchange cases; this one is the real fetch.
+    const real = await vi.importActual<typeof import("./cognito")>("./cognito");
     const t0 = Date.now();
-    const result = await fetchSigningKeys(`http://127.0.0.1:${port}`);
+    const result = await real.fetchSigningKeys(`http://127.0.0.1:${port}`);
     const elapsed = Date.now() - t0;
 
     expect(result).toEqual({ ok: false, kind: "unavailable" });
