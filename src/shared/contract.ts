@@ -164,6 +164,13 @@ export type StatusEvent = {
   new_end_date?: string | null;
 };
 
+/** One plan week and its figures (G16). */
+export type PlanWeek = {
+  period_start: string;
+  period_end: string;
+  figures: Figures;
+};
+
 /** A note on an objective or a parked idea: dated, append-only. */
 export type Note = { id: string; written_on: string; text: string };
 
@@ -181,6 +188,8 @@ export type Objective = ObjectiveSummary & {
   notes: Note[];
   /** The latest local_date with an entry; null when nothing is logged. */
   last_logged_on: string | null;
+  /** One per plan week, oldest first. */
+  weeks: PlanWeek[];
   /** From the latest saved plan-end review; null before there is one. */
   criteria_verdict: "met" | "partly_met" | "not_met" | null;
 };

@@ -14,6 +14,7 @@ import {
 } from "@/modules/effort/domain/adherence";
 import { trackOf } from "@/modules/effort/domain/track";
 import { planSlots } from "./planSlots";
+import { planWeeks } from "./planWeeks";
 import { scheduleLabel } from "./scheduleLabel";
 import { toSegment } from "./segmentRows";
 import { currentStatus } from "./statusTimeline";
@@ -210,6 +211,11 @@ export function assembleObjective(
     notes: row.notes,
     // daily_minutes is in date order, so the last one is the latest (G18).
     last_logged_on: row.daily_minutes.at(-1)?.local_date ?? null,
+    weeks: planWeeks(
+      segments,
+      planSlots(segments.map(toSegment), row.status_events),
+      dailyMinutesOf(row),
+    ),
     criteria_verdict: criteriaVerdictOf(row),
   };
   // `description` is a string in the contract, never null: absent when unset.

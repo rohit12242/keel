@@ -119,6 +119,27 @@ describe("I-01 — declare an objective (the intent's check)", () => {
     await getPool().end();
   });
 
+  it("opens one with its plan weeks and their figures; the list carries none (G16)", async () => {
+    const res = await one.GET(
+      new Request(`${BASE}/v1/objectives/${fixed.id}`, { headers: asMe() }),
+      params(fixed.id),
+    );
+    const opened = (await res.json()) as Objective;
+    expect(opened.weeks.map((w) => [w.period_start, w.period_end])).toEqual([
+      ["2026-11-02", "2026-11-08"],
+      ["2026-11-09", "2026-11-15"],
+    ]);
+    expect(opened.weeks[0].figures).toMatchObject({ target_minutes: 300 });
+
+    const listed = (await (
+      await objectives.GET(
+        new Request(`${BASE}/v1/objectives`, { headers: asMe() }),
+        undefined,
+      )
+    ).json()) as { objectives: Record<string, unknown>[] };
+    expect(listed.objectives.every((o) => !("weeks" in o))).toBe(true);
+  });
+
   it("lists the plan so far, the band and the date the status began (G14, G15, G23)", async () => {
     // Its own user, so the two objectives above are not in this list.
     const other = await testUser();
