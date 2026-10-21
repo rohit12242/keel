@@ -1,5 +1,6 @@
 import type { StatusEventRow } from "@/modules/objectives/domain/statusTimeline";
 import type { PlanSegmentRow } from "@/modules/objectives/domain/segmentRows";
+import type { DailyMinutesRow } from "@/modules/objectives/domain/rows";
 
 /**
  * The row shape the Today query returns and the domain assembler consumes.
@@ -30,6 +31,6 @@ export type DayObjectiveRow = {
   segments: PlanSegmentRow[];
   status_events: StatusEventRow[];
   entries: DayEntryRow[];
-  /** This objective's minutes for the whole week the date falls in. */
-  week_minutes: number;
+  /** Minutes per local date, every date up to and including the day, in order. */
+  daily_minutes: DailyMinutesRow[];
 };

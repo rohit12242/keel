@@ -49,12 +49,19 @@ export type EffortEntry = {
 export type DayObjective = {
   id: string;
   title: string;
+  /** Segment 0's start. */
+  start_date: string;
   schedule: Schedule;
   slot: PlanSlot | null;
   next_planned_date?: string | null;
   entries: EffortEntry[];
   logged_minutes: number;
+  /** Week slots: the week's minutes up to and including the date. */
   period_logged_minutes?: number;
+  /** Week slots: the week's days, up to the date, with any effort. */
+  period_days_worked?: number;
+  adherence_to_date: number;
+  track: "on_track" | "at_risk" | "behind" | null;
 };
 
 export type Day = {
@@ -62,8 +69,14 @@ export type Day = {
   objectives: DayObjective[];
   totals: {
     today_minutes: number;
+    /** Monday to Sunday, the week the date falls in. */
     week_minutes: number;
+    /** Minutes no slot covers, over the same week. */
     extra_off_day_minutes: number;
+    /** The targets of the date's fixed day slots. */
+    today_planned_minutes: number;
+    /** What is still unlogged of those, never below zero. */
+    today_to_go_minutes: number;
   };
   /** The most recent deviation on or before `date`, or null. */
   last_deviation: Deviation | null;

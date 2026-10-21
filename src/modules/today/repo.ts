@@ -10,7 +10,8 @@ import {
  *
  * Since W4-29 it reads **facts only** and joins no `plan_slot` (ADR-008). It
  * returns, per objective of this user: its plan segments, its status events, the
- * entries logged on the date, and the objective's minutes for that week. The
+ * entries logged on the date, and its minutes per date up to that day — from
+ * which the week, the slot's progress and the figures to date follow. The
  * domain then computes the covering slot, whether each entry is extra, the next
  * planned date, and which objectives are active — all from these rows, with no
  * second read.
@@ -70,25 +71,33 @@ ent AS (
   WHERE e.local_date = $2::date
   GROUP BY e.objective_id
 ),
-wk AS (
-  SELECT e.objective_id, COALESCE(SUM(e.minutes), 0)::int AS week_minutes
+per_day AS (
+  SELECT e.objective_id, e.local_date, SUM(e.minutes)::int AS minutes
   FROM effort_entry e
   JOIN obj ON obj.id = e.objective_id
-  WHERE e.local_date BETWEEN date_trunc('week', $2::date)::date
-                         AND (date_trunc('week', $2::date)::date + 6)
-  GROUP BY e.objective_id
+  WHERE e.local_date <= $2::date
+  GROUP BY e.objective_id, e.local_date
+),
+day AS (
+  SELECT d.objective_id,
+    json_agg(json_build_object(
+      'local_date', to_char(d.local_date, 'YYYY-MM-DD'),
+      'minutes', d.minutes
+    ) ORDER BY d.local_date) AS daily_minutes
+  FROM per_day d
+  GROUP BY d.objective_id
 )
 SELECT
   obj.id, obj.title,
   COALESCE(seg.segments, '[]'::json) AS segments,
   COALESCE(ev.status_events, '[]'::json) AS status_events,
   COALESCE(ent.entries, '[]'::json) AS entries,
-  COALESCE(wk.week_minutes, 0) AS week_minutes
+  COALESCE(day.daily_minutes, '[]'::json) AS daily_minutes
 FROM obj
 LEFT JOIN seg ON seg.objective_id = obj.id
 LEFT JOIN ev ON ev.objective_id = obj.id
 LEFT JOIN ent ON ent.objective_id = obj.id
-LEFT JOIN wk ON wk.objective_id = obj.id
+LEFT JOIN day ON day.objective_id = obj.id
 ORDER BY obj.title
 `;
 
