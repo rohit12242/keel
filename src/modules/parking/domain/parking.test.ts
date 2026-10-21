@@ -78,6 +78,7 @@ const row = (over: Partial<IdeaRow> = {}): IdeaRow => ({
   caught_on: "2026-09-14",
   locked_until: "2026-11-02",
   verdicts: [{ verdict: "parked", note: null, occurred_on: "2026-09-14" }],
+  notes: [],
   became_objective_id: null,
   ...over,
 });

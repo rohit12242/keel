@@ -75,6 +75,7 @@ const idea = (caught_on: string, over: Partial<IdeaRow> = {}): IdeaRow => ({
   caught_on,
   locked_until: "2026-09-27",
   verdicts: [{ verdict: "parked", note: null, occurred_on: caught_on }],
+  notes: [],
   became_objective_id: null,
   ...over,
 });

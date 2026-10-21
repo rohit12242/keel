@@ -1,4 +1,8 @@
-import type { ProblemError } from "@/shared/contract";
+import type { Note, ProblemError } from "@/shared/contract";
+import {
+  noteRefusal,
+  validateNoteWrite,
+} from "@/modules/objectives/domain/noteWrite";
 import { withTransaction } from "@/shared/db";
 import { localDayOf } from "@/shared/time/localDay";
 import {
@@ -10,8 +14,10 @@ import {
   type ParkedIdea,
 } from "./domain/parking";
 import {
+  getIdeaNoteFacts,
   getLockFacts,
   insertIdea,
+  insertIdeaNote,
   insertVerdict,
   listIdeas,
   lockIdea,
@@ -86,4 +92,33 @@ export async function createParkedIdeaVerdict(
     const row = await insertVerdict(tx, userId, ideaId, validated.value);
     return { ok: true, idea: assembleIdea(row, today) };
   });
+}
+
+export type IdeaNoteResult =
+  | { ok: true; note: Note }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "future" };
+
+/**
+ * Add a note to a parked idea, in any state — dropped and taken included
+ * (G3). Shape, then owner, then date, as for an objective's note.
+ */
+export async function createParkedIdeaNote(
+  userId: string,
+  ideaId: string,
+  body: unknown,
+  now: Date,
+): Promise<IdeaNoteResult> {
+  const validated = validateNoteWrite(body);
+  if (!validated.ok) {
+    return { ok: false, kind: "invalid", errors: validated.error };
+  }
+  const facts = await getIdeaNoteFacts(userId, ideaId);
+  if (!facts.owned) return { ok: false, kind: "not_found" };
+  if (noteRefusal(validated.value.written_on, localDayOf(now, facts.tz))) {
+    return { ok: false, kind: "future" };
+  }
+  const note = await insertIdeaNote(userId, ideaId, validated.value);
+  return note ? { ok: true, note } : { ok: false, kind: "not_found" };
 }

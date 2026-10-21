@@ -1,4 +1,4 @@
-import type { ProblemError } from "@/shared/contract";
+import type { Note, ProblemError } from "@/shared/contract";
 import { err, ok, type Result } from "@/shared/result";
 import { isIsoDate } from "@/modules/effort/domain/validateWrite";
 import {
@@ -139,6 +139,8 @@ export type IdeaRow = {
   locked_until: string;
   /** Oldest first: by occurred_on, then as recorded. */
   verdicts: VerdictRow[];
+  /** Oldest first: by written_on, then as recorded. */
+  notes: Note[];
   became_objective_id: string | null;
 };
 
@@ -149,6 +151,7 @@ export type ParkedIdea = {
   caught_on: string;
   locked_until: string;
   locked: boolean;
+  notes: Note[];
   verdict: VerdictRow["verdict"];
   note: string | null;
   became_objective_id: string | null;
@@ -186,6 +189,7 @@ export function assembleIdea(row: IdeaRow, today: string): ParkedIdea {
     caught_on: row.caught_on,
     locked_until: row.locked_until,
     locked: today < row.locked_until,
+    notes: row.notes,
     verdict: current.verdict,
     note: current.note,
     became_objective_id: row.became_objective_id,

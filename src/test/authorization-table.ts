@@ -17,6 +17,7 @@ import * as save from "@/app/v1/reviews/[reviewId]/save/route";
 import * as verdicts from "@/app/v1/parked-ideas/[ideaId]/verdicts/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import * as objectiveNotes from "@/app/v1/objectives/[objectiveId]/notes/route";
+import * as ideaNotes from "@/app/v1/parked-ideas/[ideaId]/notes/route";
 import {
   OBJECTIVE_BODY,
   testEntry,
@@ -251,6 +252,18 @@ export const AUTHORIZATION: AuthRow[] = [
           verdict: "dropped",
           occurred_on: "2026-10-01",
           note: "Not for me.",
+        }),
+        { params: Promise.resolve({ ideaId: id }) },
+      ),
+  },
+  {
+    operationId: "createParkedIdeaNote",
+    resource: async (user) => (await testIdea(user)).id,
+    call: (cookie, id) =>
+      ideaNotes.POST(
+        req("POST", `/v1/parked-ideas/${id}/notes`, cookie, {
+          written_on: "2026-10-01",
+          text: "A note.",
         }),
         { params: Promise.resolve({ ideaId: id }) },
       ),

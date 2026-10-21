@@ -1,5 +1,7 @@
 import { query, withTransaction, type Queryable } from "@/shared/db";
 import type { StatusEventRow } from "@/modules/objectives/domain/statusTimeline";
+import type { Note } from "@/shared/contract";
+import type { NoteWrite } from "@/modules/objectives/domain/noteWrite";
 import type { IdeaRow, IdeaWrite, VerdictWrite } from "./domain/parking";
 
 /**
@@ -7,7 +9,7 @@ import type { IdeaRow, IdeaWrite, VerdictWrite } from "./domain/parking";
  * carries user_id; a verdict reaches its user through its idea (NFR-10).
  */
 
-/** An idea `i` as IdeaRow: its verdicts oldest first, and the objective it became. */
+/** An idea `i` as IdeaRow: its verdicts and notes oldest first, and the objective it became. */
 export const IDEA_COLUMNS = `
   i.id, i.idea, i.why,
   to_char(i.caught_on, 'YYYY-MM-DD') AS caught_on,
@@ -18,6 +20,12 @@ export const IDEA_COLUMNS = `
      'occurred_on', to_char(v.occurred_on, 'YYYY-MM-DD')
    ) ORDER BY v.occurred_on, v.recorded_at)
    FROM parked_idea_verdict v WHERE v.parked_idea_id = i.id) AS verdicts,
+  COALESCE((SELECT json_agg(json_build_object(
+     'id', n.id,
+     'written_on', to_char(n.written_on, 'YYYY-MM-DD'),
+     'text', n.text
+   ) ORDER BY n.written_on, n.recorded_at)
+   FROM parked_idea_note n WHERE n.parked_idea_id = i.id), '[]'::json) AS notes,
   (SELECT o.id FROM objective o WHERE o.from_parked_idea_id = i.id)
     AS became_objective_id`;
 
@@ -139,4 +147,38 @@ export async function insertVerdict(
     [ideaId, w.verdict, w.note, w.occurred_on],
   );
   return readIdea(tx, userId, ideaId) as Promise<IdeaRow>;
+}
+
+/** The caller's zone, and whether the idea is theirs. One query. */
+export async function getIdeaNoteFacts(
+  userId: string,
+  ideaId: string,
+): Promise<{ tz: string; owned: boolean }> {
+  const res = await query<{ tz: string; owned: boolean }>(
+    `SELECT u.tz,
+       EXISTS (SELECT 1 FROM parked_idea i WHERE i.id = $2 AND i.user_id = u.id)
+         AS owned
+     FROM "user" u WHERE u.id = $1`,
+    [userId, ideaId],
+  );
+  return res.rows[0];
+}
+
+/**
+ * Append a note. The insert names the owner, so a note cannot land on
+ * another user's idea: no row comes back, and the caller answers 404.
+ */
+export async function insertIdeaNote(
+  userId: string,
+  ideaId: string,
+  w: NoteWrite,
+): Promise<Note | null> {
+  const res = await query<Note>(
+    `INSERT INTO parked_idea_note (parked_idea_id, written_on, text)
+     SELECT i.id, $3::date, $4 FROM parked_idea i
+     WHERE i.id = $2 AND i.user_id = $1
+     RETURNING id, to_char(written_on, 'YYYY-MM-DD') AS written_on, text`,
+    [userId, ideaId, w.written_on, w.text],
+  );
+  return res.rows[0] ?? null;
 }

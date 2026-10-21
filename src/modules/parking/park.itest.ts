@@ -3,6 +3,7 @@ import { getPool, query, type Queryable } from "@/shared/db";
 import * as route from "@/app/v1/parked-ideas/route";
 import { testObjective, testUser, type TestUser } from "@/test/fixtures";
 import type { ParkedIdea } from "./domain/parking";
+import { createParkedIdeaNote } from "./service";
 
 /**
  * I-02 step 18 — parking an idea and the parking lot, through the route. The
@@ -82,6 +83,7 @@ describe("parking an idea (real Postgres)", () => {
       note: null,
       became_objective_id: null,
       decided_early: false,
+      notes: [],
     });
   });
 
@@ -97,10 +99,19 @@ describe("parking an idea (real Postgres)", () => {
     });
   });
 
-  it("lists the caller's ideas, newest caught first, in one query", async () => {
+  it("lists the caller's ideas, newest caught first, in one query with their notes", async () => {
+    for (const idea of await list()) {
+      await createParkedIdeaNote(
+        me.id,
+        idea.id,
+        { written_on: "2026-10-01", text: "Still thinking." },
+        new Date(),
+      );
+    }
     vi.mocked(query).mockClear();
     const ideas = await list();
     expect(vi.mocked(query)).toHaveBeenCalledTimes(1);
+    expect(ideas.every((i) => i.notes.length === 1)).toBe(true);
     expect(ideas.map((i) => i.caught_on)).toEqual(["2026-09-16", "2026-09-01"]);
     expect(await list(await testUser())).toEqual([]);
   });
