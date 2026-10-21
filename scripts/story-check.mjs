@@ -13,7 +13,7 @@
  *
  * It WRITES to the record it runs against, and nothing is ever deleted
  * (NFR-01): an objective that started four weeks ago and ends today, with
- * today's effort, a deviation, an idea and five reviews. Effort is logged
+ * today's effort, a note, two deviations, an approved idea and five reviews. Effort is logged
  * only for today (G21), so the past weeks have none. Against the deployed
  * service that is the real record — ask before running it there.
  *
@@ -97,6 +97,27 @@ try {
   );
   check("effort is logged today", entry.local_date === today && !entry.extra);
   await call("POST", `/v1/objectives/${o.id}/effort-entries`, 422, {
+    local_date: today,
+    tz: "UTC",
+    occurred_at_local: "09:30",
+    minutes: 30,
+    note: "story-check overlap",
+  });
+  await call("POST", `/v1/objectives/${o.id}/effort-entries`, 201, {
+    local_date: today,
+    tz: "UTC",
+    occurred_at_local: "10:00",
+    minutes: 30,
+    note: "story-check",
+  });
+  check("an overlapping entry is refused; one after it is logged", true);
+
+  const note = await call("POST", `/v1/objectives/${o.id}/notes`, 201, {
+    written_on: today,
+    text: "story-check note",
+  });
+  check("a note is added to the objective", note.text === "story-check note");
+  await call("POST", `/v1/objectives/${o.id}/effort-entries`, 422, {
     local_date: daysFrom(today, -1),
     tz: "UTC",
     occurred_at_local: "09:00",
@@ -116,12 +137,36 @@ try {
   });
   check("a chosen deviation names the objective", deviation.kind === "chosen");
 
+  const drifted = await call("POST", "/v1/deviations", 201, {
+    objective_ids: [o.id],
+    local_date: daysFrom(start, 9),
+    tz: "UTC",
+    kind: "drifted",
+    what_happened: "story-check drift",
+    minutes: 30,
+  });
+  check(
+    "a drifted deviation needs no reasoning",
+    drifted.kind === "drifted" && !("reasoning" in drifted),
+  );
+
   const idea = await call("POST", "/v1/parked-ideas", 201, {
     idea: `story-check idea ${run}`,
     why: "story-check",
     caught_on: daysFrom(start, 3),
   });
   check("an idea is parked", idea.verdict === "parked");
+
+  const approved = await call(
+    "POST",
+    `/v1/parked-ideas/${idea.id}/verdicts`,
+    201,
+    { verdict: "approved", occurred_on: today },
+  );
+  check(
+    "the idea is approved, dated today",
+    approved.verdict === "approved" && approved.verdict_on === today,
+  );
 
   const reviewIds = [];
   for (const label of ["Week 1", "Week 2", "Week 3", "Week 4"]) {
@@ -137,11 +182,42 @@ try {
     await call("PATCH", `/v1/reviews/${draft.id}`, 200, {
       what_changes_next: `After ${label}.`,
       review_summary: `${label}, recorded.`,
+      ...(label === "Week 2" ? { improvement_answer: "not_tried" } : {}),
     });
+    if (label === "Week 2") {
+      check(
+        "Week 2 quotes Week 1's change back",
+        draft.previous_what_changes_next === "After Week 1.",
+      );
+    }
     await call("POST", `/v1/reviews/${draft.id}/save`, 200);
     check(`${label} is reviewed and saved`, draft.label === label);
     reviewIds.push(draft.id);
   }
+
+  // Read before completing: the completed event is dated today, the plan's
+  // last day, which then stops being planned (TRIAGE).
+  const running = await call("GET", `/v1/objectives/${o.id}`, 200);
+  check(
+    "today's 90 minutes read as 60 credited and 30 over plan",
+    running.figures.logged_minutes === 90 &&
+      running.figures.over_target_minutes === 30 &&
+      running.figures.extra_off_day_minutes === 0,
+  );
+  check(
+    "four empty weeks put it behind, by the plan so far",
+    running.track === "behind" && running.weeks.length === 5,
+  );
+  const { entries } = await call(
+    "GET",
+    `/v1/objectives/${o.id}/effort-entries?from=${today}&to=${today}`,
+    200,
+  );
+  check(
+    "today's entries read back in time order",
+    JSON.stringify(entries.map((e) => e.occurred_at_local)) ===
+      JSON.stringify(["09:00", "10:00"]),
+  );
 
   const planEnd = await call("POST", `/v1/objectives/${o.id}/reviews`, 201);
   await call("PATCH", `/v1/reviews/${planEnd.id}`, 200, {
@@ -170,12 +246,16 @@ try {
       ]),
   );
   check(
-    "its figures are computed from the effort",
-    done.figures.logged_minutes === 60 &&
-      done.figures.extra_off_day_minutes === 0,
+    "it keeps its note",
+    done.notes.length === 1 && done.notes[0].id === note.id,
   );
 
-  const { reviews } = await call("GET", `/v1/objectives/${o.id}/reviews`, 200);
+  const { reviews, due } = await call(
+    "GET",
+    `/v1/objectives/${o.id}/reviews`,
+    200,
+  );
+  check("nothing is left due", due.length === 0);
   check(
     "five saved reviews read back in order",
     JSON.stringify(reviews.map((r) => r.label)) ===
@@ -188,17 +268,18 @@ try {
     `/v1/deviations?from=${start}&to=${today}&objective_id=${o.id}`,
     200,
   );
+  const chosen = deviations.find((d) => d.id === deviation.id);
   check(
-    "the deviation reads back judged by Week 1",
-    deviations.length === 1 &&
-      deviations[0].verdict === "worth_it" &&
-      deviations[0].verdict_review_id === reviewIds[0],
+    "the chosen deviation reads back judged by Week 1",
+    deviations.length === 2 &&
+      chosen?.verdict === "worth_it" &&
+      chosen?.verdict_review_id === reviewIds[0],
   );
 
   const { ideas } = await call("GET", "/v1/parked-ideas", 200);
   check(
-    "the idea reads back in the parking lot",
-    ideas.some((i) => i.id === idea.id),
+    "the idea reads back approved in the parking lot",
+    ideas.some((i) => i.id === idea.id && i.verdict === "approved"),
   );
 
   console.log(`\n✓ story-check passed: objective ${o.id}`);

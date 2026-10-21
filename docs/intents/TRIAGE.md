@@ -142,3 +142,15 @@ before the window, so they are not credited either: those minutes appear in
 weeks never cross a week slot, so only monthly reviews of flexible objectives are
 affected. One way out: a week belongs to the window that holds its last day, and its
 minutes count there.
+
+### Completing at the final review un-plans the plan's last day · found in I-03
+
+Saving a plan-end review with outcome `completed`, `paused` or `ended` writes the
+status event dated the review's `period_end` (ERD invariant 7) — the plan's last
+day. `statusOn` treats an event as in force from its own date, so that day is no
+longer active: its slot disappears, its target leaves the figures, and effort logged
+on it becomes extra. A plan whose last day is a planned day therefore reads one
+day short at the end, and the last day's work counts as off-plan. Unnoticed so far
+because the story's plan ends on a Sunday. Options: date the event the day after
+`period_end`, or have `planSlots` treat a final status as in force from the next
+day. Either is a domain rule change (`docs/domain/` and the ERD), with tests.
