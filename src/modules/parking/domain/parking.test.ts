@@ -299,26 +299,35 @@ describe("validateIdeaWrite / validateVerdictWrite", () => {
 });
 
 describe("canTake", () => {
-  it("takes a parked idea, locked or not, and nothing else", () => {
-    expect(canTake(row())).toBe(true);
-    expect(
-      canTake(
-        row({
-          verdicts: [
-            { verdict: "parked", note: null, occurred_on: "2026-09-14" },
-            { verdict: "dropped", note: null, occurred_on: "2026-11-03" },
-          ],
-        }),
-      ),
-    ).toBe(false);
-    expect(
-      canTake(
-        row({
-          verdicts: [
-            { verdict: "taken", note: null, occurred_on: "2026-10-01" },
-          ],
-        }),
-      ),
-    ).toBe(false);
+  const approved = (on: string) =>
+    row({
+      verdicts: [
+        { verdict: "parked", note: null, occurred_on: "2026-09-14" },
+        { verdict: "approved", note: null, occurred_on: on },
+      ],
+    });
+
+  it("takes an approved idea, locked or not", () => {
+    expect(canTake(approved("2026-10-01"))).toBe(true); // before the lock lifts
+    expect(canTake(approved("2026-11-05"))).toBe(true);
+  });
+
+  it("does not take a parked idea: it is approved first", () => {
+    expect(canTake(row())).toBe(false);
+  });
+
+  it("does not take a dropped or taken idea: both are final", () => {
+    for (const verdict of ["dropped", "taken"] as const) {
+      expect(
+        canTake(
+          row({
+            verdicts: [
+              { verdict: "approved", note: null, occurred_on: "2026-09-20" },
+              { verdict, note: "x", occurred_on: "2026-10-01" },
+            ],
+          }),
+        ),
+      ).toBe(false);
+    }
   });
 });

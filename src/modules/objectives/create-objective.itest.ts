@@ -55,7 +55,7 @@ describe("createObjective (real Postgres)", () => {
   });
 
   it("writes the objective, segment 0 and its created event together", async () => {
-    const result = await createObjective(user.id, BODY);
+    const result = await createObjective(user.id, BODY, new Date());
     if (!result.ok) throw new Error(`create failed: ${result.kind}`);
     const o = result.objective;
 
@@ -113,11 +113,15 @@ describe("createObjective (real Postgres)", () => {
 
   it("writes nothing for a refused body", async () => {
     const title = `itest: I-01 refused ${Date.now()}`;
-    const result = await createObjective(user.id, {
-      ...BODY,
-      title,
-      schedule: { ...BODY.schedule, days_per_week: 3 },
-    });
+    const result = await createObjective(
+      user.id,
+      {
+        ...BODY,
+        title,
+        schedule: { ...BODY.schedule, days_per_week: 3 },
+      },
+      new Date(),
+    );
     expect(result).toMatchObject({ ok: false, kind: "mode_mismatch" });
     const res = await query("SELECT 1 FROM objective WHERE title = $1", [
       title,

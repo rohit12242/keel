@@ -13,8 +13,9 @@ import { generateSlots, parseIso, toIso } from "./generateSlots";
  *   weekdays given for a flexible schedule, or a day count for a fixed one.
  *
  * Both are decided before any write, so a schema constraint never surfaces as
- * a 500. `tz` is validated and then dropped: the objective records only the day
- * it starts, so a zone would be stored and never read (I-01, decision 2).
+ * a 500. `tz` is validated and passed on but never stored: the objective
+ * records only the day it starts (I-01, decision 2). Its one use is dating the
+ * take of a parked idea — today, in the zone it is created in (G37).
  */
 
 export type NewSchedule =
@@ -42,6 +43,8 @@ export type NewObjective = {
   end_date: string;
   /** Started from a parked idea: taking it is creating this objective. */
   from_parked_idea_id: string | null;
+  /** The zone it was declared in. Dates the take; never stored. */
+  tz: string;
 };
 
 export type ObjectiveWriteResult =
@@ -157,6 +160,7 @@ export function validateObjectiveWrite(input: unknown): ObjectiveWriteResult {
       starts_on: startsOn,
       end_date: endDate,
       from_parked_idea_id: typeof idea === "string" ? idea : null,
+      tz: body.tz as string,
     },
   };
 }

@@ -49,14 +49,15 @@ export type CreateObjectiveResult =
 
 /**
  * Declare an objective. Started from a parked idea, it takes the idea: the
- * idea must be the caller's and currently parked — locked or not, since an
- * early take is allowed — and its `taken` verdict, dated the day the
- * objective starts, is written in the same transaction. There is no other way
- * to take an idea.
+ * idea must be the caller's and currently approved — locked or not, since an
+ * early take is allowed — and its `taken` verdict, dated today in the zone
+ * the objective is declared in (G37), is written in the same transaction.
+ * There is no other way to take an idea.
  */
 export async function createObjective(
   userId: string,
   body: unknown,
+  now: Date,
 ): Promise<CreateObjectiveResult> {
   const validated = validateObjectiveWrite(body);
   if (!validated.ok) return validated;
@@ -70,7 +71,7 @@ export async function createObjective(
         if (!canTake(idea)) {
           return {
             refused:
-              "The idea is not currently parked: it was dropped or already taken.",
+              "The idea is not approved: it is parked, dropped or already taken.",
           };
         }
       }
@@ -78,7 +79,7 @@ export async function createObjective(
       if (write.from_parked_idea_id !== null) {
         await insertVerdict(tx, userId, write.from_parked_idea_id, {
           verdict: "taken",
-          occurred_on: write.starts_on,
+          occurred_on: localDayOf(now, write.tz),
           note: null,
         });
       }
@@ -94,7 +95,7 @@ export async function createObjective(
   // and a listed one cannot differ in shape or figures.
   const [row] = await getObjectiveRows(userId, id);
   const objective = row
-    ? assembleObjective(row, localDayOf(new Date(), row.user_tz))
+    ? assembleObjective(row, localDayOf(now, row.user_tz))
     : null;
   if (!objective?.ok) {
     throw new Error(`createObjective: objective ${id} did not read back`);

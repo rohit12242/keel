@@ -40,10 +40,11 @@ describe("each objectives read is one query (real Postgres)", () => {
   beforeAll(async () => {
     userId = (await testUser()).id;
     for (const n of [1, 2, 3]) {
-      const r = await createObjective(userId, {
-        ...BODY,
-        title: `itest: I-01 one read ${n}`,
-      });
+      const r = await createObjective(
+        userId,
+        { ...BODY, title: `itest: I-01 one read ${n}` },
+        new Date(),
+      );
       if (!r.ok) throw new Error("fixture create failed");
       id = r.objective.id;
     }

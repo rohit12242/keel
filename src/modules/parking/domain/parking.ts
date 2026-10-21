@@ -217,10 +217,10 @@ export function verdictRefusal(
 
 /**
  * Whether an idea can be taken — an objective started from it. Only an idea
- * that is currently parked: a dropped one is revived first, and a taken one
- * already became an objective. A lock does not stop it: taking early is
- * allowed, and shown as early (docs/domain/parking-lock.md).
+ * that is currently approved (invariant 13): a parked one is approved first,
+ * and a dropped or taken one is final. A lock does not stop it: taking early
+ * is allowed, and shown as early (docs/domain/parking-lock.md).
  */
 export function canTake(row: IdeaRow): boolean {
-  return assembleIdea(row, row.caught_on).verdict === "parked";
+  return assembleIdea(row, row.caught_on).verdict === "approved";
 }

@@ -57,7 +57,11 @@ export async function testObjective(
   user: TestUser,
   over: Record<string, unknown> = {},
 ): Promise<Objective> {
-  const result = await createObjective(user.id, { ...OBJECTIVE_BODY, ...over });
+  const result = await createObjective(
+    user.id,
+    { ...OBJECTIVE_BODY, ...over },
+    new Date(),
+  );
   if (!result.ok) {
     throw new Error(`testObjective: ${JSON.stringify(result)}`);
   }
