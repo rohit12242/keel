@@ -21,7 +21,8 @@ export const REVIEW_COLUMNS = `
   to_char(r.period_start, 'YYYY-MM-DD') AS period_start,
   to_char(r.period_end, 'YYYY-MM-DD') AS period_end,
   r.status, r.previous_review_id, r.improvement_answer,
-  r.improvement_answer_note, r.what_went_right, r.what_needs_improvement,
+  r.improvement_answer_note, r.what_worked, r.what_got_in_the_way,
+  r.what_changes_next,
   r.review_summary, r.criteria_assessment, r.criteria_verdict, r.outcome,
   to_char(r.saved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS saved_at`;
 
@@ -167,8 +168,9 @@ export async function lockReview(
 const EDITABLE: (keyof ReviewEdit)[] = [
   "improvement_answer",
   "improvement_answer_note",
-  "what_went_right",
-  "what_needs_improvement",
+  "what_worked",
+  "what_got_in_the_way",
+  "what_changes_next",
   "review_summary",
   "criteria_assessment",
   "criteria_verdict",

@@ -41,8 +41,9 @@ const review = (over: Partial<ReviewRow> = {}): ReviewRow => ({
   previous_review_id: null,
   improvement_answer: null,
   improvement_answer_note: null,
-  what_went_right: null,
-  what_needs_improvement: null,
+  what_worked: null,
+  what_got_in_the_way: null,
+  what_changes_next: null,
   review_summary: null,
   criteria_assessment: null,
   criteria_verdict: null,
@@ -83,7 +84,7 @@ const week1Saved = review({
   period_end: "2026-09-13",
   status: "saved",
   saved_at: "2026-09-13T10:00:00Z",
-  what_needs_improvement: "Start earlier.",
+  what_changes_next: "Start earlier.",
 });
 
 const facts = (over: Partial<ReviewFacts> = {}): ReviewFacts => ({
@@ -197,7 +198,7 @@ describe("assembleReview", () => {
       label: "Week 2",
       due_on: "2026-09-20",
       previous_review_id: "r1",
-      previous_improvement_note: "Start earlier.",
+      previous_what_changes_next: "Start earlier.",
       adherence_pct: 50,
     });
     expect(r.minutes_per_day.slice(0, 3)).toEqual([
@@ -223,7 +224,7 @@ describe("assembleReview", () => {
     ).toMatchObject({
       label: "Week 1",
       previous_review_id: null,
-      previous_improvement_note: null,
+      previous_what_changes_next: null,
     });
   });
 

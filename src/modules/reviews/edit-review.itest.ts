@@ -44,7 +44,7 @@ describe("autosave and discard (real Postgres)", () => {
   it("200s an autosave and returns the review with its answers", async () => {
     const res = await patch({
       improvement_answer: "partly",
-      what_went_right: "Showed up.",
+      what_worked: "Showed up.",
       review_summary: "A steady week.",
     });
     expect(res.status).toBe(200);
@@ -52,13 +52,13 @@ describe("autosave and discard (real Postgres)", () => {
       id: reviewId,
       status: "draft",
       improvement_answer: "partly",
-      what_went_right: "Showed up.",
+      what_worked: "Showed up.",
       review_summary: "A steady week.",
     });
     const cleared = (await (
-      await patch({ what_went_right: null })
+      await patch({ what_worked: null })
     ).json()) as Review;
-    expect(cleared.what_went_right).toBeNull();
+    expect(cleared.what_worked).toBeNull();
     expect(cleared.review_summary).toBe("A steady week.");
   });
 

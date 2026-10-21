@@ -27,8 +27,9 @@ export type ReviewRow = {
   previous_review_id: string | null;
   improvement_answer: "yes" | "partly" | "no" | null;
   improvement_answer_note: string | null;
-  what_went_right: string | null;
-  what_needs_improvement: string | null;
+  what_worked: string | null;
+  what_got_in_the_way: string | null;
+  what_changes_next: string | null;
   review_summary: string | null;
   criteria_assessment: string | null;
   criteria_verdict: "met" | "partly_met" | "not_met" | null;
@@ -54,12 +55,13 @@ export type Review = ReviewSummary & {
   due_on: string;
   improvement_answer: ReviewRow["improvement_answer"];
   improvement_answer_note: string | null;
-  what_went_right: string | null;
-  what_needs_improvement: string | null;
+  what_worked: string | null;
+  what_got_in_the_way: string | null;
+  what_changes_next: string | null;
   criteria_assessment: string | null;
   criteria_verdict: ReviewRow["criteria_verdict"];
   previous_review_id: string | null;
-  previous_improvement_note: string | null;
+  previous_what_changes_next: string | null;
   figures: Required<Figures>;
   minutes_per_day: { date: string; minutes: number; planned: boolean }[];
   deviations: Deviation[];
@@ -183,12 +185,13 @@ export function assembleReview(review: ReviewRow, facts: ReviewFacts): Review {
     due_on: review.period_end,
     improvement_answer: review.improvement_answer,
     improvement_answer_note: review.improvement_answer_note,
-    what_went_right: review.what_went_right,
-    what_needs_improvement: review.what_needs_improvement,
+    what_worked: review.what_worked,
+    what_got_in_the_way: review.what_got_in_the_way,
+    what_changes_next: review.what_changes_next,
     criteria_assessment: review.criteria_assessment,
     criteria_verdict: review.criteria_verdict,
     previous_review_id: previous?.id ?? null,
-    previous_improvement_note: previous?.what_needs_improvement ?? null,
+    previous_what_changes_next: previous?.what_changes_next ?? null,
     figures: windowFigures(review, facts.slots, facts.daily),
     minutes_per_day: datesBetween(review.period_start, review.period_end).map(
       (date) => ({

@@ -185,8 +185,8 @@ describe("I-02 — the whole story, through the API", () => {
         );
       }
       await call(review.PATCH, "PATCH", `/v1/reviews/${draft.id}`, rid, 200, {
-        what_went_right: "Showed up.",
-        what_needs_improvement: `Better than ${label}.`,
+        what_worked: "Showed up.",
+        what_changes_next: `Better than ${label}.`,
         review_summary: `${label}, recorded.`,
       });
       await call(save.POST, "POST", `/v1/reviews/${draft.id}/save`, rid, 200);
@@ -202,7 +202,7 @@ describe("I-02 — the whole story, through the API", () => {
       201,
     );
     expect(planEnd).toMatchObject({ kind: "plan_end", label: "End of plan" });
-    expect(planEnd.previous_improvement_note).toBe("Better than Week 3.");
+    expect(planEnd.previous_what_changes_next).toBe("Better than Week 3.");
     await call(
       review.PATCH,
       "PATCH",
@@ -267,7 +267,7 @@ describe("I-02 — the whole story, through the API", () => {
     );
     expect(week2).toMatchObject({
       previous_review_id: reviewIds[0],
-      previous_improvement_note: "Better than Week 1.",
+      previous_what_changes_next: "Better than Week 1.",
     });
 
     const listed = await call<{ deviations: Deviation[] }>(

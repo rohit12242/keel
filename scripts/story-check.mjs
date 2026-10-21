@@ -120,7 +120,7 @@ try {
       );
     }
     await call("PATCH", `/v1/reviews/${draft.id}`, 200, {
-      what_needs_improvement: `After ${label}.`,
+      what_changes_next: `After ${label}.`,
       review_summary: `${label}, recorded.`,
     });
     await call("POST", `/v1/reviews/${draft.id}/save`, 200);
