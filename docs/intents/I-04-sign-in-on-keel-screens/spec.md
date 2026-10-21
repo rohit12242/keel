@@ -21,6 +21,9 @@ The design this needs is in the repository: ADR-002 (revised for this intent) an
 
 - A session is created only from a sign-in that has just happened, only from Keel's
   own origin, and only for a verified email.
+- Confirming a new account's email ends signed in, and so does resetting a password:
+  both finish with the same sign-in and exchange. There is no second way to get a
+  session.
 - Cognito's managed login pages and its OAuth redirect are no longer used, and the
   app client can no longer be signed in through them.
 - The two redirect endpoints are gone; no route, test or document still points at
@@ -40,6 +43,12 @@ The design this needs is in the repository: ADR-002 (revised for this intent) an
   `localStorage`, `sessionStorage`, cookies or memory — only Keel's own session cookie.
 - Signing out leaves the same: nothing but a cleared cookie.
 
+**The emails say they are from Keel**
+
+- The confirmation and reset emails carry Keel's wording: they name Keel, give the
+  6-digit code, and say how long it lasts — 24 hours to confirm, an hour to reset —
+  as the screens do. They are still sent from Cognito's own address.
+
 **What does not change**
 
 - The session: its cookie, its lifetime, and validation with no network call, so a
@@ -57,5 +66,6 @@ The design this needs is in the repository: ADR-002 (revised for this intent) an
 
 ## Out of scope
 
-The screens, including the code-entry step the design is being updated for. MFA.
-Social sign-in. Branding Cognito's emails.
+The screens, designed in `docs/design/screens/02-auth-and-onboarding.md`. MFA.
+Social sign-in. Sending the emails from Keel's own address, which needs Amazon SES and
+a verified domain.

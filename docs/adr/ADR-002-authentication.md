@@ -25,7 +25,8 @@ screens. Cognito's managed login pages and its OAuth redirect are not used.
 1. **Prove the password — browser to Cognito.** Sign-in uses SRP (`USER_SRP_AUTH`):
    the browser proves it knows the password without sending it, and Cognito returns
    tokens. Creating an account (with its emailed code) and resetting a password go
-   from the browser to Cognito the same way.
+   from the browser to Cognito the same way, and **both end by signing in** — SRP,
+   then step 2. There is no other way to get a session.
 2. **Exchange — browser to Keel.** `POST /v1/session` with the ID token. Keel checks it
    locally against Cognito's published keys: signature, issuer, audience,
    `token_use = id`, not expired, **authenticated within the last five minutes**, and

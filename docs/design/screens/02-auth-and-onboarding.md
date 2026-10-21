@@ -2,7 +2,7 @@
 
 ## Auth screens (Keel's own, not Cognito managed login)
 
-Keel shows its own sign-in, sign-up and reset screens. Cognito still holds the accounts and checks the password; the screens talk to it from the browser (SRP), so the password never reaches Keel's server. This changes ADR-002, which chose managed login. That revision is not made yet.
+Keel shows its own sign-in, sign-up and reset screens. Cognito still holds the accounts and checks the password; the screens talk to it from the browser (SRP), so the password never reaches Keel's server. ADR-002 was revised for this in I-04.
 
 One layout for all five: a left hero on desktop ("The **evidence**, not guesswork, decides what you do next." with "evidence" highlighted, a one-line sub, and three dots: Effort against your plan · Deviations you declare · Ideas you parked) and a card on the right. On phone the hero becomes a violet band above the form. Footer line: "A private record of your time. Never shared."
 
