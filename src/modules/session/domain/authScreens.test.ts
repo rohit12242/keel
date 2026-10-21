@@ -26,12 +26,23 @@ describe("emailError", () => {
   });
 
   it("needs an @ and a domain", () => {
-    for (const bad of ["rohit", "rohit@", "rohit@example", "a b@example.com"]) {
+    for (const bad of [
+      "rohit",
+      "rohit@",
+      "rohit@example",
+      "a b@example.com",
+      "rohit@example.com,",
+      "rohit@example.com;",
+      "rohit,x@example.com",
+      "rohit@-example.com",
+      "rohit@example..com",
+    ]) {
       expect(emailError(bad, "sign_in")).toBe(
         "Check the email: it needs an @ and a domain, like you@example.com.",
       );
     }
     expect(emailError(" rohit@example.com ", "sign_in")).toBeNull();
+    expect(emailError("rohit.y+test@mail.example.co.uk", "reset")).toBeNull();
   });
 });
 

@@ -16,7 +16,13 @@ export const RESEND_WAIT_SECONDS = 60;
 
 export type Screen = "sign_in" | "create_account" | "reset";
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * Something before the @, and a domain of letters, digits and hyphens in dot-
+ * separated labels — so a stray comma or semicolon pasted after the address
+ * is caught here, not sent to Cognito as a different address.
+ */
+const LABEL = "[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?";
+const EMAIL = new RegExp(`^[^\\s@,;:<>()\\[\\]"]+@${LABEL}(?:\\.${LABEL})+$`);
 
 /** The email field's error, or null when it is fine. */
 export function emailError(value: string, screen: Screen): string | null {
