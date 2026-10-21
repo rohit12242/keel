@@ -8,12 +8,12 @@ Everything here was reviewed and approved screen by screen in a clickable protot
 
 | File | What it is |
 |---|---|
-| `keel-modern-prototype.html` | The clickable prototype, one self-contained file. Open it in a browser. The **Prototype** button (bottom right) jumps between screens, switches sample data (planned day, day off, new user), starts onboarding and resets. Sample data lives in the browser's local storage. |
+| `keel-modern-prototype.html` | The clickable prototype, one self-contained file. Open it in a browser. The **Prototype** button (bottom right) jumps between screens, switches sample data (planned day, day off, new user), starts onboarding and resets. Its panel also lists the fake codes and emails the auth screens accept. Sample data lives in the browser's local storage. |
 | `keel-modern-tokens.css` | Colour, type, spacing, radius, size and shadow tokens, light and dark. The replacement for `src/app/tokens.css`. |
 | `tokens.md` | The token set explained, the old-to-new name map, type and theming rules. |
 | `contract-gaps.md` | **Read before building.** Where the design asks for something `docs/keel-api.yaml` or the domain rules do not provide yet. |
 | `screens/01-shell.md` | App frame: sidebar, phone tab bar, headers, account menu, theme, dialogs, toasts, keyboard shortcuts, shared patterns. |
-| `screens/02-auth-and-onboarding.md` | Sign-in, sign-up, reset (Cognito) and the three-step first run. |
+| `screens/02-auth-and-onboarding.md` | Keel's own sign-in, sign-up, email confirmation and two-step reset, and the three-step first run. |
 | `screens/03-today.md` | Today. |
 | `screens/04-objectives.md` | Objectives list and detail (Overview, Effort, Deviations, Reviews), New objective, pause, resume, terminate, notes. |
 | `screens/05-reviews.md` | Weekly / monthly review, final review with Complete or Extend, saved review. |
