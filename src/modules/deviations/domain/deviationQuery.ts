@@ -1,6 +1,6 @@
 import type { ProblemError } from "@/shared/contract";
 import { err, ok, type Result } from "@/shared/result";
-import { isIsoDate } from "@/modules/effort/domain/validateWrite";
+import { parseDateRange } from "@/modules/effort/domain/validateWrite";
 
 /**
  * `GET /deviations` parameters: `from` and `to` are required — the client picks
@@ -20,16 +20,8 @@ export function parseDeviationQuery(
   to: string | null,
   objectiveId: string | null,
 ): Result<DeviationQuery, ProblemError[]> {
-  const errors: ProblemError[] = [];
-  if (from === null || !isIsoDate(from)) {
-    errors.push({ field: "from", message: "Required; YYYY-MM-DD." });
-  }
-  if (to === null || !isIsoDate(to)) {
-    errors.push({ field: "to", message: "Required; YYYY-MM-DD." });
-  }
-  if (errors.length === 0 && (to as string) < (from as string)) {
-    errors.push({ field: "to", message: "Must not be before from." });
-  }
+  const range = parseDateRange(from, to);
+  const errors: ProblemError[] = range.ok ? [] : [...range.errors];
   if (objectiveId !== null && !UUID.test(objectiveId)) {
     errors.push({ field: "objective_id", message: "Must be an objective id." });
   }

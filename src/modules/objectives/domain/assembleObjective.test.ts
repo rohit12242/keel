@@ -266,6 +266,21 @@ describe("next_review_on and reviews_due", () => {
   });
 });
 
+describe("assembleObjective — last_logged_on", () => {
+  it("is the latest date with an entry, or null when nothing is logged", () => {
+    expect(detail(ROW).last_logged_on).toBeNull();
+    expect(
+      detail({
+        ...ROW,
+        daily_minutes: [
+          { local_date: "2026-11-02", minutes: 60 },
+          { local_date: "2026-11-05", minutes: 30 },
+        ],
+      }).last_logged_on,
+    ).toBe("2026-11-05");
+  });
+});
+
 describe("assembleObjective — with an extension", () => {
   const SEG_1: ObjectiveSegmentRow = {
     ...SEG_0,

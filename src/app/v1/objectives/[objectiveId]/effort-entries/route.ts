@@ -1,4 +1,7 @@
-import { createEffortEntry } from "@/modules/effort/service";
+import {
+  createEffortEntry,
+  listObjectiveEntries,
+} from "@/modules/effort/service";
 import { jsonResponse, problem, problemType, withSession } from "@/shared/http";
 import { withRequestLog } from "@/shared/log";
 
@@ -102,6 +105,67 @@ export const POST = withSession(
                 result.detail,
               );
           }
+        } catch {
+          return problem(
+            503,
+            "Couldn't reach your log",
+            problemType("unavailable"),
+            "The database could not be reached.",
+          );
+        }
+      },
+    );
+  },
+);
+
+/**
+ * GET /v1/objectives/{objectiveId}/effort-entries?from=&to= — the entries in
+ * the range, with their times (G18). Both dates are required; another user's
+ * objective is a 404 (NFR-10).
+ */
+export const GET = withSession(
+  async (
+    req: Request,
+    ctx: { params: Promise<{ objectiveId: string }> },
+    userId: string,
+  ): Promise<Response> => {
+    const { objectiveId } = await ctx.params;
+    return withRequestLog(
+      "GET /v1/objectives/[objectiveId]/effort-entries",
+      { objective_id: objectiveId },
+      async () => {
+        if (!UUID.test(objectiveId)) {
+          return problem(
+            404,
+            "Not found",
+            problemType("not-found"),
+            "No such objective.",
+          );
+        }
+        const search = new URL(req.url).searchParams;
+        try {
+          const result = await listObjectiveEntries(
+            userId,
+            objectiveId,
+            search.get("from"),
+            search.get("to"),
+          );
+          if (result.ok) return jsonResponse(200, { entries: result.entries });
+          if (result.kind === "invalid") {
+            return problem(
+              400,
+              "Invalid range",
+              problemType("invalid"),
+              "from and to are required dates, to not before from.",
+              result.errors,
+            );
+          }
+          return problem(
+            404,
+            "Not found",
+            problemType("not-found"),
+            "No such objective.",
+          );
         } catch {
           return problem(
             503,

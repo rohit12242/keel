@@ -171,6 +171,8 @@ export type Objective = ObjectiveSummary & {
   status_history: StatusEvent[];
   /** Oldest first. */
   notes: Note[];
+  /** The latest local_date with an entry; null when nothing is logged. */
+  last_logged_on: string | null;
   /** From the latest saved plan-end review; null before there is one. */
   criteria_verdict: "met" | "partly_met" | "not_met" | null;
 };

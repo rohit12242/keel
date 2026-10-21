@@ -140,6 +140,19 @@ export const AUTHORIZATION: AuthRow[] = [
       ),
   },
   {
+    operationId: "listObjectiveEntries",
+    resource: anObjective,
+    call: (cookie, id) =>
+      effortEntries.GET(
+        req(
+          "GET",
+          `/v1/objectives/${id}/effort-entries?from=2026-09-14&to=2026-09-20`,
+          cookie,
+        ),
+        objectiveParams(id),
+      ),
+  },
+  {
     operationId: "updateEffortEntry",
     resource: anEntry,
     call: (cookie, id) =>

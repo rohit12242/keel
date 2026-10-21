@@ -54,6 +54,31 @@ export function isIsoDate(s: string): boolean {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 }
 
+/**
+ * A required, inclusive date range — `from` and `to`, `to` not before
+ * `from`. Each bad field is named. Shared by every read that takes one.
+ */
+export function parseDateRange(
+  from: string | null,
+  to: string | null,
+):
+  | { ok: true; from: string; to: string }
+  | { ok: false; errors: ProblemError[] } {
+  const errors: ProblemError[] = [];
+  if (from === null || !isIsoDate(from)) {
+    errors.push({ field: "from", message: "Required; YYYY-MM-DD." });
+  }
+  if (to === null || !isIsoDate(to)) {
+    errors.push({ field: "to", message: "Required; YYYY-MM-DD." });
+  }
+  if (errors.length === 0 && (to as string) < (from as string)) {
+    errors.push({ field: "to", message: "Must not be before from." });
+  }
+  return errors.length > 0
+    ? { ok: false, errors }
+    : { ok: true, from: from as string, to: to as string };
+}
+
 /** An IANA zone the runtime recognises. Shared with the objective write. */
 export function isValidTz(tz: string): boolean {
   try {

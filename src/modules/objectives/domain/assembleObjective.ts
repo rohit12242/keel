@@ -191,6 +191,8 @@ export function assembleObjective(
     segments: segments.map(toPlanSegment),
     status_history: statusHistory(row, segments),
     notes: row.notes,
+    // daily_minutes is in date order, so the last one is the latest (G18).
+    last_logged_on: row.daily_minutes.at(-1)?.local_date ?? null,
     criteria_verdict: criteriaVerdictOf(row),
   };
   // `description` is a string in the contract, never null: absent when unset.

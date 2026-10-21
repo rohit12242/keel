@@ -2,6 +2,7 @@ import type { EffortEntry, ProblemError } from "@/shared/contract";
 import { withTransaction } from "@/shared/db";
 import {
   overlapping,
+  parseDateRange,
   spanLabel,
   validateEffortEntryWrite,
 } from "./domain/validateWrite";
@@ -22,6 +23,7 @@ import { localDayOf } from "@/shared/time/localDay";
 import {
   deleteEffortEntry as deleteEntryRow,
   getEffortMonthFacts,
+  getEntriesInRange,
   getEntryForEdit,
   getObjectiveForEffort,
   insertEffortEntry,
@@ -229,5 +231,38 @@ export async function listObjectiveEffort(
       statusEvents: facts.status_events,
       entries: facts.entries,
     }),
+  };
+}
+
+export type ListEntriesResult =
+  | { ok: true; entries: EffortEntry[] }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" };
+
+/**
+ * An objective's entries over a range, with their times (G18): the Effort
+ * tab's last day and week dialog, in one call rather than one per day.
+ * Read-only — entries are edited from Today.
+ */
+export async function listObjectiveEntries(
+  userId: string,
+  objectiveId: string,
+  from: string | null,
+  to: string | null,
+): Promise<ListEntriesResult> {
+  const range = parseDateRange(from, to);
+  if (!range.ok) return { ok: false, kind: "invalid", errors: range.errors };
+  const facts = await getEntriesInRange(
+    userId,
+    objectiveId,
+    range.from,
+    range.to,
+  );
+  if (!facts) return { ok: false, kind: "not_found" };
+  return {
+    ok: true,
+    entries: facts.entries.map((row) =>
+      present(row, isExtra(facts, row.local_date)),
+    ),
   };
 }

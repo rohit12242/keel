@@ -230,3 +230,35 @@ export async function getEffortMonthFacts(
   );
   return res.rows[0] ?? null;
 }
+
+export type EntriesInRange = ObjectiveForEffort & { entries: EffortEntryRow[] };
+
+/**
+ * An objective's entries over an inclusive date range, with the facts that
+ * decide whether each is extra — one query (NFR-03). In the order the
+ * sessions happened: by date, then start, then when each was logged. Null
+ * when the objective is not the caller's (→ 404, NFR-10).
+ */
+export async function getEntriesInRange(
+  userId: string,
+  objectiveId: string,
+  from: string,
+  to: string,
+): Promise<EntriesInRange | null> {
+  const res = await query<EntriesInRange>(
+    `SELECT ${OBJECTIVE_FACTS},
+       COALESCE((
+         SELECT json_agg(x ORDER BY x.local_date, x.occurred_at_local, x.logged_at)
+         FROM (
+           SELECT ${ENTRY_COLUMNS("ee")}
+           FROM effort_entry ee
+           WHERE ee.objective_id = o.id
+             AND ee.local_date BETWEEN $3::date AND $4::date
+         ) x
+       ), '[]'::json) AS entries
+     FROM objective o
+     WHERE o.id = $2 AND o.user_id = $1`,
+    [userId, objectiveId, from, to],
+  );
+  return res.rows[0] ?? null;
+}
