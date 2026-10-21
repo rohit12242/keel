@@ -1,6 +1,6 @@
-# Sign-in (ADR-002): a Cognito user pool, its hosted login pages and one app
-# client for the authorization code flow with PKCE. Keel never sees a
-# password; it exchanges the code server-side and issues its own session.
+# Sign-in (ADR-002): a Cognito user pool and one public app client. Keel's own
+# screens collect the password and the browser proves it to Cognito with SRP;
+# Keel never sees it, and exchanges the ID token for its own session.
 
 data "aws_caller_identity" "current" {}
 
@@ -51,44 +51,10 @@ resource "aws_cognito_user_pool" "main" {
   deletion_protection = "ACTIVE"
 }
 
-# The hosted login pages, on Cognito's own domain. The prefix must be unique
-# across AWS, so it carries the account id.
-resource "aws_cognito_user_pool_domain" "main" {
-  domain       = "keel-${data.aws_caller_identity.current.account_id}"
-  user_pool_id = aws_cognito_user_pool.main.id
-}
-
-resource "aws_cognito_user_pool_client" "app" {
-  name         = "keel-app"
-  user_pool_id = aws_cognito_user_pool.main.id
-
-  # Confidential client: the code is exchanged by the server, never the
-  # browser, so it can hold a secret. PKCE is added on top by the app.
-  generate_secret                      = true
-  allowed_oauth_flows_user_pool_client = true
-  allowed_oauth_flows                  = ["code"]
-  allowed_oauth_scopes                 = ["openid", "email"]
-  supported_identity_providers         = ["COGNITO"]
-  # The deployed service's HTTPS address, and localhost for development.
-  callback_urls = concat(
-    ["https://${aws_cloudfront_distribution.app.domain_name}/v1/session/callback"],
-    var.cognito_callback_urls,
-  )
-  logout_urls = concat(
-    ["https://${aws_cloudfront_distribution.app.domain_name}/"],
-    var.cognito_logout_urls,
-  )
-
-  # No username/password API flow: sign-in happens only on the hosted pages.
-  explicit_auth_flows           = ["ALLOW_REFRESH_TOKEN_AUTH"]
-  prevent_user_existence_errors = "ENABLED"
-}
-
 # Keel's own screens (ADR-002, revised in I-04). A public client: the browser
 # proves the password with SRP through Amplify Auth and exchanges the ID token
 # for Keel's session, so there is no secret to hold and no OAuth redirect.
-# It sits beside `app` until the release that uses it; `app` and the hosted
-# domain then go.
+# Cognito's hosted pages are gone with the domain they lived on (I-04).
 resource "aws_cognito_user_pool_client" "web" {
   name         = "keel-web"
   user_pool_id = aws_cognito_user_pool.main.id

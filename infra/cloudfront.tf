@@ -7,8 +7,9 @@
 # cookies, the Authorization header and entry text unencrypted. See ADR-006.
 
 # Nothing is cached and every viewer header, cookie and query string reaches the
-# app — the session cookie, the Authorization header and the OIDC callback
-# depend on it. With caching disabled, AllViewer* policies forward Authorization.
+# app — the session cookie, the Authorization header and the Origin that
+# POST /v1/session checks depend on it. With caching disabled, AllViewer*
+# policies forward Authorization.
 # Host is forwarded too, so the app sees the public hostname, and
 # CloudFront-Forwarded-Proto tells it the viewer used HTTPS (the ALB's own
 # X-Forwarded-Proto will say "http", which is the leg it saw).
