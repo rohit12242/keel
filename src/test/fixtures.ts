@@ -8,6 +8,7 @@ import { startReview } from "@/modules/reviews/service";
 import { createDeviation } from "@/modules/deviations/service";
 import type { Deviation } from "@/shared/contract";
 import type { EffortEntryWrite } from "@/shared/contract";
+import { localDayOf } from "@/shared/time/localDay";
 import { cookieFor } from "./session";
 
 /**
@@ -66,6 +67,45 @@ export async function testObjective(
     throw new Error(`testObjective: ${JSON.stringify(result)}`);
   }
   return result.objective;
+}
+
+/** Today in a zone, as the client would send it (NFR-12). */
+export const todayIn = (tz: string): string => localDayOf(new Date(), tz);
+
+/** `date` plus `n` days, as a local date. */
+export const daysFrom = (date: string, n: number): string =>
+  new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+/** The ISO weekday of a local date: 1 is Monday, 7 Sunday. */
+export const isoWeekday = (date: string): number =>
+  ((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
+
+/**
+ * An objective whose plan covers today in Asia/Kolkata — a week behind, three
+ * ahead — since effort is logged only for today (invariant 18). Every day is
+ * planned, or, with `offToday`, every day but today's weekday.
+ */
+export async function testObjectiveToday(
+  user: TestUser,
+  opts: { offToday?: boolean } & Record<string, unknown> = {},
+): Promise<Objective> {
+  const { offToday, ...over } = opts;
+  const today = todayIn(OBJECTIVE_BODY.tz);
+  const weekdays = [1, 2, 3, 4, 5, 6, 7].filter(
+    (d) => !offToday || d !== isoWeekday(today),
+  );
+  return testObjective(user, {
+    starts_on: daysFrom(today, -7),
+    runs_for_days: 28,
+    schedule: {
+      mode: "fixed",
+      planned_weekdays: weekdays,
+      minutes_per_planned_day: 60,
+    },
+    ...over,
+  });
 }
 
 /** Append status events to an objective — setup only, until the API can. */

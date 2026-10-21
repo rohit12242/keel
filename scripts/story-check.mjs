@@ -12,9 +12,10 @@
  * it does not land in shell history.
  *
  * It WRITES to the record it runs against, and nothing is ever deleted
- * (NFR-01): a back-dated objective (2026-09-14 … 2026-10-11) with its effort,
- * a deviation, an idea and four reviews. Against the deployed service that
- * is the real record — ask before running it there.
+ * (NFR-01): an objective that started four weeks ago and ends today, with
+ * today's effort, a deviation, an idea and five reviews. Effort is logged
+ * only for today (G21), so the past weeks have none. Against the deployed
+ * service that is the real record — ask before running it there.
  *
  * Build/ops script: reads its own environment directly.
  */
@@ -29,6 +30,14 @@ if (!base || !session) {
 
 const run = new Date().toISOString().slice(0, 19);
 let step = 0;
+
+// Every date is relative to today in UTC, the zone the story writes in.
+const today = new Date().toISOString().slice(0, 10);
+const daysFrom = (date, n) =>
+  new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+const start = daysFrom(today, -28); // 29 days: Week 1–4, then End of plan today
 
 async function call(method, path, status, body) {
   const res = await fetch(`${base}${path}`, {
@@ -64,36 +73,41 @@ try {
     success_criteria: "It reads back as it was written.",
     schedule: {
       mode: "fixed",
-      planned_weekdays: [1, 2, 3, 4, 5],
+      planned_weekdays: [1, 2, 3, 4, 5, 6, 7],
       minutes_per_planned_day: 60,
     },
-    starts_on: "2026-09-14",
+    starts_on: start,
     tz: "UTC",
-    runs_for_days: 28,
+    runs_for_days: 29,
     review_cadence: "weekly",
   });
   check("an objective is declared", o.status === "active");
 
-  for (const [local_date, minutes] of [
-    ["2026-09-14", 60],
-    ["2026-09-15", 45],
-    ["2026-09-22", 60],
-    ["2026-09-26", 30],
-    ["2026-10-05", 60],
-  ]) {
-    await call("POST", `/v1/objectives/${o.id}/effort-entries`, 201, {
-      local_date,
+  const entry = await call(
+    "POST",
+    `/v1/objectives/${o.id}/effort-entries`,
+    201,
+    {
+      local_date: today,
       tz: "UTC",
       occurred_at_local: "09:00",
-      minutes,
+      minutes: 60,
       note: "story-check",
-    });
-  }
-  check("effort is logged on five days", true);
+    },
+  );
+  check("effort is logged today", entry.local_date === today && !entry.extra);
+  await call("POST", `/v1/objectives/${o.id}/effort-entries`, 422, {
+    local_date: daysFrom(today, -1),
+    tz: "UTC",
+    occurred_at_local: "09:00",
+    minutes: 60,
+    note: "story-check",
+  });
+  check("yesterday's effort is refused: a day's effort is fixed", true);
 
   const deviation = await call("POST", "/v1/deviations", 201, {
     objective_ids: [o.id],
-    local_date: "2026-09-16",
+    local_date: daysFrom(start, 2),
     tz: "UTC",
     kind: "chosen",
     what_happened: "story-check deviation",
@@ -105,12 +119,12 @@ try {
   const idea = await call("POST", "/v1/parked-ideas", 201, {
     idea: `story-check idea ${run}`,
     why: "story-check",
-    caught_on: "2026-09-17",
+    caught_on: daysFrom(start, 3),
   });
   check("an idea is parked", idea.verdict === "parked");
 
   const reviewIds = [];
-  for (const label of ["Week 1", "Week 2", "Week 3"]) {
+  for (const label of ["Week 1", "Week 2", "Week 3", "Week 4"]) {
     const draft = await call("POST", `/v1/objectives/${o.id}/reviews`, 201);
     if (label === "Week 1") {
       await call(
@@ -151,27 +165,27 @@ try {
       done.status_history.map((e) => [e.change, e.occurred_on]),
     ) ===
       JSON.stringify([
-        ["created", "2026-09-14"],
-        ["completed", "2026-10-11"],
+        ["created", start],
+        ["completed", today],
       ]),
   );
   check(
     "its figures are computed from the effort",
-    done.figures.logged_minutes === 255 &&
-      done.figures.extra_off_day_minutes === 30,
+    done.figures.logged_minutes === 60 &&
+      done.figures.extra_off_day_minutes === 0,
   );
 
   const { reviews } = await call("GET", `/v1/objectives/${o.id}/reviews`, 200);
   check(
-    "four saved reviews read back in order",
+    "five saved reviews read back in order",
     JSON.stringify(reviews.map((r) => r.label)) ===
-      JSON.stringify(["Week 1", "Week 2", "Week 3", "End of plan"]) &&
+      JSON.stringify(["Week 1", "Week 2", "Week 3", "Week 4", "End of plan"]) &&
       reviews.every((r) => r.status === "saved"),
   );
 
   const { deviations } = await call(
     "GET",
-    `/v1/deviations?from=2026-09-14&to=2026-10-11&objective_id=${o.id}`,
+    `/v1/deviations?from=${start}&to=${today}&objective_id=${o.id}`,
     200,
   );
   check(

@@ -8,17 +8,17 @@ import type {
 import * as objectives from "@/app/v1/objectives/route";
 import * as one from "@/app/v1/objectives/[objectiveId]/route";
 import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
-import * as effort from "@/app/v1/objectives/[objectiveId]/effort-entries/route";
-import { testUser, type TestUser } from "@/test/fixtures";
+import { testEntry, testUser, type TestUser } from "@/test/fixtures";
 
 /**
  * I-01's check, as intent.md states it, through the real route handlers.
  *
  * Create a fixed objective (weekly reviews) and a flexible one (monthly).
  * The list returns both, active, with a schedule and 0 of a real target.
- * Opening one returns its plan and its history. Then effort is logged on
- * planned days and an off day, and the grid tells apart a day met, a day
- * short, a planned day with nothing on it, an off day, and an off day worked.
+ * Opening one returns its plan and its history. Then effort is seeded on
+ * planned days and an off day — past days cannot be logged through the route
+ * (G21) — and the grid tells apart a day met, a day short, a planned day with
+ * nothing on it, an off day, and an off day worked.
  *
  * Signed in as its own user, new on every run, so the four per-timezone runs
  * against one database never see each other's objectives, and nothing is
@@ -58,21 +58,13 @@ async function logEffort(
   minutes: number,
   occurred_at_local = "09:00",
 ) {
-  const res = await effort.POST(
-    new Request(`${BASE}/v1/objectives/${objectiveId}/effort-entries`, {
-      method: "POST",
-      headers: asMe(),
-      body: JSON.stringify({
-        local_date,
-        tz: "Asia/Kolkata",
-        occurred_at_local,
-        minutes,
-        note: "itest: I-01 check",
-      }),
-    }),
-    params(objectiveId),
-  );
-  expect(res.status).toBe(201);
+  await testEntry(objectiveId, {
+    local_date,
+    tz: "Asia/Kolkata",
+    occurred_at_local,
+    minutes,
+    note: "itest: I-01 check",
+  });
 }
 
 async function grid(objectiveId: string): Promise<ScheduleGrid> {

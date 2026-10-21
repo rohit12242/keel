@@ -4,6 +4,14 @@ import { withRequestLog } from "@/shared/log";
 
 export const dynamic = "force-dynamic";
 
+const notToday = () =>
+  problem(
+    422,
+    "Effort is logged only for today",
+    problemType("not-today"),
+    "local_date must be today in tz. Once a day is over, its effort is fixed.",
+  );
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -46,7 +54,12 @@ export const POST = withSession(
         }
 
         try {
-          const result = await createEffortEntry(userId, objectiveId, body);
+          const result = await createEffortEntry(
+            userId,
+            objectiveId,
+            body,
+            new Date(),
+          );
           if (result.ok) return jsonResponse(201, result.entry);
 
           switch (result.kind) {
@@ -65,6 +78,8 @@ export const POST = withSession(
                 problemType("not-found"),
                 "No such objective.",
               );
+            case "not_today":
+              return notToday();
             case "not_active":
               return problem(
                 422,

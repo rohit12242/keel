@@ -12,6 +12,7 @@ import {
 import { currentStatus } from "@/modules/objectives/domain/statusTimeline";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
 import { validateEffortEdit } from "./domain/validateEffortEdit";
+import { effortDayRefusal } from "./domain/effortDay";
 import {
   effortMonth,
   parseMonth,
@@ -38,6 +39,7 @@ export type CreateEffortResult =
   | { ok: true; entry: EffortEntry }
   | { ok: false; kind: "validation"; errors: ProblemError[] }
   | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "not_today" }
   | { ok: false; kind: "not_active" }
   | { ok: false; kind: "outside_plan" }
   | { ok: false; kind: "overlap"; detail: string };
@@ -62,6 +64,7 @@ export async function createEffortEntry(
   userId: string,
   objectiveId: string,
   body: unknown,
+  now: Date,
 ): Promise<CreateEffortResult> {
   const validated = validateEffortEntryWrite(body);
   if (!validated.ok) {
@@ -75,6 +78,11 @@ export async function createEffortEntry(
   // latest status event, and "outside the plan" is outside every segment range.
   const segments = objective.segments.map(toSegment);
   const date = validated.value.local_date;
+
+  // Logged only for today, in the zone the client says it is in (G21).
+  if (effortDayRefusal(date, localDayOf(now, validated.value.tz))) {
+    return { ok: false, kind: "not_today" };
+  }
 
   if (currentStatus(objective.status_events) !== "active") {
     return { ok: false, kind: "not_active" };
@@ -115,18 +123,21 @@ export type EditEffortResult =
   | { ok: true; entry: EffortEntry }
   | { ok: false; kind: "validation"; errors: ProblemError[] }
   | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "not_today" }
   | { ok: false; kind: "not_active" }
   | { ok: false; kind: "overlap"; detail: string };
 
 /**
- * Correct an entry. Only while its objective is running: effort on a paused,
- * completed or ended objective is the record as it stood — the same rule that
- * stops new effort being logged against it.
+ * Correct an entry. Only on its own day, in the zone it was logged in (G21),
+ * and only while its objective is running: effort on a paused, completed or
+ * ended objective is the record as it stood — the same rule that stops new
+ * effort being logged against it.
  */
 export async function updateEffortEntry(
   userId: string,
   entryId: string,
   body: unknown,
+  now: Date,
 ): Promise<EditEffortResult> {
   const validated = validateEffortEdit(body);
   if (!validated.ok) {
@@ -134,6 +145,9 @@ export async function updateEffortEntry(
   }
   const found = await getEntryForEdit(userId, entryId);
   if (!found) return { ok: false, kind: "not_found" };
+  if (effortDayRefusal(found.local_date, localDayOf(now, found.tz))) {
+    return { ok: false, kind: "not_today" };
+  }
   if (currentStatus(found.status_events) !== "active") {
     return { ok: false, kind: "not_active" };
   }
@@ -165,15 +179,20 @@ export async function updateEffortEntry(
 export type DeleteEffortResult =
   | { ok: true }
   | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "not_today" }
   | { ok: false; kind: "not_active" };
 
-/** Delete an entry, under the same rule as an edit. */
+/** Delete an entry, under the same rules as an edit. */
 export async function deleteEffortEntry(
   userId: string,
   entryId: string,
+  now: Date,
 ): Promise<DeleteEffortResult> {
   const found = await getEntryForEdit(userId, entryId);
   if (!found) return { ok: false, kind: "not_found" };
+  if (effortDayRefusal(found.local_date, localDayOf(now, found.tz))) {
+    return { ok: false, kind: "not_today" };
+  }
   if (currentStatus(found.status_events) !== "active") {
     return { ok: false, kind: "not_active" };
   }

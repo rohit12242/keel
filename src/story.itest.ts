@@ -3,7 +3,6 @@ import { getPool, query } from "@/shared/db";
 import type { Day, Deviation, Objective } from "@/shared/contract";
 import * as objectives from "@/app/v1/objectives/route";
 import * as objective from "@/app/v1/objectives/[objectiveId]/route";
-import * as effortEntries from "@/app/v1/objectives/[objectiveId]/effort-entries/route";
 import * as effortMonth from "@/app/v1/objectives/[objectiveId]/effort/route";
 import * as reviewsOf from "@/app/v1/objectives/[objectiveId]/reviews/route";
 import * as review from "@/app/v1/reviews/[reviewId]/route";
@@ -13,7 +12,7 @@ import * as patterns from "@/app/v1/deviation-patterns/route";
 import * as deviations from "@/app/v1/deviations/route";
 import * as ideas from "@/app/v1/parked-ideas/route";
 import * as day from "@/app/v1/day/[date]/route";
-import { testUser, type TestUser } from "@/test/fixtures";
+import { testEntry, testUser, type TestUser } from "@/test/fixtures";
 import type {
   Review,
   ReviewSummary,
@@ -26,11 +25,13 @@ import type { EffortMonth } from "@/modules/effort/domain/effortMonth";
  * created to completed, with effort, deviations, parked ideas and a review
  * attached, and reads the whole story back — all through the API, with no
  * screen. Every call goes through a real route handler with the user's
- * session cookie, and nothing is set up behind the API's back.
+ * session cookie. The one thing set up behind the API's back is the effort:
+ * it is logged only for today (G21), so a back-dated story's sessions are
+ * seeded through the repo. Logging through the route is create-effort.itest's.
  *
  * Back-dated: the objective ran Mon 2026-09-14 … Sun 2026-10-11, so every
  * review window has closed. scripts/story-check.mjs runs the same story over
- * HTTP against a running service.
+ * HTTP against a running service, with its effort logged today.
  */
 const BASE = "http://keel.test";
 let me: TestUser;
@@ -93,7 +94,8 @@ describe("I-02 — the whole story, through the API", () => {
     const id = o.id;
     const oid = { objectiveId: id };
 
-    // 2. Effort on planned days, and one off day.
+    // 2. Effort on planned days, and one off day — seeded, since past days
+    // cannot be logged (G21).
     for (const [local_date, minutes] of [
       ["2026-09-14", 60],
       ["2026-09-15", 45],
@@ -101,20 +103,12 @@ describe("I-02 — the whole story, through the API", () => {
       ["2026-09-26", 30], // Saturday: extra
       ["2026-10-05", 60],
     ] as const) {
-      await call(
-        effortEntries.POST,
-        "POST",
-        `/v1/objectives/${id}/effort-entries`,
-        oid,
-        201,
-        {
-          local_date,
-          tz: "Asia/Kolkata",
-          occurred_at_local: "09:00",
-          minutes,
-          note: "Worked on it.",
-        },
-      );
+      await testEntry(id, {
+        local_date,
+        tz: "Asia/Kolkata",
+        minutes,
+        note: "Worked on it.",
+      });
     }
 
     // 3. A named pattern, and a chosen deviation that names the objective.

@@ -2,30 +2,30 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { getPool, query } from "@/shared/db";
 import {
   addStatusEvents,
-  testObjective,
+  daysFrom,
+  testObjectiveToday,
   testUser,
+  todayIn,
   type TestUser,
 } from "@/test/fixtures";
 import { createEffortEntry } from "./service";
 
 /**
- * W4-29: the effort write now reads facts (segments, status events) and applies
- * the rules in `domain/` — the status is the latest event, and `extra` is
- * "no computed slot covers this date". This drives the service end to end so
- * those rules, and every failure path, are exercised rather than declared
- * (NFR-07, DoD clause 8).
+ * Logging effort through the use case, every rule and failure path: the
+ * status is the latest event, `extra` is "no computed slot covers this
+ * date" (W4-29), effort is logged only for today in its own zone (G21), and
+ * a user's entries on one day never overlap (G29, invariant 18).
  *
- * Each case has its own user and objective, fixed Mon–Fri,
- * 2026-09-14 … 2026-10-11, created on the 14th.
+ * Each case has its own user, and an objective whose plan covers today.
  */
-const WEDNESDAY = "2026-09-16"; // planned
-const SATURDAY = "2026-09-19"; // inside the range, not a planned weekday
-const NOTE = "itest: W4-29 effort write";
+const TZ = "Asia/Kolkata";
+const NOTE = "itest: effort write";
+let today: string;
 
 function body(over: Record<string, unknown> = {}) {
   return {
-    local_date: WEDNESDAY,
-    tz: "Asia/Kolkata",
+    local_date: today,
+    tz: TZ,
     occurred_at_local: "09:20",
     minutes: 60,
     note: NOTE,
@@ -36,14 +36,15 @@ function body(over: Record<string, unknown> = {}) {
 let user: TestUser;
 let OBJECTIVE_ID: string;
 
-/** Log as the case's own user. */
+/** Log as the case's own user, now. */
 const log = (objectiveId: string, b: unknown) =>
-  createEffortEntry(user.id, objectiveId, b);
+  createEffortEntry(user.id, objectiveId, b, new Date());
 
 describe("createEffortEntry (real Postgres)", () => {
   beforeEach(async () => {
+    today = todayIn(TZ);
     user = await testUser();
-    OBJECTIVE_ID = (await testObjective(user)).id;
+    OBJECTIVE_ID = (await testObjectiveToday(user)).id;
   });
 
   afterAll(async () => {
@@ -64,16 +65,16 @@ describe("createEffortEntry (real Postgres)", () => {
 
   it("is not_found for an objective that does not exist (404)", async () => {
     const result = await log("00000000-0000-0000-0000-00000000dead", body());
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.kind).toBe("not_found");
+    expect(result).toMatchObject({ ok: false, kind: "not_found" });
   });
 
   it("is not_found for another user's objective, and writes nothing (404, NFR-10)", async () => {
     const someoneElse = await testUser();
-    const theirs = await testObjective(someoneElse);
-    const result = await log(theirs.id, body());
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.kind).toBe("not_found");
+    const theirs = await testObjectiveToday(someoneElse);
+    expect(await log(theirs.id, body())).toMatchObject({
+      ok: false,
+      kind: "not_found",
+    });
     const written = await query(
       "SELECT 1 FROM effort_entry WHERE objective_id = $1",
       [theirs.id],
@@ -81,21 +82,63 @@ describe("createEffortEntry (real Postgres)", () => {
     expect(written.rowCount).toBe(0);
   });
 
-  it("is not_active once the objective has ended — read from the events, not a column", async () => {
-    await addStatusEvents(OBJECTIVE_ID, [["2026-09-15", "ended"]]);
-    const result = await log(OBJECTIVE_ID, body());
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.kind).toBe("not_active");
+  it("is not_today for yesterday or tomorrow, inside the plan, and writes nothing", async () => {
+    for (const local_date of [daysFrom(today, -1), daysFrom(today, 1)]) {
+      expect(await log(OBJECTIVE_ID, body({ local_date }))).toMatchObject({
+        ok: false,
+        kind: "not_today",
+      });
+    }
+    const written = await query(
+      "SELECT 1 FROM effort_entry WHERE objective_id = $1",
+      [OBJECTIVE_ID],
+    );
+    expect(written.rowCount).toBe(0);
   });
 
-  it("is outside_plan for a date beyond every segment", async () => {
-    const result = await log(OBJECTIVE_ID, body({ local_date: "2026-11-02" }));
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.kind).toBe("outside_plan");
+  it("judges today in the zone the entry is logged in", async () => {
+    // Kiritimati (UTC+14) and Pago Pago (UTC−11) are never on the same date.
+    const kiritimati = todayIn("Pacific/Kiritimati");
+    expect(
+      (
+        await log(
+          OBJECTIVE_ID,
+          body({ local_date: kiritimati, tz: "Pacific/Kiritimati" }),
+        )
+      ).ok,
+    ).toBe(true);
+    expect(
+      await log(
+        OBJECTIVE_ID,
+        body({
+          local_date: kiritimati,
+          tz: "Pacific/Pago_Pago",
+          occurred_at_local: "15:00",
+        }),
+      ),
+    ).toMatchObject({ ok: false, kind: "not_today" });
+  });
+
+  it("is not_active once the objective has ended — read from the events, not a column", async () => {
+    await addStatusEvents(OBJECTIVE_ID, [[daysFrom(today, -1), "ended"]]);
+    expect(await log(OBJECTIVE_ID, body())).toMatchObject({
+      ok: false,
+      kind: "not_active",
+    });
+  });
+
+  it("is outside_plan for today when the plan has not started", async () => {
+    const later = await testObjectiveToday(user, {
+      starts_on: daysFrom(today, 1),
+    });
+    expect(await log(later.id, body())).toMatchObject({
+      ok: false,
+      kind: "outside_plan",
+    });
   });
 
   it("is overlap for an entry that overlaps another of the user's that day, under any objective — and writes nothing", async () => {
-    const other = (await testObjective(user)).id;
+    const other = (await testObjectiveToday(user)).id;
     expect((await log(other, body())).ok).toBe(true); // 09:20–10:20
     const result = await log(
       OBJECTIVE_ID,
@@ -118,8 +161,13 @@ describe("createEffortEntry (real Postgres)", () => {
       (await log(OBJECTIVE_ID, body({ occurred_at_local: "10:20" }))).ok,
     ).toBe(true);
     const someoneElse = await testUser();
-    const theirs = (await testObjective(someoneElse)).id;
-    const theirLog = await createEffortEntry(someoneElse.id, theirs, body());
+    const theirs = (await testObjectiveToday(someoneElse)).id;
+    const theirLog = await createEffortEntry(
+      someoneElse.id,
+      theirs,
+      body(),
+      new Date(),
+    );
     expect(theirLog.ok).toBe(true);
   });
 
@@ -130,22 +178,24 @@ describe("createEffortEntry (real Postgres)", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.entry.extra).toBe(false);
-      expect(result.entry.local_date).toBe(WEDNESDAY);
+      expect(result.entry.local_date).toBe(today);
+      expect(result.entry.occurred_at_local).toBe("09:20");
     }
   });
 
   it("logs an off day inside the plan as extra", async () => {
-    const result = await log(OBJECTIVE_ID, body({ local_date: SATURDAY }));
+    const offToday = (await testObjectiveToday(user, { offToday: true })).id;
+    const result = await log(offToday, body());
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.entry.extra).toBe(true);
   });
 
   it("counts effort logged during a paused stretch as extra (invariant 10)", async () => {
-    // Paused before the planned day, resumed after it: the objective is active
-    // now, so the write is allowed, but that day was not planned.
+    // Paused yesterday, resuming tomorrow: the objective reads active (its
+    // latest event), so the write is allowed, but today was not planned.
     await addStatusEvents(OBJECTIVE_ID, [
-      ["2026-09-15", "paused"],
-      ["2026-09-21", "resumed"],
+      [daysFrom(today, -1), "paused"],
+      [daysFrom(today, 1), "resumed"],
     ]);
     const result = await log(OBJECTIVE_ID, body());
     expect(result.ok).toBe(true);
