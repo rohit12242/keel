@@ -52,6 +52,8 @@ export type ReviewSummary = {
   last_saved_at: string | null;
   outcome: ReviewRow["outcome"];
   review_summary: string | null;
+  /** The change this review set — what the next one quotes back (G20). */
+  what_changes_next: string | null;
   adherence_pct: number | null;
 };
 
@@ -120,6 +122,24 @@ export function previousOf(
   return found;
 }
 
+/**
+ * The span a review's figures cover (G22). A weekly or monthly review's is
+ * its own window. A plan-end review's is the whole plan up to its end — the
+ * final review asks how the plan went, not how its last week did — from the
+ * first window's start, which is the objective's. Its bars, deviations and
+ * the change it quotes stay on its own window.
+ */
+export function figuresWindow(
+  review: Pick<ReviewRow, "kind" | "period_start" | "period_end">,
+  schedule: readonly LabelledWindow[],
+): Period {
+  if (review.kind !== "plan_end" || schedule.length === 0) return review;
+  return {
+    period_start: schedule[0].period_start,
+    period_end: review.period_end,
+  };
+}
+
 export function summaryOf(
   review: ReviewRow,
   facts: ReviewFacts,
@@ -135,8 +155,12 @@ export function summaryOf(
     last_saved_at: review.last_saved_at,
     outcome: review.outcome,
     review_summary: review.review_summary,
-    adherence_pct: windowFigures(review, facts.slots, facts.daily)
-      .adherence_pct,
+    what_changes_next: review.what_changes_next,
+    adherence_pct: windowFigures(
+      figuresWindow(review, facts.schedule),
+      facts.slots,
+      facts.daily,
+    ).adherence_pct,
   };
 }
 
@@ -173,7 +197,11 @@ export function assembleReview(review: ReviewRow, facts: ReviewFacts): Review {
     criteria_verdict: review.criteria_verdict,
     previous_review_id: previous?.id ?? null,
     previous_what_changes_next: previous?.what_changes_next ?? null,
-    figures: windowFigures(review, facts.slots, facts.daily),
+    figures: windowFigures(
+      figuresWindow(review, facts.schedule),
+      facts.slots,
+      facts.daily,
+    ),
     minutes_per_day: datesBetween(review.period_start, review.period_end).map(
       (date) => ({
         date,

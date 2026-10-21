@@ -24,10 +24,8 @@ export const GET = withSession(
       async () => {
         if (!isUuid(objectiveId)) return notFound("objective");
         try {
-          const reviews = await listReviews(userId, objectiveId, new Date());
-          return reviews
-            ? jsonResponse(200, { reviews })
-            : notFound("objective");
+          const listed = await listReviews(userId, objectiveId, new Date());
+          return listed ? jsonResponse(200, listed) : notFound("objective");
         } catch {
           return unavailable();
         }

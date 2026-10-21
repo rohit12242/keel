@@ -95,7 +95,7 @@ describe("autosave and discard (real Postgres)", () => {
     expect(afterEmpty.getTime()).toBeGreaterThan(afterFirst.getTime());
 
     const listed = await listReviews(me.id, objectiveId, new Date());
-    expect(listed?.find((r) => r.id === reviewId)?.last_saved_at).toBe(
+    expect(listed?.reviews.find((r) => r.id === reviewId)?.last_saved_at).toBe(
       afterEmpty.toISOString().replace(/\.\d{3}Z$/, "Z"),
     );
 

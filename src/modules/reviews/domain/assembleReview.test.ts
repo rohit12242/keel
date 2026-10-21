@@ -262,6 +262,56 @@ describe("assembleReview", () => {
   });
 });
 
+describe("a plan-end review's figures cover the whole plan (G22)", () => {
+  const planEnd = review({
+    id: "r3",
+    kind: "plan_end",
+    period_start: "2026-09-21",
+    period_end: "2026-09-27",
+  });
+
+  it("computes figures and adherence from the plan's start to its end", () => {
+    const f = facts();
+    const whole = windowFigures(
+      { period_start: "2026-09-07", period_end: "2026-09-27" },
+      SLOTS,
+      f.daily,
+    );
+    const r = assembleReview(planEnd, f);
+    expect(r.figures).toEqual(whole);
+    expect(r.figures.target_minutes).toBe(9 * 60); // three Mon/Wed/Fri weeks
+    expect(summaryOf(planEnd, f).adherence_pct).toBe(whole.adherence_pct);
+  });
+
+  it("keeps its bars and deviations on its own window", () => {
+    const r = assembleReview(planEnd, facts());
+    expect(r.minutes_per_day.map((d) => d.date)).toEqual([
+      "2026-09-21",
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-26",
+      "2026-09-27",
+    ]);
+    expect(r.deviations.map((d) => d.local_date)).toEqual(["2026-09-22"]);
+  });
+
+  it("leaves a weekly review's figures on its own window", () => {
+    expect(assembleReview(review(), facts()).figures.target_minutes).toBe(180);
+  });
+});
+
+describe("summaryOf — the change a review set (G20)", () => {
+  it("carries what_changes_next", () => {
+    expect(
+      summaryOf(review({ what_changes_next: "Start earlier." }), facts())
+        .what_changes_next,
+    ).toBe("Start earlier.");
+    expect(summaryOf(review(), facts()).what_changes_next).toBeNull();
+  });
+});
+
 describe("previousOf", () => {
   it("is the stored one once saved, and the latest saved one before for a draft", () => {
     const week2Saved = review({
