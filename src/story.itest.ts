@@ -396,7 +396,8 @@ describe("I-02 — the whole story, through the API", () => {
       sessions: 6,
     });
 
-    // Completed objectives are not on Today, but the deviation still is.
+    // Completed objectives are not on Today, but the latest deviation — the
+    // drift on 23 Sep — still is.
     const today = await call<Day>(
       day.GET,
       "GET",
@@ -405,7 +406,7 @@ describe("I-02 — the whole story, through the API", () => {
       200,
     );
     expect(today.objectives).toEqual([]);
-    expect(today.last_deviation?.id).toBe(deviation.id);
+    expect(today.last_deviation?.id).toBe(drifted.id);
   });
 
   it("stores nothing the ERD says is computed (NFR-09)", async () => {
