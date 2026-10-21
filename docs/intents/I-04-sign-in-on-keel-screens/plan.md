@@ -2,7 +2,7 @@
 
 **Intent:** `intent.md` · **Spec:** `spec.md` · **Status:** ACCEPTED 2026-10-21 · **Written:** 2026-10-21
 
-**The spec was revised first** (37a6963): the five auth screens are in scope,
+**The spec was revised first** (7743f05): the five auth screens are in scope,
 onboarding stays out so a confirmed account lands on Today, and confirmation and reset
 share one Keel-worded email because Cognito has a single code template (a
 CustomMessage Lambda was considered and not chosen).
@@ -62,7 +62,7 @@ the release, and the person signs in again.
 
 ## Order of work
 
-0. **Rohit revises and re-accepts `intent.md` and `spec.md`** for the screens. *(Done, 37a6963.)*
+0. **Rohit revises and re-accepts `intent.md` and `spec.md`** for the screens. *(Done, 7743f05.)*
 1. **Accept the plan.** `plan.md` committed alone.
 2. **Infra, additive.** Commit `cognito.tf` with the new `web` client and the email
    template. Then **stop**: I run `terraform plan` and show it. Expected: 1 to add
