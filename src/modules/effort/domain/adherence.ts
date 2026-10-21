@@ -77,3 +77,72 @@ export function figures(
     target_met_weeks: weeksMet,
   };
 }
+
+type Period = { period_start: string; period_end: string };
+const inPeriod = (date: string, p: Period) =>
+  date >= p.period_start && date <= p.period_end;
+
+/**
+ * The figures over one window (docs/domain/adherence.md, *Over a window*). A
+ * slot belongs to the window its period starts in; minutes count only on the
+ * window's days. A day covered by any slot of the plan is not extra, even one
+ * whose slot started in the window before. Reviews, plan weeks and the plan
+ * so far all read it.
+ */
+export function windowFigures(
+  window: Period,
+  slots: readonly PlannedSlot[],
+  daily: DailyMinutes,
+): Required<Figures> {
+  const inside = Object.fromEntries(
+    Object.entries(daily).filter(([d]) => inPeriod(d, window)),
+  );
+  const f = figures(
+    slots.filter((s) => inPeriod(s.periodStart, window)),
+    inside,
+  );
+  const covered = new Set(slots.flatMap((s) => s.activeDays));
+  f.extra_off_day_minutes = Object.entries(inside)
+    .filter(([d]) => !covered.has(d))
+    .reduce((sum, [, m]) => sum + m, 0);
+  return f;
+}
+
+/**
+ * The slots the plan so far is judged on (*So far*): those whose period
+ * ended before today, plus today's day slot. A week still in progress is
+ * not among them — it counts once it has ended, so it never lowers the score.
+ */
+export function slotsToDate(
+  slots: readonly PlannedSlot[],
+  today: string,
+): PlannedSlot[] {
+  return slots.filter(
+    (s) =>
+      s.periodEnd < today ||
+      (s.periodKind === "day" && s.periodStart === today),
+  );
+}
+
+/**
+ * The figures to date (G14): the same rule over `slotsToDate`, and the
+ * minutes up to today. The days of a slot not yet judged — a week in
+ * progress — are left out entirely, minutes as well as target, so logged =
+ * credited + over target + extra still holds.
+ */
+export function figuresToDate(
+  slots: readonly PlannedSlot[],
+  daily: DailyMinutes,
+  today: string,
+): Required<Figures> {
+  const judged = slotsToDate(slots, today);
+  const pending = new Set(
+    slots.filter((s) => !judged.includes(s)).flatMap((s) => s.activeDays),
+  );
+  return figures(
+    judged,
+    Object.fromEntries(
+      Object.entries(daily).filter(([d]) => d <= today && !pending.has(d)),
+    ),
+  );
+}

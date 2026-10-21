@@ -133,8 +133,16 @@ export type ObjectiveSummary = {
   end_date: string;
   next_review_on: string | null;
   reviews_due: number;
+  /** The next review, due or not; null once none is left. */
+  upcoming_review_on: string | null;
   from_parking_lot?: boolean;
+  /** The whole run, including days not yet reached. */
   figures: Figures;
+  /** The plan so far: ended slots plus today's day slot. */
+  figures_to_date: Figures;
+  track: "on_track" | "at_risk" | "behind" | null;
+  /** The date of the latest status event. */
+  status_since: string;
 };
 
 export type PlanSegment = {

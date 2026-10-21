@@ -9,11 +9,11 @@ import {
   previousOf,
   startDecision,
   summaryOf,
-  windowFigures,
   type ReviewFacts,
   type ReviewRow,
 } from "./assembleReview";
 import { reviewSchedule } from "./reviewWindows";
+import { windowFigures } from "@/modules/effort/domain/adherence";
 
 // Mon/Wed/Fri, an hour a day, Mon 7 Sep … Sun 27 Sep: Week 1, Week 2, End of plan.
 const PLAN: SegmentForSlots = {

@@ -8,7 +8,13 @@ import type {
 import * as objectives from "@/app/v1/objectives/route";
 import * as one from "@/app/v1/objectives/[objectiveId]/route";
 import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
-import { testEntry, testUser, type TestUser } from "@/test/fixtures";
+import {
+  addStatusEvents,
+  testEntry,
+  testObjective,
+  testUser,
+  type TestUser,
+} from "@/test/fixtures";
 
 /**
  * I-01's check, as intent.md states it, through the real route handlers.
@@ -111,6 +117,37 @@ describe("I-01 — declare an objective (the intent's check)", () => {
 
   afterAll(async () => {
     await getPool().end();
+  });
+
+  it("lists the plan so far, the band and the date the status began (G14, G15, G23)", async () => {
+    // Its own user, so the two objectives above are not in this list.
+    const other = await testUser();
+    // Fixed Mon–Fri, 2 h a day, 2026-09-14 … 2026-10-11 — wholly past.
+    const o = await testObjective(other);
+    await testEntry(o.id, { local_date: "2026-09-14", minutes: 120 });
+    await testEntry(o.id, { local_date: "2026-09-15", minutes: 120 });
+    await addStatusEvents(o.id, [["2026-09-17", "paused"]]);
+
+    const res = await objectives.GET(
+      new Request(`${BASE}/v1/objectives`, {
+        headers: { cookie: other.cookie },
+      }),
+      undefined,
+    );
+    const [listed] = ((await res.json()) as { objectives: ObjectiveSummary[] })
+      .objectives;
+    expect(listed).toMatchObject({
+      status: "paused",
+      status_since: "2026-09-17",
+      // Planned Mon 14 – Wed 16 before the pause: 2 of 3 days met.
+      figures_to_date: {
+        target_minutes: 360,
+        logged_minutes: 240,
+        adherence_pct: 67,
+      },
+      track: "at_risk",
+      upcoming_review_on: "2026-09-20",
+    });
   });
 
   it("lists both, active, with the schedule given and 0 of a real target", async () => {

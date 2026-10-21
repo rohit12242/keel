@@ -1,5 +1,8 @@
 import type { Deviation, Figures } from "@/shared/contract";
-import { figures, type DailyMinutes } from "@/modules/effort/domain/adherence";
+import {
+  windowFigures,
+  type DailyMinutes,
+} from "@/modules/effort/domain/adherence";
 import { datesBetween } from "@/modules/objectives/domain/generateSlots";
 import type { PlannedSlot } from "@/modules/objectives/domain/planSlots";
 import type { ObjectiveStatus } from "@/modules/objectives/domain/statusTimeline";
@@ -85,31 +88,6 @@ export type ReviewFacts = {
 type Period = { period_start: string; period_end: string };
 const inPeriod = (date: string, p: Period) =>
   date >= p.period_start && date <= p.period_end;
-
-/**
- * The figures over one window. A slot belongs to the window its period
- * starts in; minutes count only on the window's days. A day covered by any
- * slot of the plan is not extra, even one whose slot started in the window
- * before.
- */
-export function windowFigures(
-  window: Period,
-  slots: readonly PlannedSlot[],
-  daily: DailyMinutes,
-): Required<Figures> {
-  const inside = Object.fromEntries(
-    Object.entries(daily).filter(([d]) => inPeriod(d, window)),
-  );
-  const f = figures(
-    slots.filter((s) => inPeriod(s.periodStart, window)),
-    inside,
-  );
-  const covered = new Set(slots.flatMap((s) => s.activeDays));
-  f.extra_off_day_minutes = Object.entries(inside)
-    .filter(([d]) => !covered.has(d))
-    .reduce((sum, [, m]) => sum + m, 0);
-  return f;
-}
 
 /** The window's label — Week 3, End of plan — or the kind when it is not in the schedule. */
 function labelOf(review: ReviewRow, schedule: readonly LabelledWindow[]) {

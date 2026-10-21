@@ -136,6 +136,28 @@ export function dueWindows<W extends ReviewWindow>(input: {
 }
 
 /**
+ * The next review, due or not (G34): the period_end of the earliest window
+ * without a saved review. A window that has closed with no planned day is
+ * skipped — it can never become due. Null once none is left, and once the
+ * objective is completed or ended; a paused one still has one.
+ */
+export function upcomingReviewOn(input: {
+  schedule: readonly ReviewWindow[];
+  today: string;
+  status: ObjectiveStatus | null;
+  saved: ReadonlySet<string>;
+  slots: readonly PlannedSlot[];
+}): string | null {
+  if (input.status !== "active" && input.status !== "paused") return null;
+  const next = input.schedule.find(
+    (w) =>
+      !input.saved.has(periodKey(w)) &&
+      !(input.today >= w.period_end && plannedDaysIn(w, input.slots) === 0),
+  );
+  return next ? next.period_end : null;
+}
+
+/**
  * The review that will judge something dated `date`: the earliest period_end
  * among the windows, across the objectives, whose period contains it (G33).
  * Saved or not does not matter — it names the review the date falls in.
