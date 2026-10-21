@@ -93,6 +93,13 @@ The table above is the gap as the design found it. This is how each was closed
 | G38 | `GET /parked-ideas?caught_on=YYYY-MM-DD` also returns `new_idea_locked_until`, by `lockedUntil`. |
 | G39 | Kept: no backend change. `reviewWindows` stays pure so the UI can import it. |
 
+## Decided in I-04
+
+| # | Decision |
+|---|---|
+| G1 | **Keel's own screens**, not Cognito's managed login. The browser proves the password to Cognito with SRP (Amplify Auth) and exchanges the ID token for Keel's session at `POST /v1/session`; Keel never receives a password (ADR-002, revised). The honesty checkbox can stay on Create account. |
+| G30 | The name is Cognito's `name` attribute, asked for on Create account, copied into the session at sign-in and returned by `GET /v1/session`. Not stored in Keel. |
+
 ## Names that differ (not gaps — map them in the UI)
 
 | Design says | Contract value |

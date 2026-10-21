@@ -91,6 +91,21 @@ paths:
               schema: { $ref: '#/components/schemas/Health' }
 
   /session:
+    get:
+      tags: [Session]
+      summary: Who is signed in
+      description: |
+        Read from the session cookie alone — no database read and no call to
+        Cognito. The name was copied from the ID token when the session was
+        created, so a rename at Cognito shows at the next sign-in.
+      operationId: getSession
+      responses:
+        '200':
+          description: The signed-in user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionUser' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
     post:
       tags: [Session]
       summary: Turn a fresh Cognito sign-in into a Keel session
@@ -1237,6 +1252,19 @@ components:
             properties:
               field: { type: string, example: 'minutes' }
               message: { type: string, example: 'Must be between 1 and 1440.' }
+
+    SessionUser:
+      type: object
+      required: [id, email, name]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name:
+          type: string
+          description: |
+            Cognito's `name` attribute, given on Keel's Create account screen and
+            copied into the session at sign-in. An account without one shows the
+            part of its email before the `@`.
 
     User:
       type: object

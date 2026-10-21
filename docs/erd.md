@@ -464,6 +464,10 @@ would be stored and never read.
 **No password, ever.** Credentials live at the provider (ADR-002); there is no column
 that could hold one.
 
+**No name either.** The name lives at Cognito (its `name` attribute, asked for on
+Keel's Create account screen) and travels in the session cookie (ADR-002). Storing it
+here as well would be a second copy of one fact. *(I-04.)*
+
 **A sign-in finds its user by subject, or creates one.** There is no matching by
 email: nothing on the deployed database predates sign-in that is worth keeping, so a
 first sign-in is simply a new user.

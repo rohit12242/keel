@@ -26,6 +26,14 @@ The design this needs is in the repository: ADR-002 (revised for this intent) an
 - The two redirect endpoints are gone; no route, test or document still points at
   them.
 
+**Who is signed in** (G30)
+
+- Creating an account asks for a name, kept at Cognito, not in Keel.
+- Every page, and `GET /v1/session`, knows the signed-in user's name without a
+  database read. A rename shows at the next sign-in. An account with no name shows
+  the part of its email before the `@`.
+- The pool does not have to be replaced to add the name.
+
 **Nothing kept in the browser**
 
 - Once the exchange answers, the browser holds no Cognito token — none in

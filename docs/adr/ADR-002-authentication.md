@@ -46,7 +46,9 @@ fails while Cognito is down; an open session does not.
 ## The session
 
 - A signed, HttpOnly cookie, `keel_session`, with a real expiry of at least seven
-  days (NFR-08).
+  days (NFR-08). It carries the user's id, email and **name**, copied from the ID
+  token at the exchange, so a page knows who is signed in without a database read.
+  A rename at Cognito shows at the next sign-in.
 - Validated locally on every request, with no network call.
 - **Never a token kept in JavaScript.** Cognito's tokens exist in the browser only
   between step 1 and step 3 above, in memory. Never in `localStorage` or any other

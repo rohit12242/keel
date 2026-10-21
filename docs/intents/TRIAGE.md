@@ -119,6 +119,8 @@ a Discard button, or the endpoint goes, which is a contract change.
 
 ### The user's name, and reading the signed-in user back · found in I-03
 
+**Promoted to I-04** (2026-10-21): the name is Cognito's `name` attribute, carried in the session and returned by `GET /v1/session`.
+
 The shell and onboarding show the user's name ("Signed in as {name}", "Welcome,
 {name}", the avatar initial), but the `user` table stores no name and no endpoint
 returns the signed-in user (G30 in `docs/design/contract-gaps.md`). I-03 leaves it
