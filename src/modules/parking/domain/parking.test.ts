@@ -161,6 +161,27 @@ describe("assembleIdea", () => {
   });
 });
 
+describe("assembleIdea — verdict_on", () => {
+  it("is the latest row's date, or the final row's when there is one", () => {
+    expect(assembleIdea(row(), "2026-09-15").verdict_on).toBe("2026-09-14");
+    const approved = row({
+      verdicts: [
+        { verdict: "parked", note: null, occurred_on: "2026-09-14" },
+        { verdict: "approved", note: null, occurred_on: "2026-09-22" },
+      ],
+    });
+    expect(assembleIdea(approved, "2026-09-23").verdict_on).toBe("2026-09-22");
+    const taken = row({
+      verdicts: [
+        { verdict: "parked", note: null, occurred_on: "2026-09-14" },
+        { verdict: "taken", note: null, occurred_on: "2026-08-31" },
+        { verdict: "approved", note: null, occurred_on: "2026-09-01" },
+      ],
+    });
+    expect(assembleIdea(taken, "2026-09-23").verdict_on).toBe("2026-08-31");
+  });
+});
+
 describe("verdictOn", () => {
   const verdicts = [
     { verdict: "parked" as const, note: null, occurred_on: "2026-09-14" },

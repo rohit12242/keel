@@ -10,14 +10,34 @@ import { withRequestLog } from "@/shared/log";
 
 export const dynamic = "force-dynamic";
 
-/** GET /v1/parked-ideas — the parking lot, with each idea's verdict and lock. */
+/**
+ * GET /v1/parked-ideas — the parking lot, with each idea's verdict and lock.
+ * `?caught_on=` adds the lock an idea parked that day would get.
+ */
 export const GET = withSession(
-  async (_req: Request, _ctx: unknown, userId: string): Promise<Response> =>
+  async (req: Request, _ctx: unknown, userId: string): Promise<Response> =>
     withRequestLog("GET /v1/parked-ideas", {}, async () => {
       try {
-        return jsonResponse(200, {
-          ideas: await listParkedIdeas(userId, new Date()),
-        });
+        const caughtOn = new URL(req.url).searchParams.get("caught_on");
+        const result = await listParkedIdeas(userId, new Date(), caughtOn);
+        if (!result.ok) {
+          return problem(
+            400,
+            "Invalid query",
+            problemType("invalid"),
+            "caught_on must be a date.",
+            result.errors,
+          );
+        }
+        return jsonResponse(
+          200,
+          result.new_idea_locked_until === undefined
+            ? { ideas: result.ideas }
+            : {
+                ideas: result.ideas,
+                new_idea_locked_until: result.new_idea_locked_until,
+              },
+        );
       } catch {
         return unavailable();
       }

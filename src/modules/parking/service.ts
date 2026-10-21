@@ -5,6 +5,7 @@ import {
 } from "@/modules/objectives/domain/noteWrite";
 import { withTransaction } from "@/shared/db";
 import { localDayOf } from "@/shared/time/localDay";
+import { isIsoDate } from "@/modules/effort/domain/validateWrite";
 import {
   assembleIdea,
   lockedUntil,
@@ -21,12 +22,20 @@ import {
   insertVerdict,
   listIdeas,
   lockIdea,
+  type LockFacts,
 } from "./repo";
 
 /**
  * parking/service — the parking lot (ADR-001). "Today", against which a lock
  * is lifted or not, is read in the caller's zone.
  */
+
+/** The lock rule's view of the caller's objectives. */
+const lockObjectives = (facts: LockFacts) =>
+  facts.objectives.map((o) => ({
+    segments: o.segments ?? [],
+    statusEvents: o.status_events ?? [],
+  }));
 
 export type ParkResult =
   | { ok: true; idea: ParkedIdea }
@@ -43,24 +52,49 @@ export async function createParkedIdea(
     return { ok: false, kind: "invalid", errors: validated.error };
   }
   const facts = await getLockFacts(userId);
-  const until = lockedUntil(
-    validated.value.caught_on,
-    facts.objectives.map((o) => ({
-      segments: o.segments ?? [],
-      statusEvents: o.status_events ?? [],
-    })),
-  );
+  const until = lockedUntil(validated.value.caught_on, lockObjectives(facts));
   const row = await insertIdea(userId, validated.value, until);
   return { ok: true, idea: assembleIdea(row, localDayOf(now, facts.tz)) };
 }
 
+export type ListIdeasResult =
+  | {
+      ok: true;
+      ideas: ParkedIdea[];
+      new_idea_locked_until?: string;
+    }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] };
+
+/**
+ * The parking lot, one query. With `caughtOn`, also the lock an idea caught
+ * that day would get (G38) — the same rule that sets it when the idea is
+ * parked, so the dialog and the stored lock cannot disagree. That costs a
+ * second, fixed query, only when asked for.
+ */
 export async function listParkedIdeas(
   userId: string,
   now: Date,
-): Promise<ParkedIdea[]> {
+  caughtOn: string | null,
+): Promise<ListIdeasResult> {
+  if (caughtOn !== null && !isIsoDate(caughtOn)) {
+    return {
+      ok: false,
+      kind: "invalid",
+      errors: [{ field: "caught_on", message: "YYYY-MM-DD." }],
+    };
+  }
   const { tz, ideas } = await listIdeas(userId);
   const today = localDayOf(now, tz);
-  return ideas.map((row) => assembleIdea(row, today));
+  const list = ideas.map((row) => assembleIdea(row, today));
+  if (caughtOn === null) return { ok: true, ideas: list };
+  return {
+    ok: true,
+    ideas: list,
+    new_idea_locked_until: lockedUntil(
+      caughtOn,
+      lockObjectives(await getLockFacts(userId)),
+    ),
+  };
 }
 
 export type VerdictResult =

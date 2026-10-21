@@ -153,6 +153,8 @@ export type ParkedIdea = {
   locked: boolean;
   notes: Note[];
   verdict: VerdictRow["verdict"];
+  /** The current verdict's date (G31). */
+  verdict_on: string;
   note: string | null;
   became_objective_id: string | null;
   decided_early: boolean;
@@ -191,6 +193,7 @@ export function assembleIdea(row: IdeaRow, today: string): ParkedIdea {
     locked: today < row.locked_until,
     notes: row.notes,
     verdict: current.verdict,
+    verdict_on: current.occurred_on,
     note: current.note,
     became_objective_id: row.became_objective_id,
     decided_early:
