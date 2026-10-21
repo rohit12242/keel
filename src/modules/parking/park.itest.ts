@@ -81,7 +81,7 @@ describe("parking an idea (real Postgres)", () => {
       verdict: "parked",
       note: null,
       became_objective_id: null,
-      taken_early: false,
+      decided_early: false,
     });
   });
 

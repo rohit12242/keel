@@ -237,6 +237,7 @@ export const AUTHORIZATION: AuthRow[] = [
         req("POST", `/v1/parked-ideas/${id}/verdicts`, cookie, {
           verdict: "dropped",
           occurred_on: "2026-10-01",
+          note: "Not for me.",
         }),
         { params: Promise.resolve({ ideaId: id }) },
       ),

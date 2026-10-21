@@ -87,7 +87,7 @@ describe("taking an idea (real Postgres)", () => {
     expect(await ideaNow(idea.id)).toMatchObject({
       verdict: "taken",
       became_objective_id: objective.id,
-      taken_early: false,
+      decided_early: false,
     });
     const taken = await query<{ occurred_on: string }>(
       `SELECT to_char(occurred_on, 'YYYY-MM-DD') AS occurred_on
@@ -103,7 +103,7 @@ describe("taking an idea (real Postgres)", () => {
     expect((await take(locked.id)).status).toBe(201);
     expect(await ideaNow(locked.id)).toMatchObject({
       verdict: "taken",
-      taken_early: true,
+      decided_early: true,
     });
   });
 
@@ -117,7 +117,11 @@ describe("taking an idea (real Postgres)", () => {
       new Request(`http://keel.test/v1/parked-ideas/${dropped.id}/verdicts`, {
         method: "POST",
         headers: { cookie: me.cookie },
-        body: JSON.stringify({ verdict: "dropped", occurred_on: "2026-10-01" }),
+        body: JSON.stringify({
+          verdict: "dropped",
+          occurred_on: "2026-10-01",
+          note: "Not for me.",
+        }),
       }),
       { params: Promise.resolve({ ideaId: dropped.id }) },
     );

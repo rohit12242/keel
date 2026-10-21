@@ -87,7 +87,7 @@ describe("assembleIdea", () => {
     expect(assembleIdea(row(), "2026-11-01")).toMatchObject({
       locked: true,
       verdict: "parked",
-      taken_early: false,
+      decided_early: false,
     });
     expect(assembleIdea(row(), "2026-11-02").locked).toBe(false);
   });
@@ -105,32 +105,57 @@ describe("assembleIdea", () => {
     });
   });
 
-  it("is taken early when its objective started before the lock lifted", () => {
+  it("moves between parked and approved, the latest row winning", () => {
     const r = row({
       verdicts: [
         { verdict: "parked", note: null, occurred_on: "2026-09-14" },
-        { verdict: "taken", note: null, occurred_on: "2026-10-01" },
+        { verdict: "approved", note: null, occurred_on: "2026-11-03" },
+        { verdict: "parked", note: null, occurred_on: "2026-11-04" },
       ],
-      became_objective_id: "o",
     });
-    expect(assembleIdea(r, "2026-10-02")).toMatchObject({
-      verdict: "taken",
-      became_objective_id: "o",
-      taken_early: true,
-    });
+    expect(assembleIdea(r, "2026-11-05").verdict).toBe("parked");
   });
 
-  it("stays taken whatever is dated after it, and on time is not early", () => {
+  it("is decided early when approved, dropped or taken before the lock lifts", () => {
+    for (const verdict of ["approved", "dropped", "taken"] as const) {
+      const r = row({
+        verdicts: [
+          { verdict: "parked", note: null, occurred_on: "2026-09-14" },
+          { verdict, note: "x", occurred_on: "2026-10-01" },
+        ],
+        became_objective_id: verdict === "taken" ? "o" : null,
+      });
+      expect(assembleIdea(r, "2026-10-02")).toMatchObject({
+        verdict,
+        decided_early: true,
+      });
+    }
+  });
+
+  it("is never early while parked, nor when decided the day the lock lifts", () => {
+    expect(assembleIdea(row(), "2026-09-15").decided_early).toBe(false);
+    const onTime = row({
+      verdicts: [
+        { verdict: "parked", note: null, occurred_on: "2026-09-14" },
+        { verdict: "approved", note: null, occurred_on: "2026-11-02" },
+      ],
+    });
+    expect(assembleIdea(onTime, "2026-11-02").decided_early).toBe(false);
+  });
+
+  it("keeps a final row current even when it is dated before the approval", () => {
+    // Taken in one zone, approved in another: the dates can cross.
     const r = row({
       verdicts: [
         { verdict: "parked", note: null, occurred_on: "2026-09-14" },
         { verdict: "taken", note: null, occurred_on: "2026-11-02" },
-        { verdict: "parked", note: null, occurred_on: "2026-11-05" },
+        { verdict: "approved", note: null, occurred_on: "2026-11-03" },
       ],
+      became_objective_id: "o",
     });
     expect(assembleIdea(r, "2026-11-06")).toMatchObject({
       verdict: "taken",
-      taken_early: false,
+      decided_early: false,
     });
   });
 });
@@ -148,19 +173,40 @@ describe("verdictOn", () => {
 });
 
 describe("verdictRefusal", () => {
-  it("refuses while locked, and once taken", () => {
-    expect(verdictRefusal(row(), "2026-11-01")).toBe("locked");
-    expect(verdictRefusal(row(), "2026-11-02")).toBeNull();
+  const write = (
+    verdict: "parked" | "approved" | "dropped",
+    occurred_on = "2026-10-01",
+    note: string | null = "Why.",
+  ) => ({ verdict, occurred_on, note });
+
+  it("takes any verdict on a locked idea — the lock records, it does not refuse", () => {
+    expect(verdictRefusal(row(), write("approved"), "2026-10-01")).toBeNull();
+    expect(verdictRefusal(row(), write("dropped"), "2026-10-01")).toBeNull();
+    expect(verdictRefusal(row(), write("parked"), "2026-10-01")).toBeNull();
+  });
+
+  it("refuses anything after a drop or a take: both are final", () => {
+    for (const verdict of ["dropped", "taken"] as const) {
+      const r = row({
+        verdicts: [
+          { verdict: "parked", note: null, occurred_on: "2026-09-14" },
+          { verdict, note: "x", occurred_on: "2026-11-05" },
+        ],
+      });
+      expect(verdictRefusal(r, write("parked"), "2026-12-01")).toBe("final");
+    }
+  });
+
+  it("refuses a drop that does not say why", () => {
     expect(
-      verdictRefusal(
-        row({
-          verdicts: [
-            { verdict: "taken", note: null, occurred_on: "2026-11-05" },
-          ],
-        }),
-        "2026-12-01",
-      ),
-    ).toBe("taken");
+      verdictRefusal(row(), write("dropped", "2026-10-01", null), "2026-10-01"),
+    ).toBe("needs_reason");
+  });
+
+  it("refuses a verdict dated after today", () => {
+    expect(
+      verdictRefusal(row(), write("approved", "2026-10-02"), "2026-10-01"),
+    ).toBe("future");
   });
 });
 
@@ -192,7 +238,13 @@ describe("validateIdeaWrite / validateVerdictWrite", () => {
     ]);
   });
 
-  it("accepts parked or dropped, never taken", () => {
+  it("accepts parked, approved or dropped, never taken", () => {
+    expect(
+      validateVerdictWrite({ verdict: "approved", occurred_on: "2026-11-03" }),
+    ).toEqual({
+      ok: true,
+      value: { verdict: "approved", occurred_on: "2026-11-03", note: null },
+    });
     expect(
       validateVerdictWrite({
         verdict: "dropped",

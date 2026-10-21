@@ -78,12 +78,15 @@ export function validateIdeaWrite(
 }
 
 export type VerdictWrite = {
-  verdict: "parked" | "dropped";
+  verdict: "parked" | "approved" | "dropped";
   occurred_on: string;
   note: string | null;
 };
 
-/** `taken` is never sent: an idea is taken by starting an objective from it. */
+/**
+ * `taken` is never sent: an idea is taken by starting an objective from it.
+ * Whether a drop says why is a rule (verdictRefusal), not a shape.
+ */
 export function validateVerdictWrite(
   input: unknown,
 ): Result<VerdictWrite, ProblemError[]> {
@@ -92,11 +95,15 @@ export function validateVerdictWrite(
       ? (input as Record<string, unknown>)
       : {};
   const errors: ProblemError[] = [];
-  if (body.verdict !== "parked" && body.verdict !== "dropped") {
+  if (
+    body.verdict !== "parked" &&
+    body.verdict !== "approved" &&
+    body.verdict !== "dropped"
+  ) {
     errors.push({
       field: "verdict",
       message:
-        "Required; parked or dropped. An idea is taken by starting an objective from it.",
+        "Required; parked, approved or dropped. An idea is taken by starting an objective from it.",
     });
   }
   if (typeof body.occurred_on !== "string" || !isIsoDate(body.occurred_on)) {
@@ -112,14 +119,14 @@ export function validateVerdictWrite(
   }
   if (errors.length > 0) return err(errors);
   return ok({
-    verdict: body.verdict as "parked" | "dropped",
+    verdict: body.verdict as VerdictWrite["verdict"],
     occurred_on: body.occurred_on as string,
     note: typeof note === "string" && note.length > 0 ? note : null,
   });
 }
 
 export type VerdictRow = {
-  verdict: "parked" | "taken" | "dropped";
+  verdict: "parked" | "approved" | "taken" | "dropped";
   note: string | null;
   occurred_on: string;
 };
@@ -145,7 +152,7 @@ export type ParkedIdea = {
   verdict: VerdictRow["verdict"];
   note: string | null;
   became_objective_id: string | null;
-  taken_early: boolean;
+  decided_early: boolean;
 };
 
 /** The verdict as it stood on `date`: the latest row on or before it. */
@@ -158,16 +165,20 @@ export function verdictOn(
   return found;
 }
 
+const isFinal = (v: VerdictRow) =>
+  v.verdict === "taken" || v.verdict === "dropped";
+
 /**
  * An idea as the contract shows it. The current verdict is the latest row —
- * except that taken is final: once an idea became an objective, that is what
- * it is, whatever the date its objective started. The lock lifts on
- * `locked_until`: the idea opens that day. `taken_early` is computed, never
- * stored.
+ * except that dropped and taken are final (invariant 13): once there is one,
+ * that is what the idea is, whatever is dated around it. The lock lifts on
+ * `locked_until`: the idea opens that day. `decided_early` — a decision given
+ * before the lock lifted — is computed, never stored; a parked idea is never
+ * early (docs/domain/parking-lock.md).
  */
 export function assembleIdea(row: IdeaRow, today: string): ParkedIdea {
-  const taken = row.verdicts.find((v) => v.verdict === "taken");
-  const current = taken ?? row.verdicts[row.verdicts.length - 1];
+  const final = row.verdicts.find(isFinal);
+  const current = final ?? row.verdicts[row.verdicts.length - 1];
   return {
     id: row.id,
     idea: row.idea,
@@ -178,19 +189,29 @@ export function assembleIdea(row: IdeaRow, today: string): ParkedIdea {
     verdict: current.verdict,
     note: current.note,
     became_objective_id: row.became_objective_id,
-    taken_early: taken !== undefined && taken.occurred_on < row.locked_until,
+    decided_early:
+      current.verdict !== "parked" && current.occurred_on < row.locked_until,
   };
 }
 
-export type VerdictRefusal = "taken" | "locked";
+export type VerdictRefusal = "final" | "needs_reason" | "future";
 
-/** A verdict is refused once the idea is taken, and while it is locked. */
+/**
+ * Why a well-formed verdict cannot be recorded, or null. The lock refuses
+ * nothing: a verdict before it lifts is recorded, and shown as early.
+ *
+ * - `final`: the idea was dropped or taken; nothing follows (the 409).
+ * - `needs_reason`: a drop says why it ended (the 422).
+ * - `future`: a verdict is given once it has happened (the 422).
+ */
 export function verdictRefusal(
   row: IdeaRow,
+  write: VerdictWrite,
   today: string,
 ): VerdictRefusal | null {
-  if (row.verdicts.some((v) => v.verdict === "taken")) return "taken";
-  if (today < row.locked_until) return "locked";
+  if (row.verdicts.some(isFinal)) return "final";
+  if (write.verdict === "dropped" && write.note === null) return "needs_reason";
+  if (write.occurred_on > today) return "future";
   return null;
 }
 

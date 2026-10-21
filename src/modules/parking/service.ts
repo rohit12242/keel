@@ -61,8 +61,9 @@ export type VerdictResult =
   | { ok: true; idea: ParkedIdea }
   | { ok: false; kind: "invalid"; errors: ProblemError[] }
   | { ok: false; kind: "not_found" }
-  | { ok: false; kind: "taken" }
-  | { ok: false; kind: "locked" };
+  | { ok: false; kind: "final" }
+  | { ok: false; kind: "needs_reason" }
+  | { ok: false; kind: "future" };
 
 /** Give or change a verdict: appended, never edited (invariant 13). */
 export async function createParkedIdeaVerdict(
@@ -80,7 +81,7 @@ export async function createParkedIdeaVerdict(
   return withTransaction(async (tx): Promise<VerdictResult> => {
     const idea = await lockIdea(tx, userId, ideaId);
     if (!idea) return { ok: false, kind: "not_found" };
-    const refusal = verdictRefusal(idea, today);
+    const refusal = verdictRefusal(idea, validated.value, today);
     if (refusal) return { ok: false, kind: refusal };
     const row = await insertVerdict(tx, userId, ideaId, validated.value);
     return { ok: true, idea: assembleIdea(row, today) };
