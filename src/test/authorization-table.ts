@@ -16,6 +16,7 @@ import * as extensions from "@/app/v1/objectives/[objectiveId]/extensions/route"
 import * as save from "@/app/v1/reviews/[reviewId]/save/route";
 import * as verdicts from "@/app/v1/parked-ideas/[ideaId]/verdicts/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
+import * as objectiveNotes from "@/app/v1/objectives/[objectiveId]/notes/route";
 import {
   OBJECTIVE_BODY,
   testEntry,
@@ -171,6 +172,18 @@ export const AUTHORIZATION: AuthRow[] = [
         req("POST", `/v1/objectives/${id}/status-changes`, cookie, {
           change: "pause",
           occurred_on: "2026-09-20",
+        }),
+        objectiveParams(id),
+      ),
+  },
+  {
+    operationId: "createObjectiveNote",
+    resource: anObjective,
+    call: (cookie, id) =>
+      objectiveNotes.POST(
+        req("POST", `/v1/objectives/${id}/notes`, cookie, {
+          written_on: "2026-09-20",
+          text: "A note.",
         }),
         objectiveParams(id),
       ),

@@ -190,6 +190,7 @@ export function assembleObjective(
     extension_count: segments.length - 1,
     segments: segments.map(toPlanSegment),
     status_history: statusHistory(row, segments),
+    notes: row.notes,
     criteria_verdict: criteriaVerdictOf(row),
   };
   // `description` is a string in the contract, never null: absent when unset.

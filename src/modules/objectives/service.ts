@@ -1,5 +1,6 @@
 import { withTransaction } from "@/shared/db";
 import type {
+  Note,
   Objective,
   PlanSegment,
   ObjectiveSummary,
@@ -15,6 +16,7 @@ import { assembleGrid, parseGridRange } from "./domain/scheduleGrid";
 import { validateObjectiveWrite } from "./domain/validateObjectiveWrite";
 import { statusChange, validateStatusChange } from "./domain/statusChange";
 import { committedMinutesPerWeek } from "./domain/committedMinutes";
+import { noteRefusal, validateNoteWrite } from "./domain/noteWrite";
 import {
   extensionDecision,
   validateExtensionWrite,
@@ -24,8 +26,10 @@ import { insertVerdict, lockIdea } from "@/modules/parking/repo";
 import { localDayOf } from "@/shared/time/localDay";
 import type { StatusChange } from "./domain/statusTimeline";
 import {
+  getNoteFacts,
   getObjectiveRows,
   insertObjective,
+  insertObjectiveNote,
   insertSegment,
   insertStatusEvent,
   lockObjective,
@@ -296,4 +300,34 @@ export async function createExtension(
       (s) => s.seq === outcome.seq,
     ) as PlanSegment,
   };
+}
+
+export type CreateNoteResult =
+  | { ok: true; note: Note }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "future" };
+
+/**
+ * Add a note to an objective, in any state (G2). Checked in the contract's
+ * order — shape, then owner, then date — so a probe of someone else's
+ * objective is a 404 whatever it sends. "Today" is the caller's zone.
+ */
+export async function createObjectiveNote(
+  userId: string,
+  objectiveId: string,
+  body: unknown,
+  now: Date,
+): Promise<CreateNoteResult> {
+  const validated = validateNoteWrite(body);
+  if (!validated.ok) {
+    return { ok: false, kind: "invalid", errors: validated.error };
+  }
+  const facts = await getNoteFacts(userId, objectiveId);
+  if (!facts.owned) return { ok: false, kind: "not_found" };
+  if (noteRefusal(validated.value.written_on, localDayOf(now, facts.tz))) {
+    return { ok: false, kind: "future" };
+  }
+  const note = await insertObjectiveNote(userId, objectiveId, validated.value);
+  return note ? { ok: true, note } : { ok: false, kind: "not_found" };
 }

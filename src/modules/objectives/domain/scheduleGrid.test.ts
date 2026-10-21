@@ -33,6 +33,7 @@ const ROW: ObjectiveRow = {
   ],
   daily_minutes: [],
   saved_reviews: [],
+  notes: [],
 };
 
 function grid(row: ObjectiveRow, range = {}): ScheduleGrid {

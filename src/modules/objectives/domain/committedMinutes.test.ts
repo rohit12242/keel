@@ -39,6 +39,7 @@ const row = (
   })),
   daily_minutes: [],
   saved_reviews: [],
+  notes: [],
 });
 
 describe("committedMinutesPerWeek", () => {

@@ -39,6 +39,7 @@ const ROW: ObjectiveRow = {
   ],
   daily_minutes: [],
   saved_reviews: [],
+  notes: [],
 };
 
 /** Before the plan starts: no review window has closed. */

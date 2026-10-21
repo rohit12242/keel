@@ -151,6 +151,9 @@ export type StatusEvent = {
   new_end_date?: string | null;
 };
 
+/** A note on an objective or a parked idea: dated, append-only. */
+export type Note = { id: string; written_on: string; text: string };
+
 export type Objective = ObjectiveSummary & {
   description?: string;
   why_now: string;
@@ -161,6 +164,8 @@ export type Objective = ObjectiveSummary & {
   extension_count?: number;
   segments: PlanSegment[];
   status_history: StatusEvent[];
+  /** Oldest first. */
+  notes: Note[];
   /** From the latest saved plan-end review; null before there is one. */
   criteria_verdict: "met" | "partly_met" | "not_met" | null;
 };
