@@ -7,7 +7,9 @@ import {
   dueWindows,
   periodKey,
   plannedDaysIn,
+  reviewDueOn,
   reviewSchedule,
+  upcomingReviewOn,
   reviewWindows,
 } from "./reviewWindows";
 
@@ -211,5 +213,110 @@ describe("plannedDaysIn", () => {
         slots,
       ),
     ).toBe(0);
+  });
+});
+
+describe("reviewDueOn — the review that will judge a date (G33)", () => {
+  const weekly = {
+    cadence: "weekly" as const,
+    segments: [{ id: "s0", start_date: "2026-09-01", end_date: "2026-09-21" }],
+  };
+
+  it("is the end of the window the date falls in", () => {
+    expect(reviewDueOn("2026-09-10", [weekly])).toBe("2026-09-14"); // Week 2
+    expect(reviewDueOn("2026-09-14", [weekly])).toBe("2026-09-14");
+    expect(reviewDueOn("2026-09-21", [weekly])).toBe("2026-09-21"); // End of plan
+  });
+
+  it("takes the earlier end across the objectives a date names", () => {
+    const monthly = {
+      cadence: "monthly" as const,
+      segments: [
+        { id: "m0", start_date: "2026-08-20", end_date: "2026-12-19" },
+      ],
+    };
+    expect(reviewDueOn("2026-09-10", [monthly])).toBe("2026-09-19");
+    expect(reviewDueOn("2026-09-10", [monthly, weekly])).toBe("2026-09-14");
+  });
+
+  it("clamps a monthly window at a month's end", () => {
+    const fromJan31 = {
+      cadence: "monthly" as const,
+      segments: [{ id: "j", start_date: "2026-01-31", end_date: "2026-06-30" }],
+    };
+    expect(reviewDueOn("2026-02-10", [fromJan31])).toBe("2026-02-27");
+  });
+
+  it("is null when no window covers the date", () => {
+    expect(reviewDueOn("2026-08-31", [weekly])).toBeNull();
+    expect(reviewDueOn("2026-09-10", [])).toBeNull();
+  });
+});
+
+describe("upcomingReviewOn — the next review, due or not (G34)", () => {
+  const segment = {
+    id: "s0",
+    start_date: "2026-09-01",
+    end_date: "2026-09-21",
+  };
+  const PLAN: SegmentForSlots = {
+    scheduleMode: "fixed",
+    plannedWeekdays: [1, 2, 3, 4, 5, 6, 7],
+    minutesPerPlannedDay: 60,
+    startDate: "2026-09-01",
+    endDate: "2026-09-21",
+  };
+  const created: StatusEventRow[] = [
+    { occurred_on: "2026-09-01", change: "created" },
+  ];
+  const upcoming = (
+    over: Partial<Parameters<typeof upcomingReviewOn>[0]> = {},
+  ) =>
+    upcomingReviewOn({
+      schedule: reviewSchedule("weekly", [segment]),
+      today: "2026-09-03",
+      status: "active",
+      saved: new Set(),
+      slots: planSlots([PLAN], created),
+      ...over,
+    });
+
+  it("is Week 1's end before anything is due", () => {
+    expect(upcoming()).toBe("2026-09-07");
+  });
+
+  it("moves on once a window is saved", () => {
+    expect(
+      upcoming({
+        today: "2026-09-08",
+        saved: new Set([
+          periodKey({ period_start: "2026-09-01", period_end: "2026-09-07" }),
+        ]),
+      }),
+    ).toBe("2026-09-14");
+  });
+
+  it("skips a window that closed with no planned day", () => {
+    const pausedWeek1: StatusEventRow[] = [
+      ...created,
+      { occurred_on: "2026-09-01", change: "paused" },
+      { occurred_on: "2026-09-08", change: "resumed" },
+    ];
+    expect(
+      upcoming({ today: "2026-09-09", slots: planSlots([PLAN], pausedWeek1) }),
+    ).toBe("2026-09-14");
+  });
+
+  it("still shows one while paused, and none once completed or ended", () => {
+    expect(upcoming({ status: "paused" })).toBe("2026-09-07");
+    expect(upcoming({ status: "completed" })).toBeNull();
+    expect(upcoming({ status: "ended" })).toBeNull();
+  });
+
+  it("is null once every window is saved", () => {
+    const all = reviewSchedule("weekly", [segment]);
+    expect(
+      upcoming({ today: "2026-09-21", saved: new Set(all.map(periodKey)) }),
+    ).toBeNull();
   });
 });

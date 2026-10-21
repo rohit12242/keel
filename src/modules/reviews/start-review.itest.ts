@@ -46,12 +46,12 @@ describe("starting and reading a review (real Postgres)", () => {
   beforeAll(async () => {
     me = await testUser();
     objectiveId = (await testObjective(me)).id;
-    await testEntry(me, objectiveId, {
+    await testEntry(objectiveId, {
       local_date: "2026-09-14",
       minutes: 120,
     });
-    await testEntry(me, objectiveId, { local_date: "2026-09-15", minutes: 60 });
-    await testEntry(me, objectiveId, { local_date: "2026-09-19", minutes: 30 });
+    await testEntry(objectiveId, { local_date: "2026-09-15", minutes: 60 });
+    await testEntry(objectiveId, { local_date: "2026-09-19", minutes: 30 });
     const d = await createDeviation(
       me.id,
       {

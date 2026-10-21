@@ -20,8 +20,9 @@ adherence. They all call this function, so they cannot disagree.
   timeline (pause suppression lives there and nowhere else). This rule takes those
   slots as given.
 - **Not windowed.** It computes over whatever slots and days it is handed. The whole
-  run for an objective, one window for a review (`docs/domain/review-windows.md`):
-  the caller chooses the span, and the rule does not change.
+  run for an objective, one window for a review (`docs/domain/review-windows.md`), a
+  plan week, the plan so far: the caller chooses the span, and the rule does not
+  change (*Over a window*, below).
 - **Not the day states.** What the schedule grid shows for one day is
   `docs/domain/day-states.md`. The two agree because both read the same slots.
 
@@ -40,6 +41,9 @@ Figures = {
   planned_days_worked:   integer
   target_met_days:       integer
   extra_off_day_minutes: integer
+  over_target_minutes:   integer
+  planned_weeks:         integer   // flexible only; 0 on a fixed schedule
+  target_met_weeks:      integer   // flexible only; 0 on a fixed schedule
 }
 ```
 
@@ -72,6 +76,16 @@ in minutes, and it carries the days inside it the objective was active on.
    - *target met*: a day slot whose minutes reach its target; a week, its active days
      whose minutes reach the per-day target, capped at `target_days`.
 
+7. **Over target** = for each slot, the minutes logged on its active days **above the
+   slot's target** — what rule 3 does not credit. Never in adherence. *(I-03.)*
+8. **Weeks** (flexible schedules) = the week slots in the span; *met* are those whose
+   minutes reach the week's target. A day slot is never a week, so a fixed schedule
+   reads 0 and 0. *(I-03.)*
+
+So every minute logged lands in exactly one place:
+**logged = credited + over target + extra on off days.** A test that checks that sum
+catches any rule that counts a minute twice or loses one.
+
 The cap in 6 is the flexible schedule's version of rule 3: working five days of a
 three-day week is three planned days worked, not five.
 
@@ -81,23 +95,71 @@ three-day week is three planned days worked, not five.
 
 Fixed Mon–Fri, 60 minutes a day, one week (target 300 minutes, 5 planned days):
 
-| Logged | Credited | Adherence | Worked | Met | Extra |
-|---|---|---|---|---|---|
-| nothing | 0 | **0%** of 300 | 0 | 0 | 0 |
-| Mon 60, Tue 30 | 90 | **30%** | 2 | 1 | 0 |
-| Mon 120 | 60 (capped) | **20%** | 1 | 1 | 0 |
-| Mon 60, Sat 45 | 60 | **20%** | 1 | 1 | 45 |
+| Logged | Credited | Adherence | Worked | Met | Extra | Over |
+|---|---|---|---|---|---|---|
+| nothing | 0 | **0%** of 300 | 0 | 0 | 0 | 0 |
+| Mon 60, Tue 30 | 90 | **30%** | 2 | 1 | 0 | 0 |
+| Mon 120 | 60 (capped) | **20%** | 1 | 1 | 0 | 60 |
+| Mon 60, Sat 45 | 60 | **20%** | 1 | 1 | 45 | 0 |
 
 Flexible, 3 days a week, 60 minutes a day (one week: target 180, 3 planned days):
 
-| Logged | Credited | Adherence | Worked | Met |
-|---|---|---|---|---|
-| Mon 60, Wed 60, Fri 60 | 180 | **100%** | 3 | 3 |
-| Mon 60, Tue 60, Wed 60, Thu 60 | 180 (capped) | **100%** | 3 (capped) | 3 (capped) |
-| Mon 30, Thu 60 | 90 | **50%** | 2 | 1 |
+| Logged | Credited | Adherence | Worked | Met | Over | Weeks met |
+|---|---|---|---|---|---|---|
+| Mon 60, Wed 60, Fri 60 | 180 | **100%** | 3 | 3 | 0 | 1 of 1 |
+| Mon 60, Tue 60, Wed 60, Thu 60 | 180 (capped) | **100%** | 3 (capped) | 3 (capped) | 60 | 1 of 1 |
+| Mon 30, Thu 60 | 90 | **50%** | 2 | 1 | 0 | 0 of 1 |
 
 Paused Wednesday to Friday of the fixed week: the plan asks for Mon and Tue only
 (target 120). 60 logged on Thursday is extra, and adherence is credited ÷ 120.
+
+---
+
+## Over a window
+
+A review, a plan week and the plan so far each ask for the figures over part of the
+run. They hand this rule **the slots that start in the window** and **the minutes on
+the window's days**, and count as extra only the days **no slot of the whole plan**
+covers — so a day whose slot started before the window is not extra. One function,
+`windowFigures(window, slots, dailyMinutes)`, does this for every caller.
+
+The sum holds only when every slot covering a day of the window also starts in it. A
+plan week always meets that, because weeks and week slots tile from the same segment
+start. A monthly review window can cut a flexible week in two; those minutes are
+lost (`docs/intents/TRIAGE.md`).
+
+## So far *(I-03)*
+
+The whole-run figures count days not yet reached (decision 2), so on day 14 of 30 a
+perfect record reads about 47%. **Figures to date** are the same rule over the plan so
+far:
+
+- the slots whose period ended **before today**, plus **today's day slot** — so a
+  fixed objective's today counts as soon as it is today;
+- the minutes on those slots' days, plus extra on uncovered days up to today.
+
+**A flexible week counts once it has ended.** A week still in progress is left out —
+its target *and* its minutes — so it never lowers the score and the sum still holds.
+Mid-week, a flexible objective's logged-so-far stops at its last full week.
+
+## Track *(I-03)*
+
+One band over the figures to date, so every screen that shows one agrees:
+
+| Adherence so far | Track |
+|---|---|
+| 80% or more | `on_track` |
+| 60–79% | `at_risk` |
+| below 60% | `behind` |
+| no slot has ended yet | none — the objective started today or has not started |
+
+## Plan weeks *(I-03)*
+
+The Effort tab and the reviews show the run week by week. A **plan week** is seven
+days tiled from each segment's start, the last one clipped to the segment's end — the
+same tiling as flexible week slots and weekly review windows. Each week's figures are
+`windowFigures` over it. A week in progress carries its whole target; the screen
+labels it "so far".
 
 ---
 
@@ -111,6 +173,10 @@ These extend ADR-007's named list for `adherence`.
 - Off-day minutes counted in logged and extra, never in adherence.
 - A flexible week counted by days: worked and met capped at `target_days`.
 - A paused stretch: no target asked, its minutes extra.
+- **logged = credited + over target + extra** for every case above, for a window, and
+  for the figures to date with a flexible week in progress.
+- Figures to date at day 14 of 30 with every day met: 100%, not 47%.
+- Track at 80, 79, 60 and 59%, and with no slot ended.
 
 ---
 
@@ -121,4 +187,5 @@ These extend ADR-007's named list for `adherence`.
    two units across an extension that changes mode.
 2. **The target is the whole span handed in**, including days not yet reached. For an
    objective that is the whole run, so the figure reads "of the plan", not "so far".
+   *(I-03 added the figures to date beside it; this rule did not change.)*
 3. **Rounded to a whole percent.** The screens show whole percentages.

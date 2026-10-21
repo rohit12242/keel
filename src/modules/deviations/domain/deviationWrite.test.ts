@@ -57,6 +57,23 @@ describe("validateDeviationWrite", () => {
     expect(validateDeviationWrite(body({ pattern_id: null })).ok).toBe(true);
   });
 
+  it("takes a drifted deviation with no reasoning, and drops one sent anyway", () => {
+    const drifted = body({ kind: "drifted", reasoning: undefined });
+    expect(validateDeviationWrite(drifted)).toMatchObject({
+      ok: true,
+      value: { kind: "drifted", reasoning: null },
+    });
+    expect(
+      validateDeviationWrite(body({ kind: "drifted", reasoning: 42 })),
+    ).toMatchObject({ ok: true, value: { reasoning: null } });
+  });
+
+  it("leaves a chosen deviation's missing reasoning to the rules, not the shape", () => {
+    expect(
+      validateDeviationWrite(body({ reasoning: undefined })),
+    ).toMatchObject({ ok: true, value: { kind: "chosen", reasoning: null } });
+  });
+
   it.each([
     [{ objective_ids: [] }, "objective_ids"],
     [{ objective_ids: "x" }, "objective_ids"],
@@ -84,7 +101,6 @@ describe("validateDeviationWrite", () => {
       "tz",
       "kind",
       "what_happened",
-      "reasoning",
       "minutes",
     ]);
     expect(validateDeviationWrite([1]).ok).toBe(false);
@@ -125,6 +141,11 @@ describe("deviationRefusal", () => {
     expect(refuse(write())).toBeNull();
     expect(refuse(write({ local_date: "2026-09-19" }))).toBeNull(); // Saturday
     expect(refuse(write({ local_date: "2026-09-20" }))).toBeNull(); // today
+  });
+
+  it("refuses a chosen deviation without its reasoning; a drifted one needs none", () => {
+    expect(refuse(write({ reasoning: null }))).toMatch(/needs its reasoning/);
+    expect(refuse(write({ kind: "drifted", reasoning: null }))).toBeNull();
   });
 
   it("refuses a date after today in the caller's zone", () => {

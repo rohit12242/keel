@@ -3,6 +3,7 @@ import { getPool, query, type Queryable } from "@/shared/db";
 import * as route from "@/app/v1/parked-ideas/route";
 import { testObjective, testUser, type TestUser } from "@/test/fixtures";
 import type { ParkedIdea } from "./domain/parking";
+import { createParkedIdeaNote } from "./service";
 
 /**
  * I-02 step 18 — parking an idea and the parking lot, through the route. The
@@ -79,9 +80,11 @@ describe("parking an idea (real Postgres)", () => {
       caught_on: "2026-09-16",
       locked_until: "2026-10-11",
       verdict: "parked",
+      verdict_on: "2026-09-16",
       note: null,
       became_objective_id: null,
-      taken_early: false,
+      decided_early: false,
+      notes: [],
     });
   });
 
@@ -97,12 +100,44 @@ describe("parking an idea (real Postgres)", () => {
     });
   });
 
-  it("lists the caller's ideas, newest caught first, in one query", async () => {
+  it("lists the caller's ideas, newest caught first, in one query with their notes", async () => {
+    for (const idea of await list()) {
+      await createParkedIdeaNote(
+        me.id,
+        idea.id,
+        { written_on: "2026-10-01", text: "Still thinking." },
+        new Date(),
+      );
+    }
     vi.mocked(query).mockClear();
     const ideas = await list();
     expect(vi.mocked(query)).toHaveBeenCalledTimes(1);
+    expect(ideas.every((i) => i.notes.length === 1)).toBe(true);
     expect(ideas.map((i) => i.caught_on)).toEqual(["2026-09-16", "2026-09-01"]);
     expect(await list(await testUser())).toEqual([]);
+  });
+
+  it("previews the lock an idea caught on a day would get, the same lock parking it stores", async () => {
+    const preview = async (query: string) =>
+      route.GET(
+        new Request(`http://keel.test/v1/parked-ideas${query}`, {
+          headers: { cookie: me.cookie },
+        }),
+        undefined,
+      );
+    const res = await preview("?caught_on=2026-09-17");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { new_idea_locked_until: string };
+    const parked = (await (
+      await park({ idea: "Preview", why: "w", caught_on: "2026-09-17" })
+    ).json()) as ParkedIdea;
+    expect(body.new_idea_locked_until).toBe(parked.locked_until);
+    expect(body.new_idea_locked_until).toBe("2026-10-11");
+
+    expect("new_idea_locked_until" in (await (await preview("")).json())).toBe(
+      false,
+    );
+    expect((await preview("?caught_on=nope")).status).toBe(400);
   });
 
   it("400s a body that is not JSON or not an idea", async () => {

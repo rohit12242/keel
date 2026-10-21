@@ -108,6 +108,7 @@ const row = (over: Partial<ObjectiveRow> = {}): ObjectiveRow => ({
   ],
   daily_minutes: [],
   saved_reviews: [planEnd()],
+  notes: [],
   ...over,
 });
 const write = (over: Partial<ExtensionWrite> = {}): ExtensionWrite => ({

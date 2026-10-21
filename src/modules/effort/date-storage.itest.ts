@@ -32,9 +32,10 @@ describe("effort entry date storage (real Postgres)", () => {
     const user = await testUser();
     USER_ID = user.id;
     OBJECTIVE_ID = (await testObjective(user)).id;
-    inserted = await insertEffortEntry(OBJECTIVE_ID, {
+    inserted = await insertEffortEntry(getPool(), OBJECTIVE_ID, {
       local_date: DATE,
       tz: CLIENT_TZ,
+      occurred_at_local: "09:00",
       minutes: 60,
       note: NOTE,
     });

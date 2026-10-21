@@ -39,6 +39,7 @@ const ROW: ObjectiveRow = {
   ],
   daily_minutes: [],
   saved_reviews: [],
+  notes: [],
 };
 
 /** Before the plan starts: no review window has closed. */
@@ -62,6 +63,7 @@ describe("assembleSummary", () => {
       id: "obj-1",
       title: "Ship Keel",
       status: "active",
+      status_since: "2026-11-02",
       schedule: {
         mode: "fixed",
         planned_weekdays: [1, 2, 3, 4, 5],
@@ -72,6 +74,7 @@ describe("assembleSummary", () => {
       end_date: "2026-11-15",
       next_review_on: null,
       reviews_due: 0,
+      upcoming_review_on: "2026-11-08", // Week 1, before the plan starts
       from_parking_lot: false,
       figures: {
         adherence_pct: 0,
@@ -81,8 +84,59 @@ describe("assembleSummary", () => {
         planned_days_worked: 0,
         target_met_days: 0,
         extra_off_day_minutes: 0,
+        over_target_minutes: 0,
+        planned_weeks: 0,
+        target_met_weeks: 0,
       },
+      // Nothing has ended yet: nothing judged, and no band.
+      figures_to_date: {
+        adherence_pct: 0,
+        logged_minutes: 0,
+        target_minutes: 0,
+        planned_days: 0,
+        planned_days_worked: 0,
+        target_met_days: 0,
+        extra_off_day_minutes: 0,
+        over_target_minutes: 0,
+        planned_weeks: 0,
+        target_met_weeks: 0,
+      },
+      track: null,
     });
+  });
+
+  it("judges the plan so far, today's unlogged day slot included", () => {
+    const met = summary(
+      {
+        ...ROW,
+        daily_minutes: ["02", "03", "04", "05", "06"].map((d) => ({
+          local_date: `2026-11-${d}`,
+          minutes: 60,
+        })),
+      },
+      "2026-11-09", // Monday of week 2; the whole run is 10 planned days
+    );
+    expect(met.figures.adherence_pct).toBe(50);
+    expect(met.figures_to_date).toMatchObject({
+      adherence_pct: 83, // 5 of 6: today's day slot counts, unlogged
+      target_minutes: 360,
+    });
+    expect(met.track).toBe("on_track");
+  });
+
+  it("dates its status from the latest status event", () => {
+    expect(
+      summary(
+        {
+          ...ROW,
+          status_events: [
+            ...ROW.status_events,
+            { occurred_on: "2026-11-05", change: "paused", reason: "Ill." },
+          ],
+        },
+        "2026-11-06",
+      ),
+    ).toMatchObject({ status: "paused", status_since: "2026-11-05" });
   });
 
   it("reads the status from the latest event: created and resumed are active", () => {
@@ -259,6 +313,21 @@ describe("next_review_on and reviews_due", () => {
         "2026-11-20",
       ),
     ).toMatchObject({ next_review_on: null, reviews_due: 0 });
+  });
+});
+
+describe("assembleObjective — last_logged_on", () => {
+  it("is the latest date with an entry, or null when nothing is logged", () => {
+    expect(detail(ROW).last_logged_on).toBeNull();
+    expect(
+      detail({
+        ...ROW,
+        daily_minutes: [
+          { local_date: "2026-11-02", minutes: 60 },
+          { local_date: "2026-11-05", minutes: 30 },
+        ],
+      }).last_logged_on,
+    ).toBe("2026-11-05");
   });
 });
 

@@ -9,11 +9,11 @@ import {
   previousOf,
   startDecision,
   summaryOf,
-  windowFigures,
   type ReviewFacts,
   type ReviewRow,
 } from "./assembleReview";
 import { reviewSchedule } from "./reviewWindows";
+import { windowFigures } from "@/modules/effort/domain/adherence";
 
 // Mon/Wed/Fri, an hour a day, Mon 7 Sep … Sun 27 Sep: Week 1, Week 2, End of plan.
 const PLAN: SegmentForSlots = {
@@ -41,13 +41,15 @@ const review = (over: Partial<ReviewRow> = {}): ReviewRow => ({
   previous_review_id: null,
   improvement_answer: null,
   improvement_answer_note: null,
-  what_went_right: null,
-  what_needs_improvement: null,
+  what_worked: null,
+  what_got_in_the_way: null,
+  what_changes_next: null,
   review_summary: null,
   criteria_assessment: null,
   criteria_verdict: null,
   outcome: null,
   saved_at: null,
+  last_saved_at: null,
   ...over,
 });
 
@@ -64,6 +66,8 @@ const deviation = (local_date: string): Deviation => ({
   pattern_name: null,
   verdict: null,
   verdict_review_id: null,
+  pattern_nth: null,
+  review_due_on: null,
 });
 
 const idea = (caught_on: string, over: Partial<IdeaRow> = {}): IdeaRow => ({
@@ -73,6 +77,7 @@ const idea = (caught_on: string, over: Partial<IdeaRow> = {}): IdeaRow => ({
   caught_on,
   locked_until: "2026-09-27",
   verdicts: [{ verdict: "parked", note: null, occurred_on: caught_on }],
+  notes: [],
   became_objective_id: null,
   ...over,
 });
@@ -83,7 +88,7 @@ const week1Saved = review({
   period_end: "2026-09-13",
   status: "saved",
   saved_at: "2026-09-13T10:00:00Z",
-  what_needs_improvement: "Start earlier.",
+  what_changes_next: "Start earlier.",
 });
 
 const facts = (over: Partial<ReviewFacts> = {}): ReviewFacts => ({
@@ -111,6 +116,81 @@ describe("windowFigures", () => {
       planned_days_worked: 2,
       target_met_days: 1,
       extra_off_day_minutes: 20, // Saturday
+      over_target_minutes: 0,
+      planned_weeks: 0,
+      target_met_weeks: 0,
+    });
+  });
+});
+
+describe("windowFigures — the sum (adherence.md rule 7)", () => {
+  // Credited over the slots that start in the window, on the window's days.
+  const credited = (
+    window: { period_start: string; period_end: string },
+    slots: typeof SLOTS,
+    daily: Record<string, number>,
+  ) =>
+    slots
+      .filter(
+        (s) =>
+          s.periodStart >= window.period_start &&
+          s.periodStart <= window.period_end,
+      )
+      .reduce((sum, s) => {
+        const inSlot = s.activeDays.reduce((t, d) => t + (daily[d] ?? 0), 0);
+        return sum + Math.min(inSlot, s.targetMinutes);
+      }, 0);
+
+  const inside = (
+    window: { period_start: string; period_end: string },
+    daily: Record<string, number>,
+  ) =>
+    Object.entries(daily)
+      .filter(([d]) => d >= window.period_start && d <= window.period_end)
+      .reduce((sum, [, m]) => sum + m, 0);
+
+  it("holds for a fixed weekly window, with a long day and an off day", () => {
+    const daily = { ...facts().daily, "2026-09-18": 150 };
+    const f = windowFigures(review(), SLOTS, daily);
+    expect(f.logged_minutes).toBe(inside(review(), daily));
+    expect(f.logged_minutes).toBe(
+      credited(review(), SLOTS, daily) +
+        f.over_target_minutes +
+        f.extra_off_day_minutes,
+    );
+    expect(f.over_target_minutes).toBe(90);
+  });
+
+  it("holds for a flexible weekly window, whose week slot starts with it", () => {
+    const slots = planSlots(
+      [
+        {
+          scheduleMode: "flexible",
+          plannedWeekdays: [],
+          daysPerWeek: 3,
+          minutesPerPlannedDay: 60,
+          startDate: "2026-09-07",
+          endDate: "2026-09-27",
+        },
+      ],
+      [{ occurred_on: "2026-09-07", change: "created" }],
+    );
+    const daily = {
+      "2026-09-14": 90,
+      "2026-09-15": 60,
+      "2026-09-16": 60,
+      "2026-09-17": 30,
+    };
+    const f = windowFigures(review(), slots, daily);
+    expect(f.logged_minutes).toBe(
+      credited(review(), slots, daily) +
+        f.over_target_minutes +
+        f.extra_off_day_minutes,
+    );
+    expect(f).toMatchObject({
+      over_target_minutes: 60,
+      planned_weeks: 1,
+      target_met_weeks: 1,
     });
   });
 });
@@ -122,7 +202,7 @@ describe("assembleReview", () => {
       label: "Week 2",
       due_on: "2026-09-20",
       previous_review_id: "r1",
-      previous_improvement_note: "Start earlier.",
+      previous_what_changes_next: "Start earlier.",
       adherence_pct: 50,
     });
     expect(r.minutes_per_day.slice(0, 3)).toEqual([
@@ -148,7 +228,7 @@ describe("assembleReview", () => {
     ).toMatchObject({
       label: "Week 1",
       previous_review_id: null,
-      previous_improvement_note: null,
+      previous_what_changes_next: null,
     });
   });
 
@@ -179,6 +259,56 @@ describe("assembleReview", () => {
         facts(),
       ).label,
     ).toBe("End of plan");
+  });
+});
+
+describe("a plan-end review's figures cover the whole plan (G22)", () => {
+  const planEnd = review({
+    id: "r3",
+    kind: "plan_end",
+    period_start: "2026-09-21",
+    period_end: "2026-09-27",
+  });
+
+  it("computes figures and adherence from the plan's start to its end", () => {
+    const f = facts();
+    const whole = windowFigures(
+      { period_start: "2026-09-07", period_end: "2026-09-27" },
+      SLOTS,
+      f.daily,
+    );
+    const r = assembleReview(planEnd, f);
+    expect(r.figures).toEqual(whole);
+    expect(r.figures.target_minutes).toBe(9 * 60); // three Mon/Wed/Fri weeks
+    expect(summaryOf(planEnd, f).adherence_pct).toBe(whole.adherence_pct);
+  });
+
+  it("keeps its bars and deviations on its own window", () => {
+    const r = assembleReview(planEnd, facts());
+    expect(r.minutes_per_day.map((d) => d.date)).toEqual([
+      "2026-09-21",
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-26",
+      "2026-09-27",
+    ]);
+    expect(r.deviations.map((d) => d.local_date)).toEqual(["2026-09-22"]);
+  });
+
+  it("leaves a weekly review's figures on its own window", () => {
+    expect(assembleReview(review(), facts()).figures.target_minutes).toBe(180);
+  });
+});
+
+describe("summaryOf — the change a review set (G20)", () => {
+  it("carries what_changes_next", () => {
+    expect(
+      summaryOf(review({ what_changes_next: "Start earlier." }), facts())
+        .what_changes_next,
+    ).toBe("Start earlier.");
+    expect(summaryOf(review(), facts()).what_changes_next).toBeNull();
   });
 });
 

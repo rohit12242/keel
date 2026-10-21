@@ -69,7 +69,7 @@ export const POST = withSession(
       }
 
       try {
-        const result = await createObjective(userId, body);
+        const result = await createObjective(userId, body, new Date());
         if (result.ok) return jsonResponse(201, result.objective);
         switch (result.kind) {
           case "invalid":

@@ -23,7 +23,7 @@ import {
   type ReviewSummary,
   type StartRequest,
 } from "./domain/assembleReview";
-import { reviewSchedule } from "./domain/reviewWindows";
+import { dueWindows, periodKey, reviewSchedule } from "./domain/reviewWindows";
 import {
   deleteDraft,
   getReviewFacts,
@@ -67,16 +67,51 @@ export function contextOf(raw: ObjectiveReviewFacts, now: Date): Context {
   };
 }
 
-/** The Reviews tab: every review of the objective, in period order. */
+/** A window that is due, as the Reviews tab lists it (G19). */
+export type DueReview = {
+  label: string;
+  kind: "weekly" | "monthly" | "plan_end";
+  period_start: string;
+  period_end: string;
+  /** The draft started for this window, or null. */
+  review_id: string | null;
+};
+
+/**
+ * The Reviews tab: every review of the objective, in period order, and every
+ * window that is due — started or not — so the tab shows one card per owed
+ * review without working out windows itself (G19). The same windows
+ * `reviews_due` counts.
+ */
 export async function listReviews(
   userId: string,
   objectiveId: string,
   now: Date,
-): Promise<ReviewSummary[] | null> {
+): Promise<{ reviews: ReviewSummary[]; due: DueReview[] } | null> {
   const raw = await getReviewFacts(null, userId, { objectiveId });
   if (!raw) return null;
-  const { facts } = contextOf(raw, now);
-  return facts.reviews.map((r) => summaryOf(r, facts));
+  const { facts, status, today } = contextOf(raw, now);
+  const saved = facts.reviews.filter((r) => r.status === "saved");
+  const due = dueWindows({
+    schedule: facts.schedule,
+    today,
+    status,
+    saved: new Set(saved.map(periodKey)),
+    slots: facts.slots,
+  });
+  return {
+    reviews: facts.reviews.map((r) => summaryOf(r, facts)),
+    due: due.map((w) => ({
+      label: w.label,
+      kind: w.kind,
+      period_start: w.period_start,
+      period_end: w.period_end,
+      review_id:
+        facts.reviews.find(
+          (r) => r.status === "draft" && periodKey(r) === periodKey(w),
+        )?.id ?? null,
+    })),
+  };
 }
 
 /** One review, its figures recomputed now. */

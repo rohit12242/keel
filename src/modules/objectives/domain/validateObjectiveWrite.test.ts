@@ -48,6 +48,7 @@ describe("validateObjectiveWrite — accepted", () => {
         starts_on: "2026-11-02",
         end_date: "2026-11-29",
         from_parked_idea_id: null,
+        tz: FIXED.tz,
       },
     });
   });
@@ -146,10 +147,11 @@ describe("validateObjectiveWrite — 400, a field wrong on its own", () => {
     ]);
   });
 
-  it("refuses a zone the runtime does not know, and validates rather than stores it", () => {
+  it("refuses a zone the runtime does not know, and passes a known one on to date a take", () => {
     expect(fields({ ...FIXED, tz: "Mars/Olympus" })).toEqual(["tz"]);
+    // Passed on, never stored: objective has no zone column (G37).
     const r = validateObjectiveWrite(FIXED);
-    expect(r.ok && "tz" in r.value).toBe(false);
+    expect(r.ok && r.value.tz).toBe("Asia/Kolkata");
   });
 
   it("refuses runs_for_days outside 1–365 or not an integer", () => {

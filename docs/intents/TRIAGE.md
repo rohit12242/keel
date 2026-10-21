@@ -85,3 +85,72 @@ CloudFront on a custom certificate under `TLSv1.2_2021`. Cognito's callback and
 `APP_BASE_URL` move with it. ADR-006 makes this the gate before any real user's data
 goes in.
 
+
+### A review still returns parked ideas the design no longer shows · found in I-03
+
+The approved design leaves parked ideas out of the review. The contract has not
+caught up: `Review.parked_ideas` still returns the ideas caught in the period, with
+each verdict as it stood at period end. The ERD's *status then* rule exists to serve
+that field. Building it costs `getReviewFacts` a subquery over every idea the owner
+has, and `ideaAsOf` in `reviews/domain/assembleReview.ts`. I-03 leaves the field
+alone, but a full `ParkedIdea` now carries its notes too, so the review response grows
+with them.
+
+Removing it is a contract change (`Review.parked_ideas`) plus an ERD change. It also
+decides whether the verdict history still needs *status then* at all. If nothing else
+reads the history by date, the verdict table could be simpler, but that is a decision
+to make deliberately, not something to remove as a side effect.
+
+
+### No screen reads the effort month · found in I-03
+
+Once G16 and G18 exist, the Effort tab reads its weeks from `Objective.weeks`, its
+entries from `GET /objectives/{id}/effort-entries?from&to`, and each day's target
+and tag from `/schedule`. `GET /objectives/{id}/effort` groups days by calendar month
+and Monday weeks, which are not plan weeks, and its streak, session count and
+days-worked line appear on no screen. Removing it is a contract change: the route,
+`effort/domain/effortMonth.ts` and its test, and `effort-month.itest.ts`.
+
+### No screen discards a review draft · found in I-03
+
+`DELETE /reviews/{id}` is built and tested, but `docs/design/screens/05-reviews.md`
+has no Discard action: a draft is only saved and continued. Either the design gains
+a Discard button, or the endpoint goes, which is a contract change.
+
+### The user's name, and reading the signed-in user back · found in I-03
+
+The shell and onboarding show the user's name ("Signed in as {name}", "Welcome,
+{name}", the avatar initial), but the `user` table stores no name and no endpoint
+returns the signed-in user (G30 in `docs/design/contract-gaps.md`). I-03 leaves it
+out because the sign-in and sign-up screens are not final, and where the name is
+asked for depends on them. Two routes: Cognito's sign-up asks for the optional
+standard `name` attribute (the app client then needs the `profile` scope, and
+whether managed login shows an optional attribute must be checked first, because
+making it required replaces the pool), or onboarding asks for it and the app stores
+it. Either way, `GET /session` returns the `User` with `name`.
+
+### A monthly review loses minutes where a flexible week crosses its start · found in I-03
+
+`windowFigures` (`reviews/domain/assembleReview.ts`) gives a window the slots that
+start inside it and the minutes on its days. A flexible objective's week slots tile
+from its segment start, and a monthly window starts on the same day of the month,
+so a week slot can begin in one monthly window and end in the next. Its days in the
+later window are covered by a slot, so they are not extra, and the slot started
+before the window, so they are not credited either: those minutes appear in
+`logged_minutes` and nowhere else, and logged = credited + over + extra
+(`docs/domain/adherence.md`, rule 7) fails for that window. Weekly windows and plan
+weeks never cross a week slot, so only monthly reviews of flexible objectives are
+affected. One way out: a week belongs to the window that holds its last day, and its
+minutes count there.
+
+### Completing at the final review un-plans the plan's last day · found in I-03
+
+Saving a plan-end review with outcome `completed`, `paused` or `ended` writes the
+status event dated the review's `period_end` (ERD invariant 7) — the plan's last
+day. `statusOn` treats an event as in force from its own date, so that day is no
+longer active: its slot disappears, its target leaves the figures, and effort logged
+on it becomes extra. A plan whose last day is a planned day therefore reads one
+day short at the end, and the last day's work counts as off-plan. Unnoticed so far
+because the story's plan ends on a Sunday. Options: date the event the day after
+`period_end`, or have `planSlots` treat a final status as in force from the next
+day. Either is a domain rule change (`docs/domain/` and the ERD), with tests.

@@ -3,6 +3,7 @@ import { getPool, query } from "@/shared/db";
 import type { ObjectiveSummary } from "@/shared/contract";
 import * as one from "@/app/v1/objectives/[objectiveId]/route";
 import * as list from "@/app/v1/objectives/route";
+import * as reviewsOf from "@/app/v1/objectives/[objectiveId]/reviews/route";
 import { testObjective, testUser, type TestUser } from "@/test/fixtures";
 
 /**
@@ -63,5 +64,51 @@ describe("reviews due (real Postgres)", () => {
       next_review_on: "2026-09-27",
       reviews_due: 3,
     });
+  });
+
+  it("lists the same windows on the Reviews tab, the draft's id on the one started (G19)", async () => {
+    const draft = (
+      await query<{ id: string }>(
+        `SELECT id FROM review WHERE objective_id = $1 AND status = 'draft'`,
+        [objectiveId],
+      )
+    ).rows[0].id;
+    const res = await reviewsOf.GET(
+      new Request(`http://keel.test/v1/objectives/${objectiveId}/reviews`, {
+        headers: { cookie: me.cookie },
+      }),
+      { params: Promise.resolve({ objectiveId }) },
+    );
+    const { due } = (await res.json()) as {
+      due: {
+        label: string;
+        kind: string;
+        period_end: string;
+        review_id: string | null;
+      }[];
+    };
+    expect(due).toEqual([
+      {
+        label: "Week 2",
+        kind: "weekly",
+        period_start: "2026-09-21",
+        period_end: "2026-09-27",
+        review_id: draft,
+      },
+      {
+        label: "Week 3",
+        kind: "weekly",
+        period_start: "2026-09-28",
+        period_end: "2026-10-04",
+        review_id: null,
+      },
+      {
+        label: "End of plan",
+        kind: "plan_end",
+        period_start: "2026-10-05",
+        period_end: "2026-10-11",
+        review_id: null,
+      },
+    ]);
   });
 });

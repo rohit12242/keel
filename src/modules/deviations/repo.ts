@@ -66,23 +66,55 @@ export type DeviationRow = {
   tz: string;
   kind: "chosen" | "drifted";
   what_happened: string;
-  reasoning: string;
+  /** Null on a drifted deviation. */
+  reasoning: string | null;
   did_instead: string | null;
   minutes: number;
   pattern_id: string | null;
   pattern_name: string | null;
   verdict: "worth_it" | "not_worth_it" | null;
   verdict_review_id: string | null;
+  /** Its place among the user's deviations naming the pattern; null without one. */
+  pattern_nth: number | null;
+  /** What the review windows need, per objective it names. Not shown. */
+  review_objectives: {
+    review_cadence: "weekly" | "monthly";
+    segments: { id: string; start_date: string; end_date: string }[];
+  }[];
 };
 
-/** The columns of a deviation `d`, its pattern `p` joined, as DeviationRow. */
+/**
+ * The columns of a deviation `d`, its pattern `p` joined, as DeviationRow.
+ * `pattern_nth` counts by date, then as recorded — "3rd time" (G32). The
+ * objectives' cadence and segments feed `review_due_on`, which is computed
+ * from the review windows, never stored (G33).
+ */
 export const DEVIATION_COLUMNS = `
   d.id,
   ARRAY(SELECT x.objective_id FROM deviation_objective x
         WHERE x.deviation_id = d.id ORDER BY x.objective_id) AS objective_ids,
   to_char(d.local_date, 'YYYY-MM-DD') AS local_date,
   d.tz, d.kind, d.what_happened, d.reasoning, d.did_instead, d.minutes,
-  d.pattern_id, p.name AS pattern_name, d.verdict, d.verdict_review_id`;
+  d.pattern_id, p.name AS pattern_name, d.verdict, d.verdict_review_id,
+  CASE WHEN d.pattern_id IS NULL THEN NULL ELSE (
+    SELECT count(*)::int FROM deviation d2
+    WHERE d2.user_id = d.user_id AND d2.pattern_id = d.pattern_id
+      AND (d2.local_date, d2.recorded_at) <= (d.local_date, d.recorded_at)
+  ) END AS pattern_nth,
+  COALESCE((
+    SELECT json_agg(json_build_object(
+      'review_cadence', o.review_cadence,
+      'segments', (
+        SELECT json_agg(json_build_object(
+          'id', s.id,
+          'start_date', to_char(s.start_date, 'YYYY-MM-DD'),
+          'end_date', to_char(s.end_date, 'YYYY-MM-DD')
+        ) ORDER BY s.seq)
+        FROM plan_segment s WHERE s.objective_id = o.id)
+    ))
+    FROM deviation_objective x JOIN objective o ON o.id = x.objective_id
+    WHERE x.deviation_id = d.id
+  ), '[]'::json) AS review_objectives`;
 
 export type DeviationFacts = {
   tz: string;

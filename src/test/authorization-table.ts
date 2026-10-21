@@ -16,6 +16,8 @@ import * as extensions from "@/app/v1/objectives/[objectiveId]/extensions/route"
 import * as save from "@/app/v1/reviews/[reviewId]/save/route";
 import * as verdicts from "@/app/v1/parked-ideas/[ideaId]/verdicts/route";
 import * as statusChanges from "@/app/v1/objectives/[objectiveId]/status-changes/route";
+import * as objectiveNotes from "@/app/v1/objectives/[objectiveId]/notes/route";
+import * as ideaNotes from "@/app/v1/parked-ideas/[ideaId]/notes/route";
 import {
   OBJECTIVE_BODY,
   testEntry,
@@ -65,7 +67,7 @@ const objectiveParams = (objectiveId: string) => ({
 const anObjective = async (user: TestUser) => (await testObjective(user)).id;
 
 const anEntry = async (user: TestUser) =>
-  (await testEntry(user, await anObjective(user))).id;
+  (await testEntry(await anObjective(user))).id;
 
 const aReview = async (user: TestUser) => (await testReview(user)).id;
 
@@ -130,9 +132,23 @@ export const AUTHORIZATION: AuthRow[] = [
         req("POST", `/v1/objectives/${id}/effort-entries`, cookie, {
           local_date: "2026-09-16",
           tz: "Asia/Kolkata",
+          occurred_at_local: "09:00",
           minutes: 30,
           note: "itest: authorisation",
         }),
+        objectiveParams(id),
+      ),
+  },
+  {
+    operationId: "listObjectiveEntries",
+    resource: anObjective,
+    call: (cookie, id) =>
+      effortEntries.GET(
+        req(
+          "GET",
+          `/v1/objectives/${id}/effort-entries?from=2026-09-14&to=2026-09-20`,
+          cookie,
+        ),
         objectiveParams(id),
       ),
   },
@@ -171,6 +187,18 @@ export const AUTHORIZATION: AuthRow[] = [
         req("POST", `/v1/objectives/${id}/status-changes`, cookie, {
           change: "pause",
           occurred_on: "2026-09-20",
+        }),
+        objectiveParams(id),
+      ),
+  },
+  {
+    operationId: "createObjectiveNote",
+    resource: anObjective,
+    call: (cookie, id) =>
+      objectiveNotes.POST(
+        req("POST", `/v1/objectives/${id}/notes`, cookie, {
+          written_on: "2026-09-20",
+          text: "A note.",
         }),
         objectiveParams(id),
       ),
@@ -237,6 +265,19 @@ export const AUTHORIZATION: AuthRow[] = [
         req("POST", `/v1/parked-ideas/${id}/verdicts`, cookie, {
           verdict: "dropped",
           occurred_on: "2026-10-01",
+          note: "Not for me.",
+        }),
+        { params: Promise.resolve({ ideaId: id }) },
+      ),
+  },
+  {
+    operationId: "createParkedIdeaNote",
+    resource: async (user) => (await testIdea(user)).id,
+    call: (cookie, id) =>
+      ideaNotes.POST(
+        req("POST", `/v1/parked-ideas/${id}/notes`, cookie, {
+          written_on: "2026-10-01",
+          text: "A note.",
         }),
         { params: Promise.resolve({ ideaId: id }) },
       ),

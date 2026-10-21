@@ -34,10 +34,15 @@ const idea = (id: string, userId: string, lockedUntil = "2026-10-11") => ({
         VALUES ($1, $2, 'i', 'w', '2026-09-16', $3)`,
   params: [id, userId, lockedUntil],
 });
-const verdict = (ideaId: string, v: string) => ({
-  sql: `INSERT INTO parked_idea_verdict (parked_idea_id, verdict, occurred_on)
-        VALUES ($1, $2, '2026-10-12')`,
-  params: [ideaId, v],
+const verdict = (
+  ideaId: string,
+  v: string,
+  note: string | null = v === "dropped" ? "Why." : null,
+) => ({
+  sql: `INSERT INTO parked_idea_verdict
+          (parked_idea_id, verdict, note, occurred_on)
+        VALUES ($1, $2, $3, '2026-10-12')`,
+  params: [ideaId, v, note],
 });
 const startFrom = (objectiveId: string, ideaId: string) => ({
   sql: `UPDATE objective SET from_parked_idea_id = $2 WHERE id = $1`,
@@ -62,26 +67,44 @@ describe("parking-lot schema (real Postgres)", () => {
     expect(err?.code).toBe("23514");
   });
 
-  it("refuses a second taken verdict for one idea", async () => {
-    const id = randomUUID();
-    const err = await attempt([
-      idea(id, me.id),
-      verdict(id, "taken"),
-      verdict(id, "taken"),
-    ]);
-    expect(err?.constraint).toBe("parked_idea_verdict_one_taken_idx");
+  it("refuses a second final verdict for one idea — taken or dropped", async () => {
+    for (const [first, second] of [
+      ["taken", "taken"],
+      ["taken", "dropped"],
+      ["dropped", "dropped"],
+    ]) {
+      const id = randomUUID();
+      const err = await attempt([
+        idea(id, me.id),
+        verdict(id, first),
+        verdict(id, second),
+      ]);
+      expect(err?.constraint).toBe("parked_idea_verdict_one_final_idx");
+    }
   });
 
-  it("allows verdicts to flip and flip back — the history only grows", async () => {
+  it("allows parked and approved to flip and flip back — the history only grows", async () => {
     const id = randomUUID();
     expect(
       await attempt([
         idea(id, me.id),
         verdict(id, "parked"),
-        verdict(id, "dropped"),
+        verdict(id, "approved"),
         verdict(id, "parked"),
+        verdict(id, "approved"),
       ]),
     ).toBeUndefined();
+  });
+
+  it("refuses a drop that does not say why", async () => {
+    for (const note of [null, ""]) {
+      const id = randomUUID();
+      const err = await attempt([
+        idea(id, me.id),
+        verdict(id, "dropped", note),
+      ]);
+      expect(err?.constraint).toBe("parked_idea_verdict_dropped_says_why");
+    }
   });
 
   it("refuses an objective started from another user's idea (NFR-10)", async () => {

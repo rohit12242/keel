@@ -1,10 +1,18 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { getPool, query } from "@/shared/db";
-import type { Day, Deviation, Objective } from "@/shared/contract";
+import type {
+  Day,
+  Deviation,
+  EffortEntry,
+  Note,
+  Objective,
+} from "@/shared/contract";
 import * as objectives from "@/app/v1/objectives/route";
 import * as objective from "@/app/v1/objectives/[objectiveId]/route";
-import * as effortEntries from "@/app/v1/objectives/[objectiveId]/effort-entries/route";
 import * as effortMonth from "@/app/v1/objectives/[objectiveId]/effort/route";
+import * as entries from "@/app/v1/objectives/[objectiveId]/effort-entries/route";
+import * as notes from "@/app/v1/objectives/[objectiveId]/notes/route";
+import * as verdicts from "@/app/v1/parked-ideas/[ideaId]/verdicts/route";
 import * as reviewsOf from "@/app/v1/objectives/[objectiveId]/reviews/route";
 import * as review from "@/app/v1/reviews/[reviewId]/route";
 import * as save from "@/app/v1/reviews/[reviewId]/save/route";
@@ -13,7 +21,7 @@ import * as patterns from "@/app/v1/deviation-patterns/route";
 import * as deviations from "@/app/v1/deviations/route";
 import * as ideas from "@/app/v1/parked-ideas/route";
 import * as day from "@/app/v1/day/[date]/route";
-import { testUser, type TestUser } from "@/test/fixtures";
+import { testEntry, testUser, type TestUser } from "@/test/fixtures";
 import type {
   Review,
   ReviewSummary,
@@ -26,11 +34,13 @@ import type { EffortMonth } from "@/modules/effort/domain/effortMonth";
  * created to completed, with effort, deviations, parked ideas and a review
  * attached, and reads the whole story back — all through the API, with no
  * screen. Every call goes through a real route handler with the user's
- * session cookie, and nothing is set up behind the API's back.
+ * session cookie. The one thing set up behind the API's back is the effort:
+ * it is logged only for today (G21), so a back-dated story's sessions are
+ * seeded through the repo. Logging through the route is create-effort.itest's.
  *
  * Back-dated: the objective ran Mon 2026-09-14 … Sun 2026-10-11, so every
  * review window has closed. scripts/story-check.mjs runs the same story over
- * HTTP against a running service.
+ * HTTP against a running service, with its effort logged today.
  */
 const BASE = "http://keel.test";
 let me: TestUser;
@@ -93,28 +103,34 @@ describe("I-02 — the whole story, through the API", () => {
     const id = o.id;
     const oid = { objectiveId: id };
 
-    // 2. Effort on planned days, and one off day.
-    for (const [local_date, minutes] of [
-      ["2026-09-14", 60],
-      ["2026-09-15", 45],
-      ["2026-09-22", 60],
-      ["2026-09-26", 30], // Saturday: extra
-      ["2026-10-05", 60],
+    // 2. Effort on planned days, one day over plan, and one off day —
+    // seeded, since past days cannot be logged (G21).
+    for (const [local_date, occurred_at_local, minutes] of [
+      ["2026-09-14", "09:00", 60],
+      ["2026-09-15", "09:00", 45],
+      ["2026-09-15", "14:00", 30], // 75 against 60: 15 over plan
+      ["2026-09-22", "09:00", 60],
+      ["2026-09-26", "09:00", 30], // Saturday: extra
+      ["2026-10-05", "09:00", 60],
     ] as const) {
-      await call(
-        effortEntries.POST,
-        "POST",
-        `/v1/objectives/${id}/effort-entries`,
-        oid,
-        201,
-        {
-          local_date,
-          tz: "Asia/Kolkata",
-          minutes,
-          note: "Worked on it.",
-        },
-      );
+      await testEntry(id, {
+        local_date,
+        occurred_at_local,
+        tz: "Asia/Kolkata",
+        minutes,
+        note: "Worked on it.",
+      });
     }
+
+    // A note on the objective, append-only (G2).
+    const note = await call<Note>(
+      notes.POST,
+      "POST",
+      `/v1/objectives/${id}/notes`,
+      oid,
+      201,
+      { written_on: "2026-09-18", text: "Mornings work better." },
+    );
 
     // 3. A named pattern, and a chosen deviation that names the objective.
     const pattern = await call<{ id: string }>(
@@ -144,6 +160,33 @@ describe("I-02 — the whole story, through the API", () => {
         pattern_id: pattern.id,
       },
     );
+    expect(deviation).toMatchObject({
+      pattern_nth: 1,
+      review_due_on: "2026-09-20", // Week 1 will judge it
+    });
+
+    // A drifted one needs no reasoning (G5); it is the pattern's second.
+    const drifted = await call<Deviation>(
+      deviations.POST,
+      "POST",
+      "/v1/deviations",
+      {},
+      201,
+      {
+        objective_ids: [id],
+        local_date: "2026-09-23",
+        tz: "Asia/Kolkata",
+        kind: "drifted",
+        what_happened: "An hour on someone else's problem.",
+        minutes: 60,
+        pattern_id: pattern.id,
+      },
+    );
+    expect("reasoning" in drifted).toBe(false);
+    expect(drifted).toMatchObject({
+      pattern_nth: 2,
+      review_due_on: "2026-09-27",
+    });
 
     // 4. An idea caught mid-plan, locked until the plan ends.
     const idea = await call<ParkedIdea>(
@@ -159,6 +202,21 @@ describe("I-02 — the whole story, through the API", () => {
       },
     );
     expect(idea.locked_until).toBe("2026-10-11");
+
+    // Approved before the lock lifts: recorded, and shown as early (G4).
+    const approved = await call<ParkedIdea>(
+      verdicts.POST,
+      "POST",
+      `/v1/parked-ideas/${idea.id}/verdicts`,
+      { ideaId: idea.id },
+      201,
+      { verdict: "approved", occurred_on: "2026-09-30" },
+    );
+    expect(approved).toMatchObject({
+      verdict: "approved",
+      verdict_on: "2026-09-30",
+      decided_early: true,
+    });
 
     // 5. Review every week: judge the deviation in Week 1, then save each.
     const reviewIds: string[] = [];
@@ -185,9 +243,11 @@ describe("I-02 — the whole story, through the API", () => {
         );
       }
       await call(review.PATCH, "PATCH", `/v1/reviews/${draft.id}`, rid, 200, {
-        what_went_right: "Showed up.",
-        what_needs_improvement: `Better than ${label}.`,
+        what_worked: "Showed up.",
+        what_changes_next: `Better than ${label}.`,
         review_summary: `${label}, recorded.`,
+        // Week 1's change was never tried, which is not "didn't work" (G6).
+        ...(label === "Week 2" ? { improvement_answer: "not_tried" } : {}),
       });
       await call(save.POST, "POST", `/v1/reviews/${draft.id}/save`, rid, 200);
       reviewIds.push(draft.id);
@@ -202,7 +262,7 @@ describe("I-02 — the whole story, through the API", () => {
       201,
     );
     expect(planEnd).toMatchObject({ kind: "plan_end", label: "End of plan" });
-    expect(planEnd.previous_improvement_note).toBe("Better than Week 3.");
+    expect(planEnd.previous_what_changes_next).toBe("Better than Week 3.");
     await call(
       review.PATCH,
       "PATCH",
@@ -237,26 +297,39 @@ describe("I-02 — the whole story, through the API", () => {
       criteria_verdict: "partly_met",
       next_review_on: null,
       reviews_due: 0,
-      figures: { logged_minutes: 255, extra_off_day_minutes: 30 },
+      figures: {
+        logged_minutes: 285,
+        extra_off_day_minutes: 30,
+        over_target_minutes: 15,
+      },
+      // 240 credited of 1,200 planned, every slot ended: behind (G14, G15).
+      figures_to_date: { adherence_pct: 20 },
+      track: "behind",
+      notes: [{ id: note.id, written_on: "2026-09-18", text: note.text }],
+      last_logged_on: "2026-10-05",
+    });
+    expect(done.weeks).toHaveLength(4);
+    expect(done.weeks[0].figures).toMatchObject({
+      logged_minutes: 135,
+      over_target_minutes: 15,
     });
     expect(done.status_history.map((e) => [e.change, e.occurred_on])).toEqual([
       ["created", "2026-09-14"],
       ["completed", "2026-10-11"],
     ]);
 
-    const { reviews } = await call<{ reviews: ReviewSummary[] }>(
-      reviewsOf.GET,
-      "GET",
-      `/v1/objectives/${id}/reviews`,
-      oid,
-      200,
-    );
+    const { reviews, due } = await call<{
+      reviews: ReviewSummary[];
+      due: unknown[];
+    }>(reviewsOf.GET, "GET", `/v1/objectives/${id}/reviews`, oid, 200);
     expect(reviews.map((r) => [r.label, r.status])).toEqual([
       ["Week 1", "saved"],
       ["Week 2", "saved"],
       ["Week 3", "saved"],
       ["End of plan", "saved"],
     ]);
+    expect(due).toEqual([]);
+    expect(reviews[0].what_changes_next).toBe("Better than Week 1.");
 
     const week2 = await call<Review>(
       review.GET,
@@ -267,8 +340,25 @@ describe("I-02 — the whole story, through the API", () => {
     );
     expect(week2).toMatchObject({
       previous_review_id: reviewIds[0],
-      previous_improvement_note: "Better than Week 1.",
+      previous_what_changes_next: "Better than Week 1.",
+      improvement_answer: "not_tried",
     });
+
+    // The Effort tab's week: every session, with its time (G18).
+    const week1 = await call<{ entries: EffortEntry[] }>(
+      entries.GET,
+      "GET",
+      `/v1/objectives/${id}/effort-entries?from=2026-09-14&to=2026-09-20`,
+      oid,
+      200,
+    );
+    expect(
+      week1.entries.map((e) => [e.local_date, e.occurred_at_local, e.minutes]),
+    ).toEqual([
+      ["2026-09-14", "09:00", 60],
+      ["2026-09-15", "09:00", 45],
+      ["2026-09-15", "14:00", 30],
+    ]);
 
     const listed = await call<{ deviations: Deviation[] }>(
       deviations.GET,
@@ -277,7 +367,7 @@ describe("I-02 — the whole story, through the API", () => {
       {},
       200,
     );
-    expect(listed.deviations[0]).toMatchObject({
+    expect(listed.deviations.find((d) => d.id === deviation.id)).toMatchObject({
       verdict: "worth_it",
       verdict_review_id: reviewIds[0],
       pattern_name: "Saying yes",
@@ -290,7 +380,9 @@ describe("I-02 — the whole story, through the API", () => {
       {},
       200,
     );
-    expect(parked.ideas.map((i) => i.idea)).toEqual(["Write about this"]);
+    expect(parked.ideas.map((i) => [i.idea, i.verdict])).toEqual([
+      ["Write about this", "approved"],
+    ]);
 
     const september = await call<EffortMonth>(
       effortMonth.GET,
@@ -300,11 +392,12 @@ describe("I-02 — the whole story, through the API", () => {
       200,
     );
     expect(september.totals).toMatchObject({
-      logged_minutes: 255,
-      sessions: 5,
+      logged_minutes: 285,
+      sessions: 6,
     });
 
-    // Completed objectives are not on Today, but the deviation still is.
+    // Completed objectives are not on Today, but the latest deviation — the
+    // drift on 23 Sep — still is.
     const today = await call<Day>(
       day.GET,
       "GET",
@@ -313,7 +406,7 @@ describe("I-02 — the whole story, through the API", () => {
       200,
     );
     expect(today.objectives).toEqual([]);
-    expect(today.last_deviation?.id).toBe(deviation.id);
+    expect(today.last_deviation?.id).toBe(drifted.id);
   });
 
   it("stores nothing the ERD says is computed (NFR-09)", async () => {

@@ -79,6 +79,9 @@ describe("deviations (real Postgres)", () => {
       pattern_name: null,
       verdict: null,
       verdict_review_id: null,
+      pattern_nth: null,
+      // Both objectives start Mon 14 Sep with weekly reviews: Week 1 holds it.
+      review_due_on: "2026-09-20",
     });
   });
 
@@ -141,6 +144,59 @@ describe("deviations (real Postgres)", () => {
       )
     ).json()) as { patterns: { id: string; occurrences: number }[] };
     expect(listed.patterns.find((p) => p.id === mine.id)?.occurrences).toBe(1);
+  });
+
+  it("201s a drifted deviation with no reasoning, and says none", async () => {
+    // JSON drops an undefined field, so the body carries no reasoning.
+    const res = await post(body({ kind: "drifted", reasoning: undefined }));
+    expect(res.status).toBe(201);
+    const made = (await res.json()) as Record<string, unknown>;
+    expect(made.kind).toBe("drifted");
+    expect("reasoning" in made).toBe(false);
+  });
+
+  it("422s a chosen deviation without its reasoning, writing nothing", async () => {
+    const chosen = body({
+      what_happened: "no reason given",
+      reasoning: undefined,
+    });
+    expect((await post(chosen)).status).toBe(422);
+    const left = await query(
+      `SELECT 1 FROM deviation WHERE user_id = $1 AND what_happened = $2`,
+      [me.id, "no reason given"],
+    );
+    expect(left.rowCount).toBe(0);
+  });
+
+  it("numbers each deviation's place in its pattern, by date, for good", async () => {
+    const pattern = (await (
+      await patterns.POST(
+        new Request("http://keel.test/v1/deviation-patterns", {
+          method: "POST",
+          headers: { cookie: me.cookie },
+          body: JSON.stringify({ name: "Research spiral" }),
+        }),
+        undefined,
+      )
+    ).json()) as { id: string };
+    const record = async (local_date: string) =>
+      (await (
+        await post(body({ pattern_id: pattern.id, local_date }))
+      ).json()) as { id: string; pattern_nth: number };
+
+    const first = await record("2026-09-15");
+    const third = await record("2026-09-18");
+    expect([first.pattern_nth, third.pattern_nth]).toEqual([1, 2]);
+    // Recorded last but dated between: it is the 2nd, and the 18th's is now 3rd.
+    const second = await record("2026-09-16");
+    expect(second.pattern_nth).toBe(2);
+
+    const listed = (await (
+      await get(`?from=2026-09-14&to=2026-09-20&objective_id=${a}`)
+    ).json()) as { deviations: { id: string; pattern_nth: number | null }[] };
+    const nth = (id: string) =>
+      listed.deviations.find((d) => d.id === id)?.pattern_nth;
+    expect([nth(first.id), nth(second.id), nth(third.id)]).toEqual([1, 2, 3]);
   });
 
   it("400s a body that is not JSON or not a deviation", async () => {

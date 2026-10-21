@@ -21,9 +21,12 @@ export const REVIEW_COLUMNS = `
   to_char(r.period_start, 'YYYY-MM-DD') AS period_start,
   to_char(r.period_end, 'YYYY-MM-DD') AS period_end,
   r.status, r.previous_review_id, r.improvement_answer,
-  r.improvement_answer_note, r.what_went_right, r.what_needs_improvement,
+  r.improvement_answer_note, r.what_worked, r.what_got_in_the_way,
+  r.what_changes_next,
   r.review_summary, r.criteria_assessment, r.criteria_verdict, r.outcome,
-  to_char(r.saved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS saved_at`;
+  to_char(r.saved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS saved_at,
+  to_char(r.last_saved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+    AS last_saved_at`;
 
 export type ObjectiveReviewFacts = {
   objective_id: string;
@@ -167,8 +170,9 @@ export async function lockReview(
 const EDITABLE: (keyof ReviewEdit)[] = [
   "improvement_answer",
   "improvement_answer_note",
-  "what_went_right",
-  "what_needs_improvement",
+  "what_worked",
+  "what_got_in_the_way",
+  "what_changes_next",
   "review_summary",
   "criteria_assessment",
   "criteria_verdict",
@@ -180,14 +184,15 @@ export async function updateReviewAnswers(
   reviewId: string,
   edit: ReviewEdit,
 ): Promise<void> {
-  const sets: string[] = [];
+  // Every save writes the time, even one that names no field: Save draft
+  // with nothing changed is still a save the screen reports (G10).
+  const sets: string[] = ["last_saved_at = now()"];
   const params: unknown[] = [reviewId];
   for (const column of EDITABLE) {
     if (!(column in edit)) continue;
     params.push(edit[column]);
     sets.push(`${column} = $${params.length}`);
   }
-  if (sets.length === 0) return;
   await tx.query(`UPDATE review SET ${sets.join(", ")} WHERE id = $1`, params);
 }
 

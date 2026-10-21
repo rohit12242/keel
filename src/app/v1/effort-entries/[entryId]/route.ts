@@ -22,6 +22,14 @@ const notActive = () =>
     "Effort on a paused, completed or ended objective is the record as it stood.",
   );
 
+const notToday = () =>
+  problem(
+    422,
+    "This entry's day is over",
+    problemType("not-today"),
+    "An entry is changed only on its own day, in the zone it was logged in.",
+  );
+
 /**
  * PATCH /v1/effort-entries/{entryId} — correct an entry on its own day.
  * `local_date` cannot change (docs/keel-api.yaml).
@@ -46,7 +54,12 @@ export const PATCH = withSession(
           );
         }
         try {
-          const result = await updateEffortEntry(userId, entryId, body);
+          const result = await updateEffortEntry(
+            userId,
+            entryId,
+            body,
+            new Date(),
+          );
           if (result.ok) return jsonResponse(200, result.entry);
           switch (result.kind) {
             case "validation":
@@ -59,8 +72,17 @@ export const PATCH = withSession(
               );
             case "not_found":
               return notFound("entry");
+            case "not_today":
+              return notToday();
             case "not_active":
               return notActive();
+            case "overlap":
+              return problem(
+                422,
+                "Overlaps another entry",
+                problemType("entry-overlaps"),
+                result.detail,
+              );
           }
         } catch {
           return unavailable();
@@ -80,9 +102,16 @@ export const DELETE = withSession(
       async () => {
         if (!isUuid(entryId)) return notFound("entry");
         try {
-          const result = await deleteEffortEntry(userId, entryId);
+          const result = await deleteEffortEntry(userId, entryId, new Date());
           if (result.ok) return new Response(null, { status: 204 });
-          return result.kind === "not_found" ? notFound("entry") : notActive();
+          switch (result.kind) {
+            case "not_found":
+              return notFound("entry");
+            case "not_today":
+              return notToday();
+            case "not_active":
+              return notActive();
+          }
         } catch {
           return unavailable();
         }

@@ -8,8 +8,8 @@ describe("validateReviewEdit", () => {
         {
           improvement_answer: "partly",
           improvement_answer_note: "Mornings only.",
-          what_went_right: "Showed up.",
-          what_needs_improvement: null,
+          what_worked: "Showed up.",
+          what_changes_next: null,
           review_summary: "A steady week.",
         },
         "weekly",
@@ -19,12 +19,18 @@ describe("validateReviewEdit", () => {
       value: {
         improvement_answer: "partly",
         improvement_answer_note: "Mornings only.",
-        what_went_right: "Showed up.",
-        what_needs_improvement: null,
+        what_worked: "Showed up.",
+        what_changes_next: null,
         review_summary: "A steady week.",
       },
     });
     expect(validateReviewEdit({}, "weekly")).toEqual({ ok: true, value: {} });
+  });
+
+  it("takes not_tried, which is not the same answer as no", () => {
+    expect(
+      validateReviewEdit({ improvement_answer: "not_tried" }, "weekly"),
+    ).toEqual({ ok: true, value: { improvement_answer: "not_tried" } });
   });
 
   it("takes the plan-end fields on a plan-end review", () => {

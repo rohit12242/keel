@@ -27,7 +27,8 @@ export type EffortEntryWrite = {
   tz: string;
   minutes: number;
   note: string;
-  occurred_at_local?: string;
+  /** When the work started, HH:MM. With minutes, the entry's span. */
+  occurred_at_local: string;
   link?: string | null;
 };
 
@@ -48,12 +49,19 @@ export type EffortEntry = {
 export type DayObjective = {
   id: string;
   title: string;
+  /** Segment 0's start. */
+  start_date: string;
   schedule: Schedule;
   slot: PlanSlot | null;
   next_planned_date?: string | null;
   entries: EffortEntry[];
   logged_minutes: number;
+  /** Week slots: the week's minutes up to and including the date. */
   period_logged_minutes?: number;
+  /** Week slots: the week's days, up to the date, with any effort. */
+  period_days_worked?: number;
+  adherence_to_date: number;
+  track: "on_track" | "at_risk" | "behind" | null;
 };
 
 export type Day = {
@@ -61,8 +69,14 @@ export type Day = {
   objectives: DayObjective[];
   totals: {
     today_minutes: number;
+    /** Monday to Sunday, the week the date falls in. */
     week_minutes: number;
+    /** Minutes no slot covers, over the same week. */
     extra_off_day_minutes: number;
+    /** The targets of the date's fixed day slots. */
+    today_planned_minutes: number;
+    /** What is still unlogged of those, never below zero. */
+    today_to_go_minutes: number;
   };
   /** The most recent deviation on or before `date`, or null. */
   last_deviation: Deviation | null;
@@ -76,13 +90,18 @@ export type Deviation = {
   tz: string;
   kind: "chosen" | "drifted";
   what_happened: string;
-  reasoning: string;
+  /** A chosen deviation's; a drifted one has none. */
+  reasoning?: string;
   did_instead?: string;
   minutes: number;
   pattern_id: string | null;
   pattern_name: string | null;
   verdict: "worth_it" | "not_worth_it" | null;
   verdict_review_id: string | null;
+  /** Its place in its pattern's history — "3rd time". Null without a pattern. */
+  pattern_nth: number | null;
+  /** The period_end of the review that will judge it, or null. */
+  review_due_on: string | null;
 };
 
 /** Every field computed at read time; none stored, none writable (NFR-09). */
@@ -94,6 +113,9 @@ export type Figures = {
   planned_days_worked?: number;
   target_met_days?: number;
   extra_off_day_minutes?: number;
+  over_target_minutes?: number;
+  planned_weeks?: number;
+  target_met_weeks?: number;
 };
 
 export type ObjectiveStatus = "active" | "paused" | "completed" | "ended";
@@ -124,8 +146,16 @@ export type ObjectiveSummary = {
   end_date: string;
   next_review_on: string | null;
   reviews_due: number;
+  /** The next review, due or not; null once none is left. */
+  upcoming_review_on: string | null;
   from_parking_lot?: boolean;
+  /** The whole run, including days not yet reached. */
   figures: Figures;
+  /** The plan so far: ended slots plus today's day slot. */
+  figures_to_date: Figures;
+  track: "on_track" | "at_risk" | "behind" | null;
+  /** The date of the latest status event. */
+  status_since: string;
 };
 
 export type PlanSegment = {
@@ -147,6 +177,16 @@ export type StatusEvent = {
   new_end_date?: string | null;
 };
 
+/** One plan week and its figures (G16). */
+export type PlanWeek = {
+  period_start: string;
+  period_end: string;
+  figures: Figures;
+};
+
+/** A note on an objective or a parked idea: dated, append-only. */
+export type Note = { id: string; written_on: string; text: string };
+
 export type Objective = ObjectiveSummary & {
   description?: string;
   why_now: string;
@@ -157,6 +197,12 @@ export type Objective = ObjectiveSummary & {
   extension_count?: number;
   segments: PlanSegment[];
   status_history: StatusEvent[];
+  /** Oldest first. */
+  notes: Note[];
+  /** The latest local_date with an entry; null when nothing is logged. */
+  last_logged_on: string | null;
+  /** One per plan week, oldest first. */
+  weeks: PlanWeek[];
   /** From the latest saved plan-end review; null before there is one. */
   criteria_verdict: "met" | "partly_met" | "not_met" | null;
 };

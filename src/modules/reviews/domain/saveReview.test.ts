@@ -13,13 +13,15 @@ const review = (over: Partial<ReviewRow> = {}): ReviewRow => ({
   previous_review_id: null,
   improvement_answer: null,
   improvement_answer_note: null,
-  what_went_right: null,
-  what_needs_improvement: null,
+  what_worked: null,
+  what_got_in_the_way: null,
+  what_changes_next: null,
   review_summary: null,
   criteria_assessment: null,
   criteria_verdict: null,
   outcome: null,
   saved_at: null,
+  last_saved_at: null,
   ...over,
 });
 const deviation = (over: Partial<Deviation>): Deviation => ({
@@ -35,6 +37,8 @@ const deviation = (over: Partial<Deviation>): Deviation => ({
   pattern_name: null,
   verdict: null,
   verdict_review_id: null,
+  pattern_nth: null,
+  review_due_on: null,
   ...over,
 });
 const facts = (over: Partial<ReviewFacts> = {}): ReviewFacts => ({

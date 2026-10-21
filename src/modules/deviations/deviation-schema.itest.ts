@@ -36,18 +36,22 @@ const deviation = (
   userId: string,
   over: Record<string, unknown> = {},
 ) => {
-  const row = {
+  const row: Record<string, unknown> = {
     kind: "chosen",
     pattern_id: null,
     verdict: null,
     verdict_review_id: null,
     ...over,
   };
+  // A chosen deviation has its reasoning and a drifted one none, unless the
+  // case says otherwise.
+  const reasoning =
+    "reasoning" in over ? over.reasoning : row.kind === "chosen" ? "r" : null;
   return {
     sql: `INSERT INTO deviation
             (id, user_id, local_date, tz, kind, what_happened, reasoning,
              minutes, pattern_id, verdict, verdict_review_id)
-          VALUES ($1, $2, '2026-09-16', 'UTC', $3, 'w', 'r', 30, $4, $5, $6)`,
+          VALUES ($1, $2, '2026-09-16', 'UTC', $3, 'w', $7, 30, $4, $5, $6)`,
     params: [
       id,
       userId,
@@ -55,6 +59,7 @@ const deviation = (
       row.pattern_id,
       row.verdict,
       row.verdict_review_id,
+      reasoning,
     ],
   };
 };
@@ -150,6 +155,19 @@ describe("deviation schema (real Postgres)", () => {
       }),
     ]);
     expect(err?.constraint).toBe("deviation_verdict_only_chosen");
+  });
+
+  it("keeps reasoning on chosen deviations only (G5)", async () => {
+    for (const over of [
+      { kind: "drifted", reasoning: "r" },
+      { kind: "chosen", reasoning: null },
+    ]) {
+      const err = await attempt([deviation(randomUUID(), me.id, over)]);
+      expect(err?.constraint).toBe("deviation_reasoning_only_chosen");
+    }
+    expect(
+      await attempt([deviation(randomUUID(), me.id, { kind: "drifted" })]),
+    ).toBeUndefined();
   });
 
   it("refuses two patterns with one name, whatever the case", async () => {

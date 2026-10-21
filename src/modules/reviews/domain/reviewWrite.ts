@@ -13,8 +13,9 @@ export type ReviewEdit = Partial<
     ReviewRow,
     | "improvement_answer"
     | "improvement_answer_note"
-    | "what_went_right"
-    | "what_needs_improvement"
+    | "what_worked"
+    | "what_got_in_the_way"
+    | "what_changes_next"
     | "review_summary"
     | "criteria_assessment"
     | "criteria_verdict"
@@ -31,10 +32,11 @@ export const PLAN_END_FIELDS = [
 type FieldRule = { text: number } | { oneOf: readonly string[] };
 
 const RULES: Record<keyof ReviewEdit, FieldRule> = {
-  improvement_answer: { oneOf: ["yes", "partly", "no"] },
+  improvement_answer: { oneOf: ["yes", "partly", "no", "not_tried"] },
   improvement_answer_note: { text: 2000 },
-  what_went_right: { text: 4000 },
-  what_needs_improvement: { text: 4000 },
+  what_worked: { text: 4000 },
+  what_got_in_the_way: { text: 4000 },
+  what_changes_next: { text: 4000 },
   review_summary: { text: 1000 },
   criteria_assessment: { text: 2000 },
   criteria_verdict: { oneOf: ["met", "partly_met", "not_met"] },

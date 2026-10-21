@@ -1,8 +1,31 @@
 # Keel — entity model and invariants
 
-Sprint 00 · Story W2-09 · **Revision 4** · 11 entities, 17 invariants, 0 stored aggregates
+Sprint 00 · Story W2-09 · **Revision 5** · 13 entities, 18 invariants, 0 stored aggregates
 
 Built against the current 15 screens. **NFR-06 (offline logging) is out of scope for v1.**
+
+## What revision 5 changed
+
+I-03 brought the parking lot to the approved design.
+
+- **The lock no longer refuses a decision.** Dropping or taking a locked idea is
+  allowed and recorded as early (`docs/domain/parking-lock.md`).
+- **Dropped and taken are final.** A dropped idea can no longer be revived;
+  invariant 13 says so. Dropping requires a note saying why.
+- **`approved` is a new verdict.** It sits between parked and taken: only an approved
+  idea can become an objective.
+- **Reviews reflect in three fields** named for what they hold — `what_worked`,
+  `what_got_in_the_way`, `what_changes_next` — and the improvement answer gains
+  `not_tried`. A draft records when it was last saved. A drifted deviation has no
+  reasoning.
+- **Notes are new:** `objective_note` and `parked_idea_note`, append-only lists on an
+  objective and on a parked idea, open in every state. The entity count went from 11
+  to 13.
+- **Effort is fixed once its day is over.** An entry is written only for today and
+  changed only on its own day; it always has a start time, and a user's entries on
+  one day never overlap (invariant 18). `occurred_at_local` is no longer nullable.
+- **A `taken` verdict is dated the day it is taken** — the day the objective is
+  created — not the objective's start.
 
 ## What revision 4 changed
 
@@ -76,11 +99,13 @@ erDiagram
     OBJECTIVE ||--o{ EFFORT_ENTRY : receives
     OBJECTIVE ||--o{ REVIEW : "is reviewed by"
     OBJECTIVE ||--o{ STATUS_EVENT : "changes through"
+    OBJECTIVE ||--o{ OBJECTIVE_NOTE : "is noted in"
     REVIEW |o--o{ PLAN_SEGMENT : extends
     REVIEW |o--o{ DEVIATION : judges
     REVIEW |o--o| REVIEW : answers
     DEVIATION_PATTERN |o--o{ DEVIATION : classifies
     PARKED_IDEA ||--o{ PARKED_IDEA_VERDICT : "is judged by"
+    PARKED_IDEA ||--o{ PARKED_IDEA_NOTE : "is noted in"
     PARKED_IDEA |o--o| OBJECTIVE : becomes
 ```
 
@@ -142,13 +167,15 @@ erDiagram
         uuid previous_review_id FK
         enum improvement_answer
         text improvement_answer_note
-        text what_went_right
-        text what_needs_improvement
+        text what_worked
+        text what_got_in_the_way
+        text what_changes_next
         text review_summary
         text criteria_assessment
         enum criteria_verdict
         enum outcome
         timestamptz saved_at
+        timestamptz last_saved_at
     }
     DEVIATION {
         uuid id PK
@@ -188,6 +215,18 @@ erDiagram
         text note
         date occurred_on
     }
+    OBJECTIVE_NOTE {
+        uuid id PK
+        uuid objective_id FK
+        date written_on
+        text text
+    }
+    PARKED_IDEA_NOTE {
+        uuid id PK
+        uuid parked_idea_id FK
+        date written_on
+        text text
+    }
     STATUS_EVENT {
         uuid id PK
         uuid objective_id FK
@@ -205,11 +244,13 @@ erDiagram
     OBJECTIVE ||--o{ EFFORT_ENTRY : receives
     OBJECTIVE ||--o{ REVIEW : "is reviewed by"
     OBJECTIVE ||--o{ STATUS_EVENT : "changes through"
+    OBJECTIVE ||--o{ OBJECTIVE_NOTE : "is noted in"
     REVIEW |o--o{ PLAN_SEGMENT : extends
     REVIEW |o--o{ DEVIATION : judges
     REVIEW |o--o| REVIEW : answers
     DEVIATION_PATTERN |o--o{ DEVIATION : classifies
     PARKED_IDEA ||--o{ PARKED_IDEA_VERDICT : "is judged by"
+    PARKED_IDEA ||--o{ PARKED_IDEA_NOTE : "is noted in"
     PARKED_IDEA |o--o| OBJECTIVE : becomes
 ```
 
@@ -226,7 +267,7 @@ What you committed to. Note what is *not* here: no schedule, no end date. Those 
 | title / description / why_now / success_criteria | text | From the New objective screen. |
 | plan_link | text null | The external spreadsheet. Keel stores the link, never the plan. |
 | review_cadence | enum('weekly','monthly') | A plan-end review is always created regardless of cadence. |
-| from_parked_idea_id | uuid null FK | Drives the "FROM PARKING LOT" badge on the objectives list. **The only pointer between an idea and the objective it became.** Taking an idea *is* creating an objective from it: the `taken` verdict row is written in the same transaction, and nowhere else. |
+| from_parked_idea_id | uuid null FK | Drives the "FROM PARKING LOT" badge on the objectives list. **The only pointer between an idea and the objective it became.** Taking an idea *is* creating an objective from it, and only an `approved` idea can be taken: the `taken` verdict row is written in the same transaction, and nowhere else. |
 | — not stored — |  | **Current status** is the latest status event — there is no status column (ADR-008). **Current end date** is the latest segment's end. **Original end date** is segment 0's end. **Extension count** is a row count. **The plan slots** for any date range. All derived. |
 
 ### Plan segment — `plan_segment`
@@ -264,7 +305,7 @@ What you actually did. Several per day per objective is normal.
 | id | uuid PK |  |
 | objective_id | uuid FK | On the objective, not the segment — effort survives a schedule change. |
 | local_date | date | **The day you meant.** Stored, never derived, never moves (NFR-12). |
-| occurred_at_local | time null | The WHEN column — when the work happened, which is not when you logged it. |
+| occurred_at_local | time | The WHEN column — when the work started, which is not when you logged it. Required: with `minutes` it is the entry's span, and spans never overlap (invariant 18). |
 | logged_at | timestamptz | The instant the row was written. |
 | tz | text | The zone it was logged in, e.g. Asia/Kolkata. |
 | minutes | int |  |
@@ -283,16 +324,18 @@ Per objective, per period. The three free-text fields are marked on screen as *r
 | period_start / period_end | date | Every figure on the screen covers this window only. |
 | due_on | date |  |
 | status | enum('draft','saved') | The draft is S24. At most one per objective and period. |
-| previous_review_id | uuid null FK | Whose `what_needs_improvement` this one answers. |
-| improvement_answer | enum('yes','partly','no') null | "Did it happen?" |
+| previous_review_id | uuid null FK | Whose `what_changes_next` this one answers. |
+| improvement_answer | enum('yes','partly','no','not_tried') null | "Did it work?" `not_tried` is its own finding: the change was never attempted, which says something different from "it didn't work". |
 | improvement_answer_note | text null |  |
-| what_went_right | text null | **Was missing.** From the plan spreadsheet. |
-| what_needs_improvement | text null | **Was missing.** This is the sentence the *next* review quotes back at you, and the one "the sentence that repeats" is detected from. |
+| what_worked | text null | What worked. |
+| what_got_in_the_way | text null | What got in the way. |
+| what_changes_next | text null | What changes next. The sentence the *next* review quotes back at you, and the one "the sentence that repeats" is detected from. |
 | review_summary | text null | **Was missing.** The one line shown in the reviews list. |
 | criteria_assessment | text null | **Was missing.** Plan-end only — "two of three, one still with notes open". A weekly review says explicitly that it does not assess this. |
 | criteria_verdict | enum('met','partly_met','not_met') null | **Was missing.** Plan-end only. Drives "Completed · partly met". |
 | outcome | enum('continued','completed','paused','ended') null | Plan-end only. |
 | saved_at | timestamptz null | Null while a draft. |
+| last_saved_at | timestamptz null | The last write to the draft — what "Draft saved · 5 Sep, 18:40" shows. A fact about the row, not a figure. |
 | — not stored — |  | Adherence, logged/target, planned days, target met, the per-day bars, deviation costs, "review 7 of the plan". All recomputed when the review is opened. |
 
 ### Deviation — `deviation`
@@ -307,7 +350,7 @@ objective's review that covered its date.)*
 | user_id | uuid FK | The owner. A deviation can name several objectives, so ownership cannot travel through one of them. |
 | local_date | date |  |
 | kind | enum('chosen','drifted') |  |
-| what_happened / reasoning / did_instead | text | Reasoning is recorded now and tested at review. |
+| what_happened / reasoning / did_instead | text | Reasoning is recorded now and tested at review. **`reasoning` is null on a drifted deviation and required on a chosen one** — drifting has no reasoning; a chosen deviation is the reasoning you will be judged against. |
 | minutes | int | The cost. Never subtracted from effort — a separate ledger. |
 | pattern_id | uuid null FK | Null means "a genuine one-off", which is a real answer. |
 | verdict | enum('worth_it','not_worth_it') null | Chosen deviations only. |
@@ -328,7 +371,7 @@ That one the schema cannot check; the service guarantees it.
 
 ### Parked idea — `parked_idea`
 
-The lock is the point. An idea you cannot act on for three weeks is an idea you can judge honestly.
+The lock is a commitment, not a gate. It does not stop a decision; it records whether the decision came before the idea was due to open (`docs/domain/parking-lock.md`).
 
 | Column | Type | Why |
 |---|---|---|
@@ -341,15 +384,33 @@ The lock is the point. An idea you cannot act on for three weeks is an idea you 
 
 ### Parked idea verdict — `parked_idea_verdict`
 
-**The second correction.** The review detail screen has a column headed *status then*. A current-verdict column cannot answer that, and verdicts can flip — a dropped idea can be revived.
+**The second correction.** The review detail screen has a column headed *status then*. A current-verdict column cannot answer that: a review saved while an idea was still parked must keep showing it parked after the idea is dropped or taken.
 
 | Column | Type | Why |
 |---|---|---|
 | id | uuid PK |  |
 | parked_idea_id | uuid FK |  |
-| verdict | enum('parked','taken','dropped') |  |
-| note | text null | "why it ended" — edited on the row. |
-| occurred_on | date | Current verdict = the latest row. *Status then* = the latest row on or before the review's period end. |
+| verdict | enum('parked','approved','taken','dropped') | `parked` ↔ `approved` freely; either → `dropped`; only `approved` → `taken`. |
+| note | text null | "Why it ended." **Required when the verdict is `dropped`.** Written once, with the row. |
+| occurred_on | date | Current verdict = the latest row. *Status then* = the latest row on or before the review's period end. A `taken` row is dated the day the objective was created, in the zone it was created in. |
+
+### Notes — `objective_note`, `parked_idea_note`
+
+A line you add later — to an objective, or to a parked idea. Two tables with the same
+shape rather than one table with two nullable parents, so every row has exactly one
+owner and a foreign key that says which.
+
+| Column | Type | Why |
+|---|---|---|
+| id | uuid PK |  |
+| objective_id / parked_idea_id | uuid FK | The parent. Ownership travels through it, so there is no `user_id` — the `status_event` reasoning. |
+| written_on | date | The day you wrote it, in your zone, sent by the client (NFR-12). |
+| text | text | Short: the design holds it to 120 characters; the contract's outer bound is 2000. |
+
+**Append-only, and open in every state.** A note is never edited or deleted, and one
+can be added after the objective is completed or terminated, or the idea dropped or
+taken — the parent being final is exactly when a note is worth writing. A note is not
+the drop reason: that is part of the decision, and lives on the `dropped` verdict row.
 
 ### Deviation pattern — `deviation_pattern`
 
@@ -414,7 +475,7 @@ the address, so reconnecting the two is an operator's decision (`docs/runbook.md
 
 ## Invariants
 
-1. **Ownership.** Every plan segment, effort entry, review and status event belongs to exactly one objective, and every objective, deviation, parked idea and pattern belongs to exactly one user. Every objective a deviation names belongs to the deviation's own user. No row is reachable without passing through a user. *(NFR-10)*
+1. **Ownership.** Every plan segment, effort entry, review, status event and objective note belongs to exactly one objective; every verdict and note on a parked idea belongs to exactly one parked idea; and every objective, deviation, parked idea and pattern belongs to exactly one user. Every objective a deviation names belongs to the deviation's own user. No row is reachable without passing through a user. *(NFR-10)*
 2. **The day never moves.** An effort entry's `local_date` is set when it is written and never changes — not when the user travels, not across a daylight-saving boundary, not when the row is edited. *(NFR-12)*
 3. **The schedule lives on the segment.** An objective has no schedule and no end date of its own. Its current end date is the end date of its latest segment; its original end date is segment 0's. Neither is stored, so neither can disagree with the segments.
 4. **Segments are contiguous and never overlap.** Segment *n* starts the day after segment *n−1* ends. No two segments of one objective cover the same date, and there are no gaps.
@@ -426,11 +487,12 @@ the address, so reconnecting the two is an operator's decision (`docs/runbook.md
 10. **Slots follow the status.** A generated slot exists only for dates inside its segment and only for stretches the objective was active, according to its status events. Pausing suppresses slots for the paused stretch; resuming produces them again. Effort logged while paused is covered by no slot and therefore counts as extra. Because slots are derived, this can no longer drift from the status history — it *is* the status history *(ADR-008)*.
 11. **A deviation names the objectives it pulled you off.** At least one, chosen by you; one deviation can name several. A review shows the deviations that **name its objective** and whose `local_date` falls inside its period, so a deviation naming three objectives appears in all three of their reviews — by choice, not by accident. *(Revision 4, your answer; it replaces the earlier one, where a deviation named no objective.)*
 12. **Only chosen deviations are judged.** A verdict may exist only on a deviation of kind `chosen`, and must name the review that gave it — a review of one of the objectives the deviation names. The first such review to judge it gives the verdict; the others show it. Verdict and `verdict_review_id` are null together or set together. Once saved, a later review never changes it. *(NFR-01)*
-13. **Verdicts accumulate, they do not overwrite.** A parked idea's verdict history is append-only. The current verdict is the latest row; the verdict a review shows is the latest row on or before that review's period end. Reviving a dropped idea adds a row, it does not edit one. *(NFR-01)*
+13. **Verdicts accumulate, they do not overwrite.** A parked idea's verdict history is append-only. The current verdict is the latest row; the verdict a review shows is the latest row on or before that review's period end. **Parked and approved move freely; dropped and taken are final:** once an idea's latest row is either, no row follows it, and `taken` follows only `approved`. *(NFR-01; revision 5 — a dropped idea used to be revivable.)*
 14. **One draft, and it holds no figures.** At most one draft review per objective and period; saving replaces it. A draft stores answers only — adherence, totals, the per-day bars and deviation costs are recomputed every time the review is opened.
 15. **Nothing is ever counted twice.** No adherence, total, streak, extension count or sequence number is stored anywhere. Every figure on every screen — including "longest streak", "review 7 of the plan" and "the sentence that repeats" — is computed at read time. *(NFR-09)*
 16. **Every objective starts with a `created` event.** An objective's status is the latest status event, so an objective with no events has no status rather than a default one. The `created` event is written in the same transaction as the objective, and the W4-10 migration backfills one for every objective that predates `status_event`. A read that meets an objective with no events therefore fails loudly: the stored facts are malformed, and substituting `active` would hide it. *(ADR-008)*
-17. **Nothing is deleted.** There is no delete for an objective, a review, a deviation or a parked idea. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
+17. **Nothing is deleted.** There is no delete for an objective, a review, a deviation, a parked idea or a note. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
+18. **A day's effort is fixed once the day is over.** An effort entry is written only when its `local_date` is today in its `tz`, and edited or deleted only while that is still so. Every entry has a start (`occurred_at_local`), and no two of a user's entries on one `local_date` overlap, under any objective. The database cannot enforce the overlap — `effort_entry` reaches its user only through `objective` (invariant 1) — so the write path checks it under a lock on the user. Because a closed day cannot change, a saved review's recomputed figures move only if a rule changes (invariant 14, ADR-008). *(I-03.)*
 
 ## Modelling calls worth challenging
 

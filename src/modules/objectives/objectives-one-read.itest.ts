@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getPool, query } from "@/shared/db";
 import {
   createObjective,
+  createObjectiveNote,
   getObjective,
   getObjectiveSchedule,
   listObjectives,
@@ -40,12 +41,22 @@ describe("each objectives read is one query (real Postgres)", () => {
   beforeAll(async () => {
     userId = (await testUser()).id;
     for (const n of [1, 2, 3]) {
-      const r = await createObjective(userId, {
-        ...BODY,
-        title: `itest: I-01 one read ${n}`,
-      });
+      const r = await createObjective(
+        userId,
+        { ...BODY, title: `itest: I-01 one read ${n}` },
+        new Date(),
+      );
       if (!r.ok) throw new Error("fixture create failed");
       id = r.objective.id;
+      // Two notes each, so a per-objective notes read would show up too.
+      for (const text of ["one", "two"]) {
+        await createObjectiveNote(
+          userId,
+          id,
+          { written_on: "2026-10-01", text },
+          new Date(),
+        );
+      }
     }
     vi.mocked(query).mockClear();
   });
@@ -60,9 +71,10 @@ describe("each objectives read is one query (real Postgres)", () => {
     expect(vi.mocked(query)).toHaveBeenCalledTimes(1);
   });
 
-  it("opens one objective in one query", async () => {
+  it("opens one objective in one query, notes included", async () => {
     vi.mocked(query).mockClear();
-    expect((await getObjective(userId, id)).ok).toBe(true);
+    const r = await getObjective(userId, id);
+    expect(r.ok && r.objective.notes.length).toBe(2);
     expect(vi.mocked(query)).toHaveBeenCalledTimes(1);
   });
 

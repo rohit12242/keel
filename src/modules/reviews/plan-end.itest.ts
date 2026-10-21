@@ -12,7 +12,7 @@ import {
   insertStatusEvent,
   lockStatusHistory,
 } from "@/modules/objectives/repo";
-import { saveReview, updateReview } from "./service";
+import { getReview, saveReview, updateReview } from "./service";
 
 /**
  * I-02 step 27 — saving a plan-end review applies its outcome (invariant 7).
@@ -58,6 +58,14 @@ describe("saving a plan-end review (real Postgres)", () => {
       ok: false,
       kind: "refused",
     });
+  });
+
+  it("judges the whole plan in its figures, not only its last week (G22)", async () => {
+    const id = await planEndDraft();
+    const review = await getReview(me.id, id, new Date());
+    // Fixed Mon–Fri, 2 h a day, four weeks: the whole plan's target.
+    expect(review?.figures.target_minutes).toBe(20 * 120);
+    expect(review?.minutes_per_day).toHaveLength(7); // its own week's bars
   });
 
   it("completes the objective, dated the plan's last day, and shows the verdict", async () => {

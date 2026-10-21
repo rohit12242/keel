@@ -3,10 +3,12 @@ import { getPool, query } from "@/shared/db";
 import * as route from "@/app/v1/reviews/[reviewId]/route";
 import { testReview, testUser, type TestUser } from "@/test/fixtures";
 import type { Review } from "./domain/assembleReview";
+import { listReviews, saveReview } from "./service";
 
 /** I-02 step 24 — autosaving and discarding a draft, every declared response. */
 let me: TestUser;
 let reviewId: string;
+let objectiveId: string;
 
 const params = (id: string) => ({ params: Promise.resolve({ reviewId: id }) });
 const patch = (body: unknown, id = reviewId) =>
@@ -34,7 +36,7 @@ const markSaved = (id: string) =>
 describe("autosave and discard (real Postgres)", () => {
   beforeEach(async () => {
     me = await testUser();
-    reviewId = (await testReview(me)).id; // a weekly draft
+    ({ id: reviewId, objective_id: objectiveId } = await testReview(me)); // a weekly draft
   });
 
   afterAll(async () => {
@@ -44,7 +46,7 @@ describe("autosave and discard (real Postgres)", () => {
   it("200s an autosave and returns the review with its answers", async () => {
     const res = await patch({
       improvement_answer: "partly",
-      what_went_right: "Showed up.",
+      what_worked: "Showed up.",
       review_summary: "A steady week.",
     });
     expect(res.status).toBe(200);
@@ -52,14 +54,53 @@ describe("autosave and discard (real Postgres)", () => {
       id: reviewId,
       status: "draft",
       improvement_answer: "partly",
-      what_went_right: "Showed up.",
+      what_worked: "Showed up.",
       review_summary: "A steady week.",
     });
     const cleared = (await (
-      await patch({ what_went_right: null })
+      await patch({ what_worked: null })
     ).json()) as Review;
-    expect(cleared.what_went_right).toBeNull();
+    expect(cleared.what_worked).toBeNull();
     expect(cleared.review_summary).toBe("A steady week.");
+  });
+
+  it("keeps not_tried apart from no", async () => {
+    const res = await patch({ improvement_answer: "not_tried" });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Review).improvement_answer).toBe("not_tried");
+  });
+
+  it("records when the draft was last saved, by every save but not by saving the review", async () => {
+    const lastSaved = async () =>
+      (
+        await query<{ last_saved_at: Date | null }>(
+          `SELECT last_saved_at FROM review WHERE id = $1`,
+          [reviewId],
+        )
+      ).rows[0].last_saved_at;
+
+    expect(await lastSaved()).toBeNull(); // starting a draft is not a save
+
+    const first = (await (
+      await patch({ review_summary: "a" })
+    ).json()) as Review;
+    expect(first.last_saved_at).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
+    );
+    const afterFirst = (await lastSaved()) as Date;
+
+    // An empty body is Save draft with nothing changed: still a save.
+    expect((await patch({})).status).toBe(200);
+    const afterEmpty = (await lastSaved()) as Date;
+    expect(afterEmpty.getTime()).toBeGreaterThan(afterFirst.getTime());
+
+    const listed = await listReviews(me.id, objectiveId, new Date());
+    expect(listed?.reviews.find((r) => r.id === reviewId)?.last_saved_at).toBe(
+      afterEmpty.toISOString().replace(/\.\d{3}Z$/, "Z"),
+    );
+
+    expect((await saveReview(me.id, reviewId, new Date())).ok).toBe(true);
+    expect((await lastSaved())?.getTime()).toBe(afterEmpty.getTime());
   });
 
   it("422s a plan-end field on a weekly review", async () => {

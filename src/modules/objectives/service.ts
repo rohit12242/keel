@@ -1,5 +1,6 @@
 import { withTransaction } from "@/shared/db";
 import type {
+  Note,
   Objective,
   PlanSegment,
   ObjectiveSummary,
@@ -15,6 +16,7 @@ import { assembleGrid, parseGridRange } from "./domain/scheduleGrid";
 import { validateObjectiveWrite } from "./domain/validateObjectiveWrite";
 import { statusChange, validateStatusChange } from "./domain/statusChange";
 import { committedMinutesPerWeek } from "./domain/committedMinutes";
+import { noteRefusal, validateNoteWrite } from "./domain/noteWrite";
 import {
   extensionDecision,
   validateExtensionWrite,
@@ -24,8 +26,10 @@ import { insertVerdict, lockIdea } from "@/modules/parking/repo";
 import { localDayOf } from "@/shared/time/localDay";
 import type { StatusChange } from "./domain/statusTimeline";
 import {
+  getNoteFacts,
   getObjectiveRows,
   insertObjective,
+  insertObjectiveNote,
   insertSegment,
   insertStatusEvent,
   lockObjective,
@@ -49,14 +53,15 @@ export type CreateObjectiveResult =
 
 /**
  * Declare an objective. Started from a parked idea, it takes the idea: the
- * idea must be the caller's and currently parked — locked or not, since an
- * early take is allowed — and its `taken` verdict, dated the day the
- * objective starts, is written in the same transaction. There is no other way
- * to take an idea.
+ * idea must be the caller's and currently approved — locked or not, since an
+ * early take is allowed — and its `taken` verdict, dated today in the zone
+ * the objective is declared in (G37), is written in the same transaction.
+ * There is no other way to take an idea.
  */
 export async function createObjective(
   userId: string,
   body: unknown,
+  now: Date,
 ): Promise<CreateObjectiveResult> {
   const validated = validateObjectiveWrite(body);
   if (!validated.ok) return validated;
@@ -70,7 +75,7 @@ export async function createObjective(
         if (!canTake(idea)) {
           return {
             refused:
-              "The idea is not currently parked: it was dropped or already taken.",
+              "The idea is not approved: it is parked, dropped or already taken.",
           };
         }
       }
@@ -78,7 +83,7 @@ export async function createObjective(
       if (write.from_parked_idea_id !== null) {
         await insertVerdict(tx, userId, write.from_parked_idea_id, {
           verdict: "taken",
-          occurred_on: write.starts_on,
+          occurred_on: localDayOf(now, write.tz),
           note: null,
         });
       }
@@ -94,7 +99,7 @@ export async function createObjective(
   // and a listed one cannot differ in shape or figures.
   const [row] = await getObjectiveRows(userId, id);
   const objective = row
-    ? assembleObjective(row, localDayOf(new Date(), row.user_tz))
+    ? assembleObjective(row, localDayOf(now, row.user_tz))
     : null;
   if (!objective?.ok) {
     throw new Error(`createObjective: objective ${id} did not read back`);
@@ -295,4 +300,34 @@ export async function createExtension(
       (s) => s.seq === outcome.seq,
     ) as PlanSegment,
   };
+}
+
+export type CreateNoteResult =
+  | { ok: true; note: Note }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
+  | { ok: false; kind: "not_found" }
+  | { ok: false; kind: "future" };
+
+/**
+ * Add a note to an objective, in any state (G2). Checked in the contract's
+ * order — shape, then owner, then date — so a probe of someone else's
+ * objective is a 404 whatever it sends. "Today" is the caller's zone.
+ */
+export async function createObjectiveNote(
+  userId: string,
+  objectiveId: string,
+  body: unknown,
+  now: Date,
+): Promise<CreateNoteResult> {
+  const validated = validateNoteWrite(body);
+  if (!validated.ok) {
+    return { ok: false, kind: "invalid", errors: validated.error };
+  }
+  const facts = await getNoteFacts(userId, objectiveId);
+  if (!facts.owned) return { ok: false, kind: "not_found" };
+  if (noteRefusal(validated.value.written_on, localDayOf(now, facts.tz))) {
+    return { ok: false, kind: "future" };
+  }
+  const note = await insertObjectiveNote(userId, objectiveId, validated.value);
+  return note ? { ok: true, note } : { ok: false, kind: "not_found" };
 }

@@ -13,7 +13,9 @@ import {
  * DeviationWrite; the rules are its 422: every objective named must be one
  * that could take effort that day — the caller's, active, with a plan segment
  * covering `local_date` — the date may not be after today in the caller's
- * zone, and a pattern named must be theirs.
+ * zone, a pattern named must be theirs, and a chosen deviation must say why.
+ * A drifted one has no reasoning: one sent with it is accepted and the
+ * reasoning dropped, because nobody chose a drift (G5).
  */
 export type DeviationWrite = {
   objective_ids: string[];
@@ -21,7 +23,8 @@ export type DeviationWrite = {
   tz: string;
   kind: "chosen" | "drifted";
   what_happened: string;
-  reasoning: string;
+  /** A chosen deviation's; always null on a drifted one. */
+  reasoning: string | null;
   did_instead: string | null;
   minutes: number;
   pattern_id: string | null;
@@ -64,8 +67,14 @@ export function validateDeviationWrite(
   if (!text(body.what_happened, 1, 2000)) {
     fail("what_happened", "Required; 1–2000 characters.");
   }
-  if (!text(body.reasoning, 1, 2000)) {
-    fail("reasoning", "Required; 1–2000 characters.");
+  // Shape-checked only where it is kept; whether a chosen one has it is a
+  // rule (deviationRefusal), not a shape.
+  if (
+    body.kind === "chosen" &&
+    body.reasoning !== undefined &&
+    !text(body.reasoning, 1, 2000)
+  ) {
+    fail("reasoning", "1–2000 characters.");
   }
   if (body.did_instead !== undefined && !text(body.did_instead, 0, 2000)) {
     fail("did_instead", "Up to 2000 characters.");
@@ -90,7 +99,10 @@ export function validateDeviationWrite(
     tz: body.tz as string,
     kind: body.kind as "chosen" | "drifted",
     what_happened: body.what_happened as string,
-    reasoning: body.reasoning as string,
+    reasoning:
+      body.kind === "chosen" && typeof body.reasoning === "string"
+        ? body.reasoning
+        : null,
     did_instead:
       typeof body.did_instead === "string" && body.did_instead.length > 0
         ? body.did_instead
@@ -117,6 +129,9 @@ export function deviationRefusal(input: {
   today: string;
 }): string | null {
   const { write, objectives, patternIsTheirs, today } = input;
+  if (write.kind === "chosen" && write.reasoning === null) {
+    return "A chosen deviation needs its reasoning: why it was worth the time.";
+  }
   if (write.local_date > today) {
     return "local_date is after today; a deviation is recorded once it has happened.";
   }

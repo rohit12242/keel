@@ -35,6 +35,8 @@ export type ObjectiveRow = {
   /** Ordered by occurred_on, then by when each was recorded. */
   status_events: ObjectiveEventRow[];
   daily_minutes: DailyMinutesRow[];
+  /** Oldest first: by written_on, then as recorded. */
+  notes: { id: string; written_on: string; text: string }[];
   /** The reviews already saved, by period; a draft is not here. */
   saved_reviews: {
     id: string;

@@ -1,6 +1,8 @@
+import type { Note } from "@/shared/contract";
 import { query, type Queryable } from "@/shared/db";
 import type { NewObjective } from "./domain/validateObjectiveWrite";
 import type { NewSegment } from "./domain/validateExtension";
+import type { NoteWrite } from "./domain/noteWrite";
 import { weekdaysToBitmask } from "./domain/weekdays";
 import type { ListRow } from "./domain/rows";
 import type { StatusChange, StatusEventRow } from "./domain/statusTimeline";
@@ -143,18 +145,31 @@ rev AS (
   JOIN obj ON obj.id = r.objective_id
   WHERE r.status = 'saved'
   GROUP BY r.objective_id
+),
+note AS (
+  SELECT n.objective_id,
+    json_agg(json_build_object(
+      'id', n.id,
+      'written_on', to_char(n.written_on, 'YYYY-MM-DD'),
+      'text', n.text
+    ) ORDER BY n.written_on, n.recorded_at) AS notes
+  FROM objective_note n
+  JOIN obj ON obj.id = n.objective_id
+  GROUP BY n.objective_id
 )
 SELECT
   obj.*,
   COALESCE(seg.segments, '[]'::json) AS segments,
   COALESCE(ev.status_events, '[]'::json) AS status_events,
   COALESCE(day.daily_minutes, '[]'::json) AS daily_minutes,
-  COALESCE(rev.saved_reviews, '[]'::json) AS saved_reviews
+  COALESCE(rev.saved_reviews, '[]'::json) AS saved_reviews,
+  COALESCE(note.notes, '[]'::json) AS notes
 FROM obj
 LEFT JOIN seg ON seg.objective_id = obj.id
 LEFT JOIN ev ON ev.objective_id = obj.id
 LEFT JOIN day ON day.objective_id = obj.id
 LEFT JOIN rev ON rev.objective_id = obj.id
+LEFT JOIN note ON note.objective_id = obj.id
 ORDER BY obj.title, obj.id
 `;
 
@@ -265,4 +280,39 @@ export async function insertSegment(
       s.created_by_review_id,
     ],
   );
+}
+
+/** The caller's zone, and whether the objective is theirs. One query. */
+export async function getNoteFacts(
+  userId: string,
+  objectiveId: string,
+): Promise<{ tz: string; owned: boolean }> {
+  const res = await query<{ tz: string; owned: boolean }>(
+    `SELECT u.tz,
+       EXISTS (SELECT 1 FROM objective o WHERE o.id = $2 AND o.user_id = u.id)
+         AS owned
+     FROM "user" u WHERE u.id = $1`,
+    [userId, objectiveId],
+  );
+  return res.rows[0];
+}
+
+/**
+ * Append a note. The insert itself names the owner, so a note can never land
+ * on another user's objective whatever was checked before: no row comes back,
+ * and the caller answers 404 (NFR-10).
+ */
+export async function insertObjectiveNote(
+  userId: string,
+  objectiveId: string,
+  w: NoteWrite,
+): Promise<Note | null> {
+  const res = await query<Note>(
+    `INSERT INTO objective_note (objective_id, written_on, text)
+     SELECT o.id, $3::date, $4 FROM objective o
+     WHERE o.id = $2 AND o.user_id = $1
+     RETURNING id, to_char(written_on, 'YYYY-MM-DD') AS written_on, text`,
+    [userId, objectiveId, w.written_on, w.text],
+  );
+  return res.rows[0] ?? null;
 }

@@ -8,17 +8,23 @@ import type {
 import * as objectives from "@/app/v1/objectives/route";
 import * as one from "@/app/v1/objectives/[objectiveId]/route";
 import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
-import * as effort from "@/app/v1/objectives/[objectiveId]/effort-entries/route";
-import { testUser, type TestUser } from "@/test/fixtures";
+import {
+  addStatusEvents,
+  testEntry,
+  testObjective,
+  testUser,
+  type TestUser,
+} from "@/test/fixtures";
 
 /**
  * I-01's check, as intent.md states it, through the real route handlers.
  *
  * Create a fixed objective (weekly reviews) and a flexible one (monthly).
  * The list returns both, active, with a schedule and 0 of a real target.
- * Opening one returns its plan and its history. Then effort is logged on
- * planned days and an off day, and the grid tells apart a day met, a day
- * short, a planned day with nothing on it, an off day, and an off day worked.
+ * Opening one returns its plan and its history. Then effort is seeded on
+ * planned days and an off day — past days cannot be logged through the route
+ * (G21) — and the grid tells apart a day met, a day short, a planned day with
+ * nothing on it, an off day, and an off day worked.
  *
  * Signed in as its own user, new on every run, so the four per-timezone runs
  * against one database never see each other's objectives, and nothing is
@@ -56,21 +62,15 @@ async function logEffort(
   objectiveId: string,
   local_date: string,
   minutes: number,
+  occurred_at_local = "09:00",
 ) {
-  const res = await effort.POST(
-    new Request(`${BASE}/v1/objectives/${objectiveId}/effort-entries`, {
-      method: "POST",
-      headers: asMe(),
-      body: JSON.stringify({
-        local_date,
-        tz: "Asia/Kolkata",
-        minutes,
-        note: "itest: I-01 check",
-      }),
-    }),
-    params(objectiveId),
-  );
-  expect(res.status).toBe(201);
+  await testEntry(objectiveId, {
+    local_date,
+    tz: "Asia/Kolkata",
+    occurred_at_local,
+    minutes,
+    note: "itest: I-01 check",
+  });
 }
 
 async function grid(objectiveId: string): Promise<ScheduleGrid> {
@@ -117,6 +117,58 @@ describe("I-01 — declare an objective (the intent's check)", () => {
 
   afterAll(async () => {
     await getPool().end();
+  });
+
+  it("opens one with its plan weeks and their figures; the list carries none (G16)", async () => {
+    const res = await one.GET(
+      new Request(`${BASE}/v1/objectives/${fixed.id}`, { headers: asMe() }),
+      params(fixed.id),
+    );
+    const opened = (await res.json()) as Objective;
+    expect(opened.weeks.map((w) => [w.period_start, w.period_end])).toEqual([
+      ["2026-11-02", "2026-11-08"],
+      ["2026-11-09", "2026-11-15"],
+    ]);
+    expect(opened.weeks[0].figures).toMatchObject({ target_minutes: 300 });
+
+    const listed = (await (
+      await objectives.GET(
+        new Request(`${BASE}/v1/objectives`, { headers: asMe() }),
+        undefined,
+      )
+    ).json()) as { objectives: Record<string, unknown>[] };
+    expect(listed.objectives.every((o) => !("weeks" in o))).toBe(true);
+  });
+
+  it("lists the plan so far, the band and the date the status began (G14, G15, G23)", async () => {
+    // Its own user, so the two objectives above are not in this list.
+    const other = await testUser();
+    // Fixed Mon–Fri, 2 h a day, 2026-09-14 … 2026-10-11 — wholly past.
+    const o = await testObjective(other);
+    await testEntry(o.id, { local_date: "2026-09-14", minutes: 120 });
+    await testEntry(o.id, { local_date: "2026-09-15", minutes: 120 });
+    await addStatusEvents(o.id, [["2026-09-17", "paused"]]);
+
+    const res = await objectives.GET(
+      new Request(`${BASE}/v1/objectives`, {
+        headers: { cookie: other.cookie },
+      }),
+      undefined,
+    );
+    const [listed] = ((await res.json()) as { objectives: ObjectiveSummary[] })
+      .objectives;
+    expect(listed).toMatchObject({
+      status: "paused",
+      status_since: "2026-09-17",
+      // Planned Mon 14 – Wed 16 before the pause: 2 of 3 days met.
+      figures_to_date: {
+        target_minutes: 360,
+        logged_minutes: 240,
+        adherence_pct: 67,
+      },
+      track: "at_risk",
+      upcoming_review_on: "2026-09-20",
+    });
   });
 
   it("lists both, active, with the schedule given and 0 of a real target", async () => {
@@ -209,8 +261,10 @@ describe("I-01 — declare an objective (the intent's check)", () => {
   });
 
   it("reads the flexible schedule as worked or not", async () => {
-    await logEffort(flexible.id, "2026-11-02", 60);
-    await logEffort(flexible.id, "2026-11-03", 20);
+    // Afternoons: the fixed objective's entries hold the mornings, and no two
+    // of a user's entries on one day overlap.
+    await logEffort(flexible.id, "2026-11-02", 60, "13:00");
+    await logEffort(flexible.id, "2026-11-03", 20, "13:00");
 
     const g = await grid(flexible.id);
     expect(stateOn(g, "2026-11-02")).toBe("target_met");

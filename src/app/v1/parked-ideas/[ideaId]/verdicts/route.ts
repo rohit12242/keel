@@ -13,9 +13,10 @@ import { withRequestLog } from "@/shared/log";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /v1/parked-ideas/{ideaId}/verdicts — park again or drop. Appended,
- * never edited. Refused once the idea is taken (409) and while it is still
- * locked (422): judging it in a hurry is what the lock exists to stop.
+ * POST /v1/parked-ideas/{ideaId}/verdicts — park, approve or drop. Appended,
+ * never edited. Refused once the idea is dropped or taken (409), and when a
+ * drop gives no reason or the verdict is dated in the future (422). A locked
+ * idea is not refused: the verdict is recorded as early.
  */
 export const POST = withSession(
   async (
@@ -59,19 +60,26 @@ export const POST = withSession(
               );
             case "not_found":
               return notFound("idea");
-            case "taken":
+            case "final":
               return problem(
                 409,
-                "This idea was taken",
-                problemType("idea-taken"),
-                "It became an objective, and the objective is its record from then on.",
+                "This idea's verdict is final",
+                problemType("idea-final"),
+                "It was dropped, or it became an objective, which is its record from then on.",
               );
-            case "locked":
+            case "needs_reason":
               return problem(
                 422,
-                "This idea is still locked",
-                problemType("idea-locked"),
-                "A verdict before the lock lifts is what the parking lot exists to prevent.",
+                "A drop says why",
+                problemType("drop-needs-reason"),
+                "Send a note saying why the idea ended.",
+              );
+            case "future":
+              return problem(
+                422,
+                "The verdict is dated in the future",
+                problemType("verdict-in-future"),
+                "A verdict is recorded once it has been given.",
               );
           }
         } catch {

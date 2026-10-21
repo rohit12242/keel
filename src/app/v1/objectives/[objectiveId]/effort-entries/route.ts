@@ -1,8 +1,19 @@
-import { createEffortEntry } from "@/modules/effort/service";
+import {
+  createEffortEntry,
+  listObjectiveEntries,
+} from "@/modules/effort/service";
 import { jsonResponse, problem, problemType, withSession } from "@/shared/http";
 import { withRequestLog } from "@/shared/log";
 
 export const dynamic = "force-dynamic";
+
+const notToday = () =>
+  problem(
+    422,
+    "Effort is logged only for today",
+    problemType("not-today"),
+    "local_date must be today in tz. Once a day is over, its effort is fixed.",
+  );
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -46,7 +57,12 @@ export const POST = withSession(
         }
 
         try {
-          const result = await createEffortEntry(userId, objectiveId, body);
+          const result = await createEffortEntry(
+            userId,
+            objectiveId,
+            body,
+            new Date(),
+          );
           if (result.ok) return jsonResponse(201, result.entry);
 
           switch (result.kind) {
@@ -65,6 +81,8 @@ export const POST = withSession(
                 problemType("not-found"),
                 "No such objective.",
               );
+            case "not_today":
+              return notToday();
             case "not_active":
               return problem(
                 422,
@@ -79,7 +97,75 @@ export const POST = withSession(
                 problemType("date-outside-plan"),
                 "local_date falls outside every plan segment for this objective.",
               );
+            case "overlap":
+              return problem(
+                422,
+                "Overlaps another entry",
+                problemType("entry-overlaps"),
+                result.detail,
+              );
           }
+        } catch {
+          return problem(
+            503,
+            "Couldn't reach your log",
+            problemType("unavailable"),
+            "The database could not be reached.",
+          );
+        }
+      },
+    );
+  },
+);
+
+/**
+ * GET /v1/objectives/{objectiveId}/effort-entries?from=&to= — the entries in
+ * the range, with their times (G18). Both dates are required; another user's
+ * objective is a 404 (NFR-10).
+ */
+export const GET = withSession(
+  async (
+    req: Request,
+    ctx: { params: Promise<{ objectiveId: string }> },
+    userId: string,
+  ): Promise<Response> => {
+    const { objectiveId } = await ctx.params;
+    return withRequestLog(
+      "GET /v1/objectives/[objectiveId]/effort-entries",
+      { objective_id: objectiveId },
+      async () => {
+        if (!UUID.test(objectiveId)) {
+          return problem(
+            404,
+            "Not found",
+            problemType("not-found"),
+            "No such objective.",
+          );
+        }
+        const search = new URL(req.url).searchParams;
+        try {
+          const result = await listObjectiveEntries(
+            userId,
+            objectiveId,
+            search.get("from"),
+            search.get("to"),
+          );
+          if (result.ok) return jsonResponse(200, { entries: result.entries });
+          if (result.kind === "invalid") {
+            return problem(
+              400,
+              "Invalid range",
+              problemType("invalid"),
+              "from and to are required dates, to not before from.",
+              result.errors,
+            );
+          }
+          return problem(
+            404,
+            "Not found",
+            problemType("not-found"),
+            "No such objective.",
+          );
         } catch {
           return problem(
             503,
