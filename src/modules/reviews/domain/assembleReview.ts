@@ -35,6 +35,7 @@ export type ReviewRow = {
   criteria_verdict: "met" | "partly_met" | "not_met" | null;
   outcome: "continued" | "completed" | "paused" | "ended" | null;
   saved_at: string | null;
+  last_saved_at: string | null;
 };
 
 export type ReviewSummary = {
@@ -45,6 +46,7 @@ export type ReviewSummary = {
   period_end: string;
   status: ReviewRow["status"];
   saved_at: string | null;
+  last_saved_at: string | null;
   outcome: ReviewRow["outcome"];
   review_summary: string | null;
   adherence_pct: number | null;
@@ -152,6 +154,7 @@ export function summaryOf(
     period_end: review.period_end,
     status: review.status,
     saved_at: review.saved_at,
+    last_saved_at: review.last_saved_at,
     outcome: review.outcome,
     review_summary: review.review_summary,
     adherence_pct: windowFigures(review, facts.slots, facts.daily)

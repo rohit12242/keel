@@ -21,6 +21,7 @@ const review = (over: Partial<ReviewRow> = {}): ReviewRow => ({
   criteria_verdict: null,
   outcome: null,
   saved_at: null,
+  last_saved_at: null,
   ...over,
 });
 const deviation = (over: Partial<Deviation> = {}): Deviation => ({
