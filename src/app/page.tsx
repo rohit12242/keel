@@ -50,7 +50,7 @@ export default async function TodayPage({
       <main className={styles.page}>
         <h1 className={styles.title}>Today</h1>
         <p>
-          <a href="/v1/session/sign-in">Sign in</a> to see your log.
+          <a href="/sign-in">Sign in</a> to see your log.
         </p>
       </main>
     );

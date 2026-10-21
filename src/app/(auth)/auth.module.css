@@ -1,0 +1,681 @@
+/*
+ * The sign-in screens (docs/design/screens/02-auth-and-onboarding.md), in the
+ * Keel Modern look. Values come from the prototype; colours only ever from
+ * the tokens in modern.css.
+ */
+
+/* ---------- Layout: hero on the left, card on the right ---------- */
+.auth {
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+  background: var(--auth-bg);
+  display: flex;
+  flex-direction: column;
+  padding-block: var(--space-32) var(--space-40);
+  padding-left: max(56px, env(safe-area-inset-left, 0px));
+  padding-right: max(56px, env(safe-area-inset-right, 0px));
+}
+
+.rings {
+  position: absolute;
+  left: -220px;
+  bottom: -300px;
+  width: 760px;
+  height: 760px;
+  pointer-events: none;
+}
+.ringTrack {
+  fill: none;
+  stroke: var(--ring-track);
+  stroke-width: 36;
+}
+.ringA,
+.ringB {
+  fill: none;
+  stroke-width: 36;
+  stroke-linecap: round;
+}
+.ringA {
+  stroke: var(--ring-a);
+}
+.ringB {
+  stroke: var(--ring-b);
+}
+
+.auth > :not(.rings) {
+  position: relative;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  color: var(--text);
+}
+.brand svg {
+  width: 20px;
+  height: 20px;
+}
+.wordmark {
+  font-family: var(--font-brand);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 48px;
+  padding-block: var(--space-40);
+}
+
+.hero {
+  flex: 999 1 520px;
+  min-width: 0;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+}
+.heroTitle {
+  margin: 0;
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+.hl {
+  color: var(--hl);
+}
+.heroSub {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text-2);
+  max-width: 46ch;
+}
+.keeps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+.keeps li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px var(--space-12);
+  border-radius: var(--radius-full);
+  background: var(--chip-bg);
+  border: var(--border-hairline) solid var(--chip-line);
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex: none;
+}
+.dotEffort {
+  background: var(--effort);
+}
+.dotDeviation {
+  background: var(--deviation);
+}
+.dotAccent {
+  background: var(--accent);
+}
+
+.foot {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.card {
+  flex: 1 1 380px;
+  max-width: 420px;
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-dialog);
+  padding: var(--space-32);
+}
+
+/* ---------- A pane: one screen's form ---------- */
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-18);
+}
+.paneHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-bottom: var(--space-4);
+}
+.paneTitle {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.paneSub {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.step {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+.mailIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  display: grid;
+  place-content: center;
+}
+.mailIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ---------- Fields ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.fieldRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-12);
+}
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.input {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--input-bg);
+  border: var(--border-hairline) solid var(--line-control);
+  border-radius: var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+  width: 100%;
+  min-height: 46px;
+}
+.input::placeholder {
+  color: var(--text-3);
+}
+.input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.input:disabled {
+  opacity: 0.7;
+}
+.hasError .input {
+  border-color: var(--deviation);
+  box-shadow: inset 0 0 0 1px var(--deviation);
+}
+.hint {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.error {
+  display: flex;
+  gap: var(--space-6);
+  align-items: flex-start;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--deviation);
+}
+.error svg,
+.banner svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-top: 2px;
+}
+
+.pw {
+  position: relative;
+}
+.pw .input {
+  padding-right: 64px;
+}
+.pwToggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.pwToggle:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.len {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.lenBar {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--track);
+  overflow: hidden;
+}
+.lenBar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--caution);
+}
+.lenN {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.lenCaution .lenN {
+  color: var(--caution);
+}
+.lenEffort .lenBar i {
+  background: var(--effort);
+}
+.lenEffort .lenN {
+  color: var(--effort);
+}
+
+.check {
+  display: flex;
+  gap: var(--space-12);
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.check input {
+  appearance: none;
+  margin: 2px 0 0;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 6px;
+  border: var(--border-hairline) solid var(--line-control);
+  background: var(--surface);
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+.check input::after {
+  content: "";
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid var(--on-accent);
+  border-bottom: 2px solid var(--on-accent);
+  transform: translateY(-1px) rotate(-45deg) scale(0);
+}
+.check input:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.check input:checked::after {
+  transform: translateY(-1px) rotate(-45deg) scale(1);
+}
+.check input:focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- The code boxes: one input, drawn as six ---------- */
+.code {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+.cell {
+  height: 52px;
+  background: var(--input-bg);
+  border: var(--border-hairline) solid var(--line-control);
+  border-radius: 10px;
+  display: grid;
+  place-content: center;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+.codeFocus .cellOn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.caret {
+  display: block;
+  width: 2px;
+  height: 24px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.hasError .cell {
+  border-color: var(--deviation);
+  box-shadow: inset 0 0 0 1px var(--deviation);
+  color: var(--deviation);
+}
+.codeInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  border: 0;
+  font-size: 16px;
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+  cursor: text;
+}
+
+/* ---------- Buttons, links, banners, notes ---------- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-10);
+  width: 100%;
+  min-height: 48px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 0;
+  border-radius: var(--radius-lg);
+  padding: 11px var(--space-16);
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+}
+.button:hover {
+  filter: brightness(1.06);
+}
+.button:focus-visible,
+.linkButton:focus-visible,
+.pwToggle:focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+.button:disabled {
+  background: var(--surface-muted);
+  color: var(--text-3);
+  filter: none;
+  cursor: not-allowed;
+}
+.button[aria-busy="true"]:disabled {
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: 0.78;
+  cursor: progress;
+}
+.spin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 700ms linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.linkButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+.linkButton:hover {
+  text-decoration: underline;
+}
+.linkButton:disabled {
+  color: var(--text-3);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+.quiet {
+  color: var(--text-2);
+}
+
+.alt {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-2);
+  text-align: center;
+}
+.alt .linkButton,
+.more .linkButton,
+.banner .linkButton {
+  font-size: 14px;
+}
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-2);
+  text-align: center;
+}
+.wait {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.banner {
+  display: flex;
+  gap: var(--space-10);
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius-panel);
+  background: var(--deviation-tint);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.banner svg {
+  width: 16px;
+  height: 16px;
+  color: var(--deviation);
+}
+.banner b {
+  color: var(--deviation);
+  font-weight: 600;
+}
+.bannerCaution {
+  background: var(--caution-tint);
+}
+.bannerCaution svg,
+.bannerCaution b {
+  color: var(--caution);
+}
+
+.note {
+  display: flex;
+  gap: var(--space-12);
+  align-items: flex-start;
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-panel);
+  background: var(--surface-muted);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.note svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 1px;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 60;
+  background: var(--text);
+  color: var(--on-text);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 11px 16px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dialog);
+  max-width: calc(100vw - 32px);
+}
+
+/* ---------- Phone: the hero becomes a violet band above the form ---------- */
+@media (max-width: 860px) {
+  .auth {
+    padding: 0;
+    background: var(--bg);
+  }
+  .rings,
+  .heroSub,
+  .keeps,
+  .foot {
+    display: none;
+  }
+  .auth > .brand {
+    background: var(--band);
+    color: var(--band-text);
+    padding-block: var(--space-24) 0;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  .body {
+    display: block;
+    padding: 0;
+  }
+  .hero {
+    background: var(--band);
+    color: var(--band-text);
+    border-radius: 0 0 24px 24px;
+    padding-block: var(--space-20) var(--space-28);
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  .heroTitle {
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    max-width: 20ch;
+  }
+  .hl {
+    color: var(--band-hl);
+  }
+  .card {
+    max-width: none;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+    padding-block: var(--space-28) 96px;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  .paneTitle {
+    font-size: 28px;
+  }
+  .input {
+    font-size: 16px;
+  }
+  .cell {
+    height: 56px;
+    font-size: 24px;
+  }
+  .code {
+    gap: 6px;
+  }
+  .toast {
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (min-width: 861px) and (max-width: 1120px) {
+  .heroTitle {
+    font-size: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .button,
+  .lenBar i,
+  .check input::after {
+    transition:
+      background-color 150ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      width 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .caret {
+    animation: blink 1s steps(1) infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation-duration: 2s;
+  }
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
