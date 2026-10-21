@@ -315,6 +315,8 @@ describe("assembleDay", () => {
       pattern_name: null,
       verdict: null,
       verdict_review_id: null,
+      pattern_nth: null,
+      review_due_on: null,
     };
     expect(assembleDay("2026-09-16", [], deviation).last_deviation).toBe(
       deviation,

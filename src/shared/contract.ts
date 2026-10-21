@@ -84,6 +84,10 @@ export type Deviation = {
   pattern_name: string | null;
   verdict: "worth_it" | "not_worth_it" | null;
   verdict_review_id: string | null;
+  /** Its place in its pattern's history — "3rd time". Null without a pattern. */
+  pattern_nth: number | null;
+  /** The period_end of the review that will judge it, or null. */
+  review_due_on: string | null;
 };
 
 /** Every field computed at read time; none stored, none writable (NFR-09). */

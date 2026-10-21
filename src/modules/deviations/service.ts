@@ -2,6 +2,7 @@ import type { Deviation, ProblemError } from "@/shared/contract";
 import { validatePatternWrite } from "./domain/validatePatternWrite";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
 import { localDayOf } from "@/shared/time/localDay";
+import { reviewDueOn } from "@/modules/reviews/domain/reviewWindows";
 import {
   costByKind,
   deviationRefusal,
@@ -45,12 +46,20 @@ export async function createDeviationPattern(
 
 /**
  * The contract's Deviation: `did_instead` is left out when there was none,
- * and `reasoning` when there is none — a drifted deviation's.
+ * and `reasoning` when there is none — a drifted deviation's. The review that
+ * will judge it is computed here from the windows of the objectives it names.
  */
 export function present(row: DeviationRow): Deviation {
-  const { did_instead, reasoning, ...rest } = row;
+  const { did_instead, reasoning, review_objectives, ...rest } = row;
   return {
     ...rest,
+    review_due_on: reviewDueOn(
+      row.local_date,
+      review_objectives.map((o) => ({
+        cadence: o.review_cadence,
+        segments: o.segments ?? [],
+      })),
+    ),
     ...(reasoning === null ? {} : { reasoning }),
     ...(did_instead === null ? {} : { did_instead }),
   };

@@ -37,6 +37,8 @@ const deviation = (over: Partial<Deviation>): Deviation => ({
   pattern_name: null,
   verdict: null,
   verdict_review_id: null,
+  pattern_nth: null,
+  review_due_on: null,
   ...over,
 });
 const facts = (over: Partial<ReviewFacts> = {}): ReviewFacts => ({

@@ -66,6 +66,8 @@ const deviation = (local_date: string): Deviation => ({
   pattern_name: null,
   verdict: null,
   verdict_review_id: null,
+  pattern_nth: null,
+  review_due_on: null,
 });
 
 const idea = (caught_on: string, over: Partial<IdeaRow> = {}): IdeaRow => ({

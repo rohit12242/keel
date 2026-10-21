@@ -7,6 +7,7 @@ import {
   dueWindows,
   periodKey,
   plannedDaysIn,
+  reviewDueOn,
   reviewSchedule,
   reviewWindows,
 } from "./reviewWindows";
@@ -211,5 +212,42 @@ describe("plannedDaysIn", () => {
         slots,
       ),
     ).toBe(0);
+  });
+});
+
+describe("reviewDueOn — the review that will judge a date (G33)", () => {
+  const weekly = {
+    cadence: "weekly" as const,
+    segments: [{ id: "s0", start_date: "2026-09-01", end_date: "2026-09-21" }],
+  };
+
+  it("is the end of the window the date falls in", () => {
+    expect(reviewDueOn("2026-09-10", [weekly])).toBe("2026-09-14"); // Week 2
+    expect(reviewDueOn("2026-09-14", [weekly])).toBe("2026-09-14");
+    expect(reviewDueOn("2026-09-21", [weekly])).toBe("2026-09-21"); // End of plan
+  });
+
+  it("takes the earlier end across the objectives a date names", () => {
+    const monthly = {
+      cadence: "monthly" as const,
+      segments: [
+        { id: "m0", start_date: "2026-08-20", end_date: "2026-12-19" },
+      ],
+    };
+    expect(reviewDueOn("2026-09-10", [monthly])).toBe("2026-09-19");
+    expect(reviewDueOn("2026-09-10", [monthly, weekly])).toBe("2026-09-14");
+  });
+
+  it("clamps a monthly window at a month's end", () => {
+    const fromJan31 = {
+      cadence: "monthly" as const,
+      segments: [{ id: "j", start_date: "2026-01-31", end_date: "2026-06-30" }],
+    };
+    expect(reviewDueOn("2026-02-10", [fromJan31])).toBe("2026-02-27");
+  });
+
+  it("is null when no window covers the date", () => {
+    expect(reviewDueOn("2026-08-31", [weekly])).toBeNull();
+    expect(reviewDueOn("2026-09-10", [])).toBeNull();
   });
 });
