@@ -89,6 +89,18 @@ export function waitLabel(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/**
+ * Whether asking for a reset code went as far as the screen should say.
+ * Cognito answers an address with no account — and one whose email was never
+ * verified — with `InvalidParameterException`, even with user-existence
+ * errors prevented. Showing that would tell the two apart from a real
+ * account, so it reads as sent: step 2 says "If … has an account" for all
+ * three (found in I-04's live run).
+ */
+export const resetCodeSent = (
+  outcome: { ok: true } | { ok: false; reason: string },
+): boolean => outcome.ok || outcome.reason === "InvalidParameterException";
+
 /** Where an answer from Cognito is shown, and in what words. */
 export type Answer = {
   where: "banner" | "email" | "password" | "code";

@@ -7,6 +7,7 @@ import {
   codeError,
   emailError,
   passwordError,
+  resetCodeSent,
   waitLabel,
   type Answer,
 } from "@/modules/session/domain/authScreens";
@@ -70,8 +71,8 @@ export function ResetPasswordForm() {
     setBusy(true);
     const sent = await startReset(email.trim());
     setBusy(false);
-    if (!sent.ok) {
-      setAnswer(answerFor(sent.reason));
+    if (!resetCodeSent(sent)) {
+      setAnswer(answerFor(sent.ok ? "Unknown" : sent.reason));
       return;
     }
     setStep(2);
@@ -79,8 +80,8 @@ export function ResetPasswordForm() {
 
   async function sendNewCode() {
     const sent = await startReset(email.trim());
-    if (!sent.ok) {
-      setAnswer(answerFor(sent.reason));
+    if (!resetCodeSent(sent)) {
+      setAnswer(answerFor(sent.ok ? "Unknown" : sent.reason));
       return false;
     }
     setCode("");

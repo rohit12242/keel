@@ -9,6 +9,7 @@ import {
   nameError,
   passwordError,
   RESEND_WAIT_SECONDS,
+  resetCodeSent,
   waitLabel,
 } from "./authScreens";
 
@@ -104,6 +105,21 @@ describe("waitLabel", () => {
     expect(waitLabel(60)).toBe("1:00");
     expect(waitLabel(4.2)).toBe("0:05");
     expect(waitLabel(-3)).toBe("0:00");
+  });
+});
+
+describe("resetCodeSent", () => {
+  it("reads the same for an account, no account, and an unverified one", () => {
+    expect(resetCodeSent({ ok: true })).toBe(true);
+    expect(
+      resetCodeSent({ ok: false, reason: "InvalidParameterException" }),
+    ).toBe(true);
+  });
+
+  it("but not when Cognito could not be asked, or refused for too many tries", () => {
+    for (const reason of ["LimitExceededException", "NetworkError"]) {
+      expect(resetCodeSent({ ok: false, reason })).toBe(false);
+    }
   });
 });
 
