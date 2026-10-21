@@ -17,14 +17,15 @@ no `if (env === "production")` anywhere, by design (ADR-004).
 | `APP_BASE_URL` | The app's own base URL (scheme + host + port), used to build absolute links | no | always |
 | `LOG_LEVEL` | Log verbosity: `debug` \| `info` \| `warn` \| `error` | no | always |
 | `SESSION_SECRET` | Signs the session cookie | **yes** | always |
-| `COGNITO_DOMAIN` | The hosted login pages' origin, `https://…amazoncognito.com` | no | always |
 | `COGNITO_POOL_ID` | Cognito user pool id; its region prefix names the token issuer | no | always |
-| `COGNITO_CLIENT_ID` | Cognito app client id | no | always |
-| `COGNITO_CLIENT_SECRET` | Cognito app client secret | **yes** | always |
+| `COGNITO_CLIENT_ID` | Cognito app client id — a public client, with no secret | no | always |
 
-The four `COGNITO_*` values come from `infra/cognito.tf`. Locally there is no
-separate pool: `.env` takes the deployed pool's values, whose app client accepts
-a callback on `http://localhost:3000` (I-02).
+Both `COGNITO_*` values come from `infra/cognito.tf`. **They are public:** the browser
+needs them to talk to Cognito on Keel's sign-in screens (ADR-002), so the server hands
+them to the page at runtime. They are never baked into the build, which runs
+unchanged in every environment (ADR-004). Locally there is no separate pool: `.env`
+takes the deployed pool's values. *(I-04 removed `COGNITO_DOMAIN` and
+`COGNITO_CLIENT_SECRET`, which served Cognito's hosted pages and the code exchange.)*
 
 ## Where each value comes from
 
@@ -42,8 +43,8 @@ configuration from AWS at container start:
 
 | Kind | Where it lives | Examples |
 |---|---|---|
-| Non-secret config | **SSM Parameter Store** (`String` parameters) | `APP_BASE_URL`, `LOG_LEVEL`, `COGNITO_DOMAIN`, `COGNITO_POOL_ID`, `COGNITO_CLIENT_ID` |
-| Secrets | **AWS Secrets Manager** (or SSM `SecureString`) | `SESSION_SECRET`, `COGNITO_CLIENT_SECRET`, and the credentials inside `DATABASE_URL` |
+| Non-secret config | **SSM Parameter Store** (`String` parameters) | `APP_BASE_URL`, `LOG_LEVEL`, `COGNITO_POOL_ID`, `COGNITO_CLIENT_ID` |
+| Secrets | **AWS Secrets Manager** (or SSM `SecureString`) | `SESSION_SECRET`, and the credentials inside `DATABASE_URL` |
 
 **How a value gets from there into the running app:** the deploy (W3-17) defines
 the container/task with *references* to these Parameter Store and Secrets Manager

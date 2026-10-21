@@ -119,6 +119,8 @@ a Discard button, or the endpoint goes, which is a contract change.
 
 ### The user's name, and reading the signed-in user back · found in I-03
 
+**Promoted to I-04** (2026-10-21): the name is Cognito's `name` attribute, carried in the session and returned by `GET /v1/session`.
+
 The shell and onboarding show the user's name ("Signed in as {name}", "Welcome,
 {name}", the avatar initial), but the `user` table stores no name and no endpoint
 returns the signed-in user (G30 in `docs/design/contract-gaps.md`). I-03 leaves it
@@ -154,3 +156,26 @@ day short at the end, and the last day's work counts as off-plan. Unnoticed so f
 because the story's plan ends on a Sunday. Options: date the event the day after
 `period_end`, or have `planSlots` treat a final status as in force from the next
 day. Either is a domain rule change (`docs/domain/` and the ERD), with tests.
+
+### The Keel Modern tokens exist twice · found in I-04
+
+The sign-in screens use the Keel Modern look, so I-04 copied
+`docs/design/keel-modern-tokens.css` into `src/app/(auth)/modern.css`, scoped to
+`[data-look="modern"]` because several names (`--space-4`, `--font-sans`, …) mean
+something else in `src/app/tokens.css`, which the rest of the app still uses. Geist is
+loaded by the auth layout alone. The app-shell intent (the design's build-order step 1)
+replaces `tokens.css` globally; it must then delete the scoped copy and its
+`data-look` wrapper rather than leave two sources for one set of tokens.
+
+### A confirmed account lands on Today, not onboarding · found in I-04
+
+The design starts onboarding right after a new account's email is confirmed (G11). I-04
+has no onboarding, so confirming signs in and loads `/`, the same as Sign in. The
+onboarding intent has to tell a first sign-in from any other — the exchange knows
+(`signInDecision` is `create`), the browser does not — and route it there.
+
+### `infra/rds.tf` is not `terraform fmt`-clean · found in I-04
+
+One attribute in `aws_db_instance.main` is misaligned (`vpc_security_group_ids`), so
+`terraform fmt -check` fails for the whole directory. Nothing checks it in CI, which is
+how it got in. Either fix the file, or add the check and fix it with it.

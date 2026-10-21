@@ -138,7 +138,7 @@ artifact runs against the newer schema, which the same rule makes safe.
 ## Configuration: what differs, and what may not
 
 Differs between local and production: database connection, Cognito pool and
-callback URL, application base URL, log level, and a seed-data flag used locally.
+app client, application base URL, log level, and a seed-data flag used locally.
 
 **Code never branches on the environment name.** No `if (env === 'production')`.
 Behaviour differs on a configuration *value* that says what it needs —

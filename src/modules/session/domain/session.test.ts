@@ -1,75 +1,62 @@
 import { describe, expect, it } from "vitest";
 import {
   checkIdClaims,
+  displayName,
+  FRESH_SIGN_IN_SECONDS,
   issuerFor,
   liveSession,
-  liveSignIn,
   newSession,
-  newSignIn,
   SESSION_SECONDS,
-  SIGN_IN_SECONDS,
   signInDecision,
 } from "./session";
 
 const NOW = 1_800_000_000;
 const UID = "0b6f3c1e-7d1a-4c55-9a51-6f0c2a8e9b11";
+const USER = { id: UID, email: "rohit@example.com", name: "Rohit" };
 
 describe("the session", () => {
   it("lasts thirty days, comfortably over ADR-002's seven", () => {
     expect(SESSION_SECONDS).toBeGreaterThanOrEqual(7 * 24 * 60 * 60);
-    expect(newSession(UID, NOW)).toEqual({
+    expect(newSession(USER, NOW)).toEqual({
       uid: UID,
+      email: "rohit@example.com",
+      name: "Rohit",
       exp: NOW + SESSION_SECONDS,
     });
   });
 
   it("is live until its expiry, and not at it", () => {
-    const s = newSession(UID, NOW);
+    const s = newSession(USER, NOW);
     expect(liveSession(s, s.exp - 1)).toEqual(s);
     expect(liveSession(s, s.exp)).toBeNull();
   });
 
+  it("may carry no name", () => {
+    const s = newSession({ ...USER, name: null }, NOW);
+    expect(liveSession(s, NOW)).toEqual(s);
+  });
+
+  it("refuses a cookie from before I-04, which carried no email or name", () => {
+    expect(liveSession({ uid: UID, exp: NOW + 1 }, NOW)).toBeNull();
+  });
+
   it("refuses a payload that is not a session, even if Keel signed it", () => {
+    const good = { uid: UID, email: "r@example.com", name: "R", exp: NOW + 1 };
     for (const bad of [
       null,
       "x",
       [UID, NOW + 1],
-      { uid: "not-a-uuid", exp: NOW + 1 },
-      { uid: 7, exp: NOW + 1 },
-      { uid: UID, exp: "soon" },
-      { uid: UID, exp: 1.5 },
-      { uid: UID },
+      { ...good, uid: "not-a-uuid" },
+      { ...good, uid: 7 },
+      { ...good, exp: "soon" },
+      { ...good, exp: 1.5 },
+      { ...good, exp: undefined },
+      { ...good, email: undefined },
+      { ...good, email: "no-at-sign" },
+      { ...good, name: undefined },
+      { ...good, name: 42 },
     ]) {
       expect(liveSession(bad, NOW)).toBeNull();
-    }
-  });
-});
-
-describe("the sign-in cookie", () => {
-  it("lasts ten minutes", () => {
-    expect(newSignIn("s", "v", NOW)).toEqual({
-      state: "s",
-      verifier: "v",
-      exp: NOW + SIGN_IN_SECONDS,
-    });
-  });
-
-  it("is live until its expiry", () => {
-    const s = newSignIn("s", "v", NOW);
-    expect(liveSignIn(s, NOW)).toEqual(s);
-    expect(liveSignIn(s, s.exp)).toBeNull();
-  });
-
-  it("refuses a payload missing its state or verifier", () => {
-    for (const bad of [
-      undefined,
-      { state: "", verifier: "v", exp: NOW + 1 },
-      { state: "s", verifier: "", exp: NOW + 1 },
-      { state: 1, verifier: "v", exp: NOW + 1 },
-      { state: "s", verifier: null, exp: NOW + 1 },
-      { state: "s", verifier: "v", exp: 0 },
-    ]) {
-      expect(liveSignIn(bad, NOW)).toBeNull();
     }
   });
 });
@@ -92,16 +79,37 @@ describe("checkIdClaims", () => {
     aud: "client",
     token_use: "id",
     exp: NOW + 3600,
+    auth_time: NOW - 10,
     sub: "subject-1",
     email: "rohit@example.com",
     email_verified: true,
+    name: "Rohit",
   };
 
   it("accepts a good token and returns who signed in", () => {
     expect(checkIdClaims(good, expected, NOW)).toEqual({
       ok: true,
-      value: { subject: "subject-1", email: "rohit@example.com" },
+      value: {
+        subject: "subject-1",
+        email: "rohit@example.com",
+        name: "Rohit",
+      },
     });
+  });
+
+  it("returns no name for an account without one", () => {
+    for (const name of [undefined, 42]) {
+      const r = checkIdClaims({ ...good, name }, expected, NOW);
+      expect(r.ok && r.value.name).toBeNull();
+    }
+  });
+
+  it("allows a sign-in exactly five minutes old, and not a second older", () => {
+    expect(FRESH_SIGN_IN_SECONDS).toBe(300);
+    const at = (auth_time: number) =>
+      checkIdClaims({ ...good, auth_time }, expected, NOW);
+    expect(at(NOW - 300).ok).toBe(true);
+    expect(at(NOW - 301)).toEqual({ ok: false, error: "stale_sign_in" });
   });
 
   it('accepts email_verified sent as the string "true"', () => {
@@ -120,6 +128,12 @@ describe("checkIdClaims", () => {
     ["an access token", { ...good, token_use: "access" }, "not_an_id_token"],
     ["an expired token", { ...good, exp: NOW }, "expired"],
     ["a token with no expiry", { ...good, exp: undefined }, "expired"],
+    ["no auth_time", { ...good, auth_time: undefined }, "malformed"],
+    [
+      "an auth_time that is not seconds",
+      { ...good, auth_time: "now" },
+      "malformed",
+    ],
     ["no subject", { ...good, sub: "" }, "malformed"],
     ["a subject that is not a string", { ...good, sub: 42 }, "malformed"],
     ["no email", { ...good, email: undefined }, "malformed"],
@@ -142,8 +156,23 @@ describe("checkIdClaims", () => {
   });
 });
 
+describe("displayName", () => {
+  it("is the name Cognito holds", () => {
+    expect(displayName("Rohit", "r@example.com")).toBe("Rohit");
+  });
+
+  it("is the email before the @ when there is no name, or only spaces", () => {
+    expect(displayName(null, "rohit.y@example.com")).toBe("rohit.y");
+    expect(displayName("  ", "rohit.y@example.com")).toBe("rohit.y");
+  });
+});
+
 describe("signInDecision", () => {
-  const identity = { subject: "subject-1", email: "rohit@example.com" };
+  const identity = {
+    subject: "subject-1",
+    email: "rohit@example.com",
+    name: "Rohit",
+  };
 
   it("uses the user the subject already belongs to", () => {
     expect(signInDecision(identity, { id: UID })).toEqual({

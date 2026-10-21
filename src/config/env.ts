@@ -20,13 +20,15 @@ export type Config = {
   appBaseUrl: string;
   logLevel: LogLevel;
   sessionSecret: string;
-  /** The identity provider (ADR-002). Required: there is no other sign-in. */
+  /**
+   * The identity provider (ADR-002). Required: there is no other sign-in.
+   * Both values are public — the browser needs them to talk to Cognito on
+   * Keel's sign-in screens, and the server hands them to the page at runtime.
+   */
   cognito: {
-    /** The hosted login pages' origin, e.g. https://keel-1.auth.us-east-1.amazoncognito.com */
-    domain: string;
     poolId: string;
+    /** A public app client: it has no secret. */
     clientId: string;
-    clientSecret: string;
   };
 };
 
@@ -88,18 +90,6 @@ export function loadConfig(
     problems.push(`SESSION_SECRET must be at least 16 characters`);
   }
 
-  const cognitoDomain = required("COGNITO_DOMAIN");
-  if (cognitoDomain) {
-    try {
-      const u = new URL(cognitoDomain);
-      if (u.protocol !== "https:" || u.pathname !== "/") {
-        problems.push(`COGNITO_DOMAIN must be an https:// origin, no path`);
-      }
-    } catch {
-      problems.push(`COGNITO_DOMAIN must be a valid https:// URL`);
-    }
-  }
-
   // The pool id names its region before the underscore (us-east-1_AbC123);
   // the token issuer is built from it.
   const cognitoPoolId = required("COGNITO_POOL_ID");
@@ -111,7 +101,6 @@ export function loadConfig(
   }
 
   const cognitoClientId = required("COGNITO_CLIENT_ID");
-  const cognitoClientSecret = required("COGNITO_CLIENT_SECRET");
 
   if (problems.length > 0) {
     throw new ConfigError(problems);
@@ -123,10 +112,8 @@ export function loadConfig(
     logLevel: logLevelRaw as LogLevel,
     sessionSecret,
     cognito: {
-      domain: cognitoDomain.replace(/\/$/, ""),
       poolId: cognitoPoolId,
       clientId: cognitoClientId,
-      clientSecret: cognitoClientSecret,
     },
   };
 }

@@ -21,7 +21,7 @@ const PAGE = `<!doctype html>
     <strong>Requests here are real.</strong> Each one acts as whoever is signed in.
     On the deployed service it writes into the real record, and the record deletes
     nothing. Signed out, every protected request is refused with 401.
-    <a href="/v1/session/sign-in">Sign in</a>
+    <a href="/sign-in">Sign in</a>
   </p>
   <div id="swagger-ui"></div>
   <script src="/docs/swagger-ui-bundle.js"></script>

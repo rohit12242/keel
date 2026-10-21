@@ -27,7 +27,7 @@ export async function testUser(tz = "Asia/Kolkata"): Promise<TestUser> {
     `INSERT INTO "user" (id, email, tz, idp_subject) VALUES ($1, $2, $3, $4)`,
     [id, email, tz, `itest|${id}`],
   );
-  return { id, email, cookie: cookieFor(id) };
+  return { id, email, cookie: cookieFor(id, new Date(), email) };
 }
 
 /**

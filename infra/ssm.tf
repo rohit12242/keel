@@ -17,14 +17,8 @@ resource "aws_ssm_parameter" "session_secret" {
   value = random_password.session.result
 }
 
-# Sign-in (ADR-002). The client secret is a SecureString; the rest are not
-# secret but live here too, so every Cognito value reaches the task one way.
-resource "aws_ssm_parameter" "cognito_domain" {
-  name  = "/keel/COGNITO_DOMAIN"
-  type  = "String"
-  value = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${var.region}.amazoncognito.com"
-}
-
+# Sign-in (ADR-002). Neither value is secret — the browser needs both — but
+# they live here too, so every Cognito value reaches the task one way.
 resource "aws_ssm_parameter" "cognito_pool_id" {
   name  = "/keel/COGNITO_POOL_ID"
   type  = "String"
@@ -34,11 +28,5 @@ resource "aws_ssm_parameter" "cognito_pool_id" {
 resource "aws_ssm_parameter" "cognito_client_id" {
   name  = "/keel/COGNITO_CLIENT_ID"
   type  = "String"
-  value = aws_cognito_user_pool_client.app.id
-}
-
-resource "aws_ssm_parameter" "cognito_client_secret" {
-  name  = "/keel/COGNITO_CLIENT_SECRET"
-  type  = "SecureString"
-  value = aws_cognito_user_pool_client.app.client_secret
+  value = aws_cognito_user_pool_client.web.id
 }
