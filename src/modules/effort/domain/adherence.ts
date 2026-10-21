@@ -24,6 +24,9 @@ export function figures(
   let plannedDays = 0;
   let worked = 0;
   let met = 0;
+  let over = 0;
+  let weeks = 0;
+  let weeksMet = 0;
 
   for (const slot of slots) {
     const minutes = slot.activeDays.map((d) => dailyMinutes[d] ?? 0);
@@ -33,6 +36,8 @@ export function figures(
     target += slot.targetMinutes;
     // Capped per slot: a long day cannot make up a missed one (rule 3).
     credited += Math.min(inSlot, slot.targetMinutes);
+    // What the cap leaves out, so no minute is lost (rule 7).
+    over += inSlot - Math.min(inSlot, slot.targetMinutes);
 
     if (slot.periodKind === "day") {
       plannedDays += 1;
@@ -46,6 +51,9 @@ export function figures(
         minutes.filter((m) => m >= slot.minutesPerDay).length,
         slot.targetDays,
       );
+      // A week is met when its minutes reach its target (rule 8).
+      weeks += 1;
+      if (inSlot >= slot.targetMinutes) weeksMet += 1;
     }
   }
 
@@ -64,5 +72,8 @@ export function figures(
     planned_days_worked: worked,
     target_met_days: met,
     extra_off_day_minutes: extra,
+    over_target_minutes: over,
+    planned_weeks: weeks,
+    target_met_weeks: weeksMet,
   };
 }

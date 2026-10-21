@@ -81,6 +81,9 @@ describe("assembleSummary", () => {
         planned_days_worked: 0,
         target_met_days: 0,
         extra_off_day_minutes: 0,
+        over_target_minutes: 0,
+        planned_weeks: 0,
+        target_met_weeks: 0,
       },
     });
   });

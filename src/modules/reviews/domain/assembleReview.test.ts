@@ -111,6 +111,81 @@ describe("windowFigures", () => {
       planned_days_worked: 2,
       target_met_days: 1,
       extra_off_day_minutes: 20, // Saturday
+      over_target_minutes: 0,
+      planned_weeks: 0,
+      target_met_weeks: 0,
+    });
+  });
+});
+
+describe("windowFigures — the sum (adherence.md rule 7)", () => {
+  // Credited over the slots that start in the window, on the window's days.
+  const credited = (
+    window: { period_start: string; period_end: string },
+    slots: typeof SLOTS,
+    daily: Record<string, number>,
+  ) =>
+    slots
+      .filter(
+        (s) =>
+          s.periodStart >= window.period_start &&
+          s.periodStart <= window.period_end,
+      )
+      .reduce((sum, s) => {
+        const inSlot = s.activeDays.reduce((t, d) => t + (daily[d] ?? 0), 0);
+        return sum + Math.min(inSlot, s.targetMinutes);
+      }, 0);
+
+  const inside = (
+    window: { period_start: string; period_end: string },
+    daily: Record<string, number>,
+  ) =>
+    Object.entries(daily)
+      .filter(([d]) => d >= window.period_start && d <= window.period_end)
+      .reduce((sum, [, m]) => sum + m, 0);
+
+  it("holds for a fixed weekly window, with a long day and an off day", () => {
+    const daily = { ...facts().daily, "2026-09-18": 150 };
+    const f = windowFigures(review(), SLOTS, daily);
+    expect(f.logged_minutes).toBe(inside(review(), daily));
+    expect(f.logged_minutes).toBe(
+      credited(review(), SLOTS, daily) +
+        f.over_target_minutes +
+        f.extra_off_day_minutes,
+    );
+    expect(f.over_target_minutes).toBe(90);
+  });
+
+  it("holds for a flexible weekly window, whose week slot starts with it", () => {
+    const slots = planSlots(
+      [
+        {
+          scheduleMode: "flexible",
+          plannedWeekdays: [],
+          daysPerWeek: 3,
+          minutesPerPlannedDay: 60,
+          startDate: "2026-09-07",
+          endDate: "2026-09-27",
+        },
+      ],
+      [{ occurred_on: "2026-09-07", change: "created" }],
+    );
+    const daily = {
+      "2026-09-14": 90,
+      "2026-09-15": 60,
+      "2026-09-16": 60,
+      "2026-09-17": 30,
+    };
+    const f = windowFigures(review(), slots, daily);
+    expect(f.logged_minutes).toBe(
+      credited(review(), slots, daily) +
+        f.over_target_minutes +
+        f.extra_off_day_minutes,
+    );
+    expect(f).toMatchObject({
+      over_target_minutes: 60,
+      planned_weeks: 1,
+      target_met_weeks: 1,
     });
   });
 });

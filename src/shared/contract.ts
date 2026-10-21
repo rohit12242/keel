@@ -94,6 +94,9 @@ export type Figures = {
   planned_days_worked?: number;
   target_met_days?: number;
   extra_off_day_minutes?: number;
+  over_target_minutes?: number;
+  planned_weeks?: number;
+  target_met_weeks?: number;
 };
 
 export type ObjectiveStatus = "active" | "paused" | "completed" | "ended";

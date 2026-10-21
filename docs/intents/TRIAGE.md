@@ -128,3 +128,17 @@ standard `name` attribute (the app client then needs the `profile` scope, and
 whether managed login shows an optional attribute must be checked first, because
 making it required replaces the pool), or onboarding asks for it and the app stores
 it. Either way, `GET /session` returns the `User` with `name`.
+
+### A monthly review loses minutes where a flexible week crosses its start · found in I-03
+
+`windowFigures` (`reviews/domain/assembleReview.ts`) gives a window the slots that
+start inside it and the minutes on its days. A flexible objective's week slots tile
+from its segment start, and a monthly window starts on the same day of the month,
+so a week slot can begin in one monthly window and end in the next. Its days in the
+later window are covered by a slot, so they are not extra, and the slot started
+before the window, so they are not credited either: those minutes appear in
+`logged_minutes` and nowhere else, and logged = credited + over + extra
+(`docs/domain/adherence.md`, rule 7) fails for that window. Weekly windows and plan
+weeks never cross a week slot, so only monthly reviews of flexible objectives are
+affected. One way out: a week belongs to the window that holds its last day, and its
+minutes count there.
