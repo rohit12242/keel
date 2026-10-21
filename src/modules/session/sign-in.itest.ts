@@ -58,6 +58,7 @@ function claims(over: Record<string, unknown> = {}) {
     aud: cognito.clientId,
     token_use: "id",
     exp: Math.floor(Date.now() / 1000) + 3600,
+    auth_time: Math.floor(Date.now() / 1000),
     sub: `itest|${randomUUID()}`,
     email: `itest-${randomUUID()}@keel.test`,
     email_verified: true,
@@ -248,8 +249,9 @@ describe("DELETE /v1/session", () => {
   });
 
   it("204 and a cleared cookie with one", async () => {
+    const id = randomUUID();
     const cookie = sessionCookie(
-      randomUUID(),
+      { id, email: `itest-${id}@keel.test`, name: null },
       new Date(),
       getConfig().sessionSecret,
     ).split(";")[0];

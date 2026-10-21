@@ -6,6 +6,7 @@ import {
   readCookie,
   readSignIn,
   sessionCookie,
+  sessionOf,
   sessionUserId,
   sign,
   signInCookie,
@@ -14,6 +15,7 @@ import {
 
 const SECRET = "a-session-secret-of-some-length";
 const UID = "0b6f3c1e-7d1a-4c55-9a51-6f0c2a8e9b11";
+const USER = { id: UID, email: "rohit@example.com", name: "Rohit" };
 const NOW = new Date("2026-10-13T12:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -67,7 +69,7 @@ describe("readCookie", () => {
 });
 
 describe("the session cookie", () => {
-  const set = sessionCookie(UID, NOW, SECRET);
+  const set = sessionCookie(USER, NOW, SECRET);
 
   it("is HttpOnly, Secure, SameSite=Lax, site-wide, for thirty days", () => {
     expect(set).toMatch(
@@ -79,6 +81,10 @@ describe("the session cookie", () => {
     expect(
       sessionUserId(sent(set), new Date(NOW.getTime() + 29 * DAY), SECRET),
     ).toBe(UID);
+  });
+
+  it("carries the user's email and name, read with no database", () => {
+    expect(sessionOf(sent(set), NOW, SECRET)).toEqual(USER);
   });
 
   it("names nobody once expired, under another secret, or absent", () => {

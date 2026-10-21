@@ -101,7 +101,14 @@ export async function completeSignIn(
 
   return {
     ok: true,
-    cookies: [sessionCookie(userId, now, sessionSecret), clearSignInCookie()],
+    cookies: [
+      sessionCookie(
+        { id: userId, email: identity.value.email, name: identity.value.name },
+        now,
+        sessionSecret,
+      ),
+      clearSignInCookie(),
+    ],
   };
 }
 

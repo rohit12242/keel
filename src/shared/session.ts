@@ -6,6 +6,7 @@ import {
   newSignIn,
   SESSION_SECONDS,
   SIGN_IN_SECONDS,
+  type SessionUser,
 } from "@/modules/session/domain/session";
 
 /**
@@ -74,29 +75,37 @@ function setCookie(
 export const nowSeconds = (now: Date): number =>
   Math.floor(now.getTime() / 1000);
 
-/** The Set-Cookie value that starts a session for `userId`. */
+/** The Set-Cookie value that starts a session for `user`. */
 export function sessionCookie(
-  userId: string,
+  user: SessionUser,
   now: Date,
   secret: string,
 ): string {
-  const payload = newSession(userId, nowSeconds(now));
+  const payload = newSession(user, nowSeconds(now));
   return setCookie(SESSION_COOKIE, sign(payload, secret), SESSION_SECONDS, "/");
 }
 
 export const clearSessionCookie = (): string =>
   setCookie(SESSION_COOKIE, "", 0, "/");
 
-/** The signed-in user's id, if the request carries a live session. */
-export function sessionUserId(
+/** The signed-in user, if the request carries a live session. */
+export function sessionOf(
   cookieHeader: string | null,
   now: Date,
   secret: string,
-): string | null {
+): SessionUser | null {
   const raw = readCookie(cookieHeader, SESSION_COOKIE);
   if (!raw) return null;
-  return liveSession(verify(raw, secret), nowSeconds(now))?.uid ?? null;
+  const live = liveSession(verify(raw, secret), nowSeconds(now));
+  return live ? { id: live.uid, email: live.email, name: live.name } : null;
 }
+
+/** The signed-in user's id, if the request carries a live session. */
+export const sessionUserId = (
+  cookieHeader: string | null,
+  now: Date,
+  secret: string,
+): string | null => sessionOf(cookieHeader, now, secret)?.id ?? null;
 
 /** The Set-Cookie value that carries a sign-in to the provider and back. */
 export function signInCookie(
