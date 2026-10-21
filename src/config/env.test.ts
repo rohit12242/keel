@@ -6,10 +6,8 @@ const valid = {
   APP_BASE_URL: "http://localhost:3000",
   LOG_LEVEL: "info",
   SESSION_SECRET: "0123456789abcdef0123",
-  COGNITO_DOMAIN: "https://keel-1.auth.us-east-1.amazoncognito.com",
   COGNITO_POOL_ID: "us-east-1_AbC123",
   COGNITO_CLIENT_ID: "client",
-  COGNITO_CLIENT_SECRET: "secret",
 };
 
 describe("loadConfig", () => {
@@ -25,10 +23,8 @@ describe("loadConfig", () => {
         "APP_BASE_URL",
         "LOG_LEVEL",
         "SESSION_SECRET",
-        "COGNITO_DOMAIN",
         "COGNITO_POOL_ID",
         "COGNITO_CLIENT_ID",
-        "COGNITO_CLIENT_SECRET",
       ]) {
         expect(msg).toContain(name);
       }
@@ -47,29 +43,20 @@ describe("loadConfig", () => {
     );
   });
 
-  it("passes the Cognito variables through, the domain without a trailing slash", () => {
-    const c = loadConfig({
-      ...valid,
-      COGNITO_DOMAIN: "https://keel-1.auth.us-east-1.amazoncognito.com/",
-    });
-    expect(c.cognito).toEqual({
-      domain: "https://keel-1.auth.us-east-1.amazoncognito.com",
+  it("passes the pool and the public client through, and nothing else", () => {
+    expect(loadConfig(valid).cognito).toEqual({
       poolId: "us-east-1_AbC123",
       clientId: "client",
-      clientSecret: "secret",
     });
   });
 
-  it("rejects a COGNITO_DOMAIN that is not an https origin", () => {
-    for (const bad of [
-      "http://keel-1.auth.us-east-1.amazoncognito.com",
-      "https://keel-1.auth.us-east-1.amazoncognito.com/login",
-      "keel-1",
-    ]) {
-      expect(() => loadConfig({ ...valid, COGNITO_DOMAIN: bad })).toThrow(
-        /COGNITO_DOMAIN/,
-      );
-    }
+  it("no longer needs the hosted domain or a client secret (I-04)", () => {
+    const c = loadConfig({
+      ...valid,
+      COGNITO_DOMAIN: "https://keel-1.auth.us-east-1.amazoncognito.com",
+      COGNITO_CLIENT_SECRET: "secret",
+    });
+    expect(c.cognito).toEqual(loadConfig(valid).cognito);
   });
 
   it("rejects a COGNITO_POOL_ID with no region", () => {

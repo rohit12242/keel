@@ -81,6 +81,10 @@ const entryParams = (entryId: string) => ({
 
 export const AUTHORIZATION: AuthRow[] = [
   {
+    operationId: "getSession",
+    call: (cookie) => session.GET(req("GET", "/v1/session", cookie)),
+  },
+  {
     operationId: "deleteSession",
     call: (cookie) =>
       session.DELETE(req("DELETE", "/v1/session", cookie), undefined),

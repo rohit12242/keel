@@ -229,6 +229,9 @@ export type ScheduleGrid = {
   days: ScheduleDay[];
 };
 
+/** Who is signed in (`GET /v1/session`); `name` already falls back to the email. */
+export type SessionUser = { id: string; email: string; name: string };
+
 export type ProblemError = { field: string; message: string };
 
 export type Problem = {

@@ -2,14 +2,11 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   clearSessionCookie,
-  clearSignInCookie,
   readCookie,
-  readSignIn,
   sessionCookie,
   sessionOf,
   sessionUserId,
   sign,
-  signInCookie,
   verify,
 } from "./session";
 
@@ -98,36 +95,6 @@ describe("the session cookie", () => {
   it("is cleared with an empty value and no lifetime", () => {
     expect(clearSessionCookie()).toBe(
       "keel_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax",
-    );
-  });
-});
-
-describe("the sign-in cookie", () => {
-  const set = signInCookie("the-state", "the-verifier", NOW, SECRET);
-
-  it("is scoped to /v1/session and lasts ten minutes", () => {
-    expect(set).toMatch(
-      /; Path=\/v1\/session; Max-Age=600; HttpOnly; Secure; SameSite=Lax$/,
-    );
-  });
-
-  it("carries the state and verifier back while live", () => {
-    expect(readSignIn(sent(set), NOW, SECRET)).toEqual({
-      state: "the-state",
-      verifier: "the-verifier",
-    });
-  });
-
-  it("is gone after ten minutes, or when absent", () => {
-    expect(
-      readSignIn(sent(set), new Date(NOW.getTime() + 600_000), SECRET),
-    ).toBeNull();
-    expect(readSignIn("other=1", NOW, SECRET)).toBeNull();
-  });
-
-  it("is cleared on its own path", () => {
-    expect(clearSignInCookie()).toBe(
-      "keel_sign_in=; Path=/v1/session; Max-Age=0; HttpOnly; Secure; SameSite=Lax",
     );
   });
 });

@@ -10,9 +10,6 @@ import { err, ok, type Result } from "@/shared/result";
 /** How long a session lasts. ADR-002 asks for at least seven days. */
 export const SESSION_SECONDS = 30 * 24 * 60 * 60;
 
-/** How long a started sign-in may take to come back from the provider. */
-export const SIGN_IN_SECONDS = 10 * 60;
-
 /**
  * How old a sign-in may be when it is exchanged for a session (ADR-002). An
  * ID token is valid for longer; this is what stops a leaked one becoming a
@@ -21,7 +18,7 @@ export const SIGN_IN_SECONDS = 10 * 60;
 export const FRESH_SIGN_IN_SECONDS = 5 * 60;
 
 /** Who a session belongs to, copied from the ID token at the exchange. */
-export type SessionUser = { id: string; email: string; name: string | null };
+export type SignedIn = { id: string; email: string; name: string | null };
 
 /**
  * What `keel_session` carries: the user, their email and name, and when the
@@ -34,9 +31,6 @@ export type SessionPayload = {
   exp: number;
 };
 
-/** What the sign-in cookie carries between leaving for the provider and coming back. */
-export type SignInPayload = { state: string; verifier: string; exp: number };
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -45,18 +39,12 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 const isWholeSeconds = (v: unknown): v is number =>
   typeof v === "number" && Number.isInteger(v) && v > 0;
 
-export const newSession = (user: SessionUser, now: number): SessionPayload => ({
+export const newSession = (user: SignedIn, now: number): SessionPayload => ({
   uid: user.id,
   email: user.email,
   name: user.name,
   exp: now + SESSION_SECONDS,
 });
-
-export const newSignIn = (
-  state: string,
-  verifier: string,
-  now: number,
-): SignInPayload => ({ state, verifier, exp: now + SIGN_IN_SECONDS });
 
 /**
  * A session payload, if `value` is one that is still live at `now`. The
@@ -83,16 +71,6 @@ export function displayName(name: string | null, email: string): string {
   return given ? given : email.slice(0, email.indexOf("@"));
 }
 
-/** The same, for the sign-in cookie. */
-export function liveSignIn(value: unknown, now: number): SignInPayload | null {
-  if (!isRecord(value)) return null;
-  const { state, verifier, exp } = value;
-  if (typeof state !== "string" || state.length === 0) return null;
-  if (typeof verifier !== "string" || verifier.length === 0) return null;
-  if (!isWholeSeconds(exp) || exp <= now) return null;
-  return { state, verifier, exp };
-}
-
 /** The token issuer for a pool: its region is the pool id's prefix. */
 export const issuerFor = (poolId: string): string =>
   `https://cognito-idp.${poolId.split("_")[0]}.amazonaws.com/${poolId}`;
@@ -110,11 +88,9 @@ export type ClaimsRefusal =
   | "email_not_verified";
 
 /**
- * Check the identity token's claims. The token comes straight from the
- * provider's token endpoint over TLS, in exchange for a code and the client
- * secret, so its origin is already established (OIDC Core 3.1.3.7); what is
- * left is to confirm it was issued by this pool, to this client, as an id
- * token, is not expired, comes from a sign-in no older than five minutes, and
+ * Check the identity token's claims. Its signature has already been checked
+ * against the pool's published keys (`cognito.ts`); what is left is to
+ * confirm it was issued by this pool, to this client, as an id token, is not expired, comes from a sign-in no older than five minutes, and
  * names a verified email. The name is optional: an account may have none.
  */
 export function checkIdClaims(

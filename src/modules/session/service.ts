@@ -1,85 +1,70 @@
-import { createHash, randomBytes } from "node:crypto";
 import { getConfig } from "@/config/env";
+import type { SessionUser } from "@/shared/contract";
 import {
   clearSessionCookie,
-  clearSignInCookie,
   nowSeconds,
-  readSignIn,
   sessionCookie,
-  signInCookie,
+  sessionOf,
 } from "@/shared/session";
-import { checkIdClaims, issuerFor, signInDecision } from "./domain/session";
-import { authorizeUrl, exchangeCode } from "./idp";
+import {
+  checkIdClaims,
+  displayName,
+  issuerFor,
+  signInDecision,
+} from "./domain/session";
+import { fetchSigningKeys, verifySignature } from "./cognito";
 import { createUser, findUserBySubject } from "./repo";
 
 /**
- * session/service — signing in and out (ADR-002). The provider is contacted
- * once, at the callback; everything after reads Keel's own cookie.
+ * session/service — turning a sign-in into a session, reading it, ending it
+ * (ADR-002). The browser proves the password to Cognito itself; Keel only
+ * ever sees the ID token, and reaches Cognito only for its signing keys.
  */
 
-const randomToken = (): string => randomBytes(32).toString("base64url");
-
-const challengeFor = (verifier: string): string =>
-  createHash("sha256").update(verifier).digest("base64url");
-
-function provider() {
-  const { cognito, appBaseUrl } = getConfig();
-  return {
-    provider: {
-      domain: cognito.domain,
-      clientId: cognito.clientId,
-      clientSecret: cognito.clientSecret,
-    },
-    redirectUri: `${appBaseUrl}/v1/session/callback`,
-  };
-}
-
-/** Where to send the browser, and the cookie that remembers this attempt. */
-export function startSignIn(now: Date): { location: string; cookie: string } {
-  const { provider: p, redirectUri } = provider();
-  const state = randomToken();
-  const verifier = randomToken();
-  return {
-    location: authorizeUrl(p, redirectUri, state, challengeFor(verifier)),
-    cookie: signInCookie(state, verifier, now, getConfig().sessionSecret),
-  };
-}
-
-export type CompleteSignIn =
-  | { ok: true; cookies: string[] }
-  | { ok: false; kind: "bad_state" }
+export type CreateSession =
+  | { ok: true; cookie: string }
+  | { ok: false; kind: "wrong_origin" }
+  | { ok: false; kind: "invalid" }
   | { ok: false; kind: "refused"; reason: string }
   | { ok: false; kind: "unavailable" }
   | { ok: false; kind: "email_taken" };
 
 /**
- * Finish a sign-in: the browser must bring back the `state` it left with,
- * the provider must accept the code, and the identity must check out. Then
- * the user is found by subject or created, and a session starts.
+ * Exchange a fresh Cognito ID token for Keel's session. In this order, so
+ * each refusal costs as little as possible: the request must come from
+ * Keel's own origin (before anything is read or fetched), the body must name
+ * a token, the token must be signed by the pool and say what Keel accepts —
+ * including a sign-in no older than five minutes — and then the user is found
+ * by subject or created.
  */
-export async function completeSignIn(
-  code: string | null,
-  state: string | null,
-  cookieHeader: string | null,
+export async function createSession(
+  origin: string | null,
+  body: unknown,
   now: Date,
-): Promise<CompleteSignIn> {
-  const { sessionSecret, cognito } = getConfig();
-  const started = readSignIn(cookieHeader, now, sessionSecret);
-  if (!code || !state || !started || started.state !== state) {
-    return { ok: false, kind: "bad_state" };
+): Promise<CreateSession> {
+  const { appBaseUrl, sessionSecret, cognito } = getConfig();
+  if (origin !== new URL(appBaseUrl).origin) {
+    return { ok: false, kind: "wrong_origin" };
   }
 
-  const { provider: p, redirectUri } = provider();
-  const exchange = await exchangeCode(p, redirectUri, code, started.verifier);
-  if (!exchange.ok) {
-    return exchange.kind === "refused"
-      ? { ok: false, kind: "refused", reason: "code_refused" }
-      : { ok: false, kind: "unavailable" };
+  const idToken =
+    typeof body === "object" && body !== null
+      ? (body as { id_token?: unknown }).id_token
+      : undefined;
+  if (typeof idToken !== "string" || idToken.length === 0) {
+    return { ok: false, kind: "invalid" };
   }
+
+  const issuer = issuerFor(cognito.poolId);
+  const keys = await fetchSigningKeys(issuer);
+  if (!keys.ok) return { ok: false, kind: "unavailable" };
+
+  const signed = verifySignature(idToken, keys.keys);
+  if (!signed.ok) return { ok: false, kind: "refused", reason: signed.reason };
 
   const identity = checkIdClaims(
-    exchange.claims,
-    { issuer: issuerFor(cognito.poolId), clientId: cognito.clientId },
+    signed.claims,
+    { issuer, clientId: cognito.clientId },
     nowSeconds(now),
   );
   if (!identity.ok) {
@@ -99,17 +84,26 @@ export async function completeSignIn(
     userId = created.id;
   }
 
+  const { email, name } = identity.value;
   return {
     ok: true,
-    cookies: [
-      sessionCookie(
-        { id: userId, email: identity.value.email, name: identity.value.name },
-        now,
-        sessionSecret,
-      ),
-      clearSignInCookie(),
-    ],
+    cookie: sessionCookie({ id: userId, email, name }, now, sessionSecret),
   };
+}
+
+/** Who is signed in, from the cookie alone: no database, no Cognito. */
+export function signedInUser(
+  cookieHeader: string | null,
+  now: Date,
+): SessionUser | null {
+  const user = sessionOf(cookieHeader, now, getConfig().sessionSecret);
+  return user
+    ? {
+        id: user.id,
+        email: user.email,
+        name: displayName(user.name, user.email),
+      }
+    : null;
 }
 
 /** Signing out clears the cookie; nothing is held server-side to revoke. */

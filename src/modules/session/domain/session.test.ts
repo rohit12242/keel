@@ -5,11 +5,8 @@ import {
   FRESH_SIGN_IN_SECONDS,
   issuerFor,
   liveSession,
-  liveSignIn,
   newSession,
-  newSignIn,
   SESSION_SECONDS,
-  SIGN_IN_SECONDS,
   signInDecision,
 } from "./session";
 
@@ -60,35 +57,6 @@ describe("the session", () => {
       { ...good, name: 42 },
     ]) {
       expect(liveSession(bad, NOW)).toBeNull();
-    }
-  });
-});
-
-describe("the sign-in cookie", () => {
-  it("lasts ten minutes", () => {
-    expect(newSignIn("s", "v", NOW)).toEqual({
-      state: "s",
-      verifier: "v",
-      exp: NOW + SIGN_IN_SECONDS,
-    });
-  });
-
-  it("is live until its expiry", () => {
-    const s = newSignIn("s", "v", NOW);
-    expect(liveSignIn(s, NOW)).toEqual(s);
-    expect(liveSignIn(s, s.exp)).toBeNull();
-  });
-
-  it("refuses a payload missing its state or verifier", () => {
-    for (const bad of [
-      undefined,
-      { state: "", verifier: "v", exp: NOW + 1 },
-      { state: "s", verifier: "", exp: NOW + 1 },
-      { state: 1, verifier: "v", exp: NOW + 1 },
-      { state: "s", verifier: null, exp: NOW + 1 },
-      { state: "s", verifier: "v", exp: 0 },
-    ]) {
-      expect(liveSignIn(bad, NOW)).toBeNull();
     }
   });
 });

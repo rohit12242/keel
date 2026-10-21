@@ -87,14 +87,13 @@ Open `.env` and set:
 | `APP_BASE_URL` | `http://localhost:3000` |
 | `LOG_LEVEL` | `info` |
 | `SESSION_SECRET` | any long random string — generate one with `openssl rand -hex 32` |
-| `COGNITO_DOMAIN` | `terraform -chdir=infra output -raw cognito_domain` |
 | `COGNITO_POOL_ID` | `aws ssm get-parameter --name /keel/COGNITO_POOL_ID --query Parameter.Value --output text` |
-| `COGNITO_CLIENT_ID` | the same, for `/keel/COGNITO_CLIENT_ID` |
-| `COGNITO_CLIENT_SECRET` | the same, for `/keel/COGNITO_CLIENT_SECRET`, adding `--with-decryption` |
+| `COGNITO_CLIENT_ID` | `terraform -chdir=infra output -raw cognito_web_client_id` |
 
 The `DATABASE_URL` above matches the credentials in `docker-compose.yml`. There is
-no local identity provider: you sign in against the deployed Cognito pool, whose app
-client accepts a callback on `http://localhost:3000`. The AWS commands need the
+no local identity provider: you sign in against the deployed Cognito pool. Its app
+client is public — the browser talks to it from Keel's own sign-in screen — so it
+needs no callback URL and has no secret (ADR-002). The AWS commands need the
 `keel-deploy` profile (`AWS_PROFILE=keel-deploy`). See `docs/configuration.md` for
 what each variable does.
 
@@ -105,9 +104,9 @@ npm run dev
 ```
 
 Then open http://localhost:3000 and follow **Sign in**. The first time, choose
-*Sign up* on Cognito's page and confirm the code it emails you. You come back to
+*Create one*, and enter the 6-digit code Keel's email sends you. You land on
 Today as a new, empty user — every request after that carries your
-`keel_session` cookie.
+`keel_session` cookie, and the browser keeps nothing else.
 
 ## 7. How to tell it worked
 
