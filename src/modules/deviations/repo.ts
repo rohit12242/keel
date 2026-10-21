@@ -66,7 +66,8 @@ export type DeviationRow = {
   tz: string;
   kind: "chosen" | "drifted";
   what_happened: string;
-  reasoning: string;
+  /** Null on a drifted deviation. */
+  reasoning: string | null;
   did_instead: string | null;
   minutes: number;
   pattern_id: string | null;

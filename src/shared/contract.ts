@@ -76,7 +76,8 @@ export type Deviation = {
   tz: string;
   kind: "chosen" | "drifted";
   what_happened: string;
-  reasoning: string;
+  /** A chosen deviation's; a drifted one has none. */
+  reasoning?: string;
   did_instead?: string;
   minutes: number;
   pattern_id: string | null;

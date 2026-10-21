@@ -43,10 +43,17 @@ export async function createDeviationPattern(
   return insertPattern(userId, validated.value);
 }
 
-/** The contract's Deviation: `did_instead` is left out when there was none. */
+/**
+ * The contract's Deviation: `did_instead` is left out when there was none,
+ * and `reasoning` when there is none — a drifted deviation's.
+ */
 export function present(row: DeviationRow): Deviation {
-  const { did_instead, ...rest } = row;
-  return did_instead === null ? rest : { ...rest, did_instead };
+  const { did_instead, reasoning, ...rest } = row;
+  return {
+    ...rest,
+    ...(reasoning === null ? {} : { reasoning }),
+    ...(did_instead === null ? {} : { did_instead }),
+  };
 }
 
 export type CreateDeviationResult =

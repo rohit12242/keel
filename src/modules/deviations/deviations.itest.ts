@@ -143,6 +143,28 @@ describe("deviations (real Postgres)", () => {
     expect(listed.patterns.find((p) => p.id === mine.id)?.occurrences).toBe(1);
   });
 
+  it("201s a drifted deviation with no reasoning, and says none", async () => {
+    // JSON drops an undefined field, so the body carries no reasoning.
+    const res = await post(body({ kind: "drifted", reasoning: undefined }));
+    expect(res.status).toBe(201);
+    const made = (await res.json()) as Record<string, unknown>;
+    expect(made.kind).toBe("drifted");
+    expect("reasoning" in made).toBe(false);
+  });
+
+  it("422s a chosen deviation without its reasoning, writing nothing", async () => {
+    const chosen = body({
+      what_happened: "no reason given",
+      reasoning: undefined,
+    });
+    expect((await post(chosen)).status).toBe(422);
+    const left = await query(
+      `SELECT 1 FROM deviation WHERE user_id = $1 AND what_happened = $2`,
+      [me.id, "no reason given"],
+    );
+    expect(left.rowCount).toBe(0);
+  });
+
   it("400s a body that is not JSON or not a deviation", async () => {
     expect((await post("{nope")).status).toBe(400);
     expect((await post(body({ objective_ids: [] }))).status).toBe(400);
