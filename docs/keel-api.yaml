@@ -199,6 +199,46 @@ paths:
         '503': { $ref: '#/components/responses/Unavailable' }
 
   /objectives/{objectiveId}/effort-entries:
+    get:
+      tags: [Effort]
+      summary: An objective's entries over a date range, with their times
+      description: |
+        The Effort tab's *Last day* card and *Week* dialog. One call for any
+        range, so a week is not seven calls to `GET /day/{date}`. Read-only:
+        entries are edited from Today.
+      operationId: listObjectiveEntries
+      parameters:
+        - { $ref: '#/components/parameters/objectiveId' }
+        - name: from
+          in: query
+          required: true
+          description: First day, inclusive.
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          description: Last day, inclusive.
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: The entries in the range, by date, then start time, then when each was logged.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries:
+                    type: array
+                    items: { $ref: '#/components/schemas/EffortEntry' }
+        '400':
+          description: '`from` or `to` is missing or malformed, or `to` is before `from`.'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
     post:
       tags: [Effort]
       summary: Log effort
@@ -206,6 +246,10 @@ paths:
         `local_date` and `tz` are both required and both come from the client.
         The server never derives the day from the time the request arrived — an
         entry logged at 23:55 belongs to that date for good (NFR-12).
+
+        Effort is logged **only for today**: `local_date` must be today in `tz`.
+        Once a day is over, its effort is fixed, so a saved review's recomputed
+        figures move only if a rule changes (`docs/erd.md`, invariant 18).
       operationId: createEffortEntry
       parameters: [{ $ref: '#/components/parameters/objectiveId' }]
       requestBody:
@@ -225,7 +269,9 @@ paths:
         '422':
           description: |
             The objective is not active, or `local_date` falls outside every plan
-            segment. Ended and completed objectives accept no new effort.
+            segment, or `local_date` is not today in `tz`, or the entry's start and
+            minutes overlap another of the caller's entries on that day, under any
+            objective. Ended and completed objectives accept no new effort.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -236,8 +282,8 @@ paths:
       tags: [Effort]
       summary: Edit an entry
       description: |
-        Editable only from Today, which the contract enforces by refusing to
-        change `local_date`. A mistake on the wrong day is deleted and re-logged.
+        Editable only from Today, and only on the entry's own day in the zone it
+        was logged in. `local_date` cannot be changed.
       operationId: updateEffortEntry
       parameters: [{ $ref: '#/components/parameters/entryId' }]
       requestBody:
@@ -248,7 +294,7 @@ paths:
               type: object
               properties:
                 minutes: { type: integer, minimum: 1, maximum: 1440 }
-                occurred_at_local: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+                occurred_at_local: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
                 note: { type: string, maxLength: 2000 }
                 link: { type: [string, 'null'], maxLength: 500 }
       responses:
@@ -262,7 +308,9 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422':
           description: |
-            The entry's objective is not active. Effort on a completed, ended or
+            The entry's objective is not active, or the entry's day is over in the
+            zone it was logged in, or the new start and minutes overlap another of
+            the caller's entries on that day. Effort on a completed, ended or
             paused objective is the record as it stood, and is corrected only
             while the objective is running — the same rule that stops new effort
             being logged against it.
@@ -281,10 +329,11 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422':
           description: |
-            The entry's objective is not active. Effort on a completed, ended or
-            paused objective is the record as it stood, and is corrected only
-            while the objective is running — the same rule that stops new effort
-            being logged against it.
+            The entry's objective is not active, or the entry's day is over in the
+            zone it was logged in. Effort on a completed, ended or paused
+            objective is the record as it stood, and is corrected only while the
+            objective is running — the same rule that stops new effort being
+            logged against it.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -353,7 +402,9 @@ paths:
             flexible schedule, or a day count for a fixed one — or the parked
             idea named is not the caller's, or is not **approved** — only an
             approved idea can be taken. A locked one may be; that is an early
-            take, not an error (`docs/domain/parking-lock.md`).
+            take, not an error (`docs/domain/parking-lock.md`). The `taken` verdict
+            is dated today in `tz`, the day the objective is created, not
+            `starts_on`.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -587,16 +638,23 @@ paths:
       parameters: [{ $ref: '#/components/parameters/objectiveId' }]
       responses:
         '200':
-          description: Saved reviews newest last, plus the draft if one exists.
+          description: |
+            Saved reviews newest last, plus the draft if one exists, and every
+            window that is due — started or not — so the tab can show one card per
+            owed review (`docs/domain/review-windows.md`).
           content:
             application/json:
               schema:
                 type: object
-                required: [reviews]
+                required: [reviews, due]
                 properties:
                   reviews:
                     type: array
                     items: { $ref: '#/components/schemas/ReviewSummary' }
+                  due:
+                    type: array
+                    description: Oldest first. The same windows `reviews_due` counts.
+                    items: { $ref: '#/components/schemas/DueReview' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/Unavailable' }
@@ -934,6 +992,15 @@ paths:
       tags: [Parking lot]
       summary: The parking lot
       operationId: listParkedIdeas
+      parameters:
+        - name: caught_on
+          in: query
+          required: false
+          description: |
+            A day an idea might be caught on. When sent, the response also carries
+            the lock an idea parked that day would get — the *Park an idea* dialog's
+            "Locked until" before anything is saved.
+          schema: { type: string, format: date }
       responses:
         '200':
           description: Ideas with their current verdict and whether the lock has lifted.
@@ -946,6 +1013,18 @@ paths:
                   ideas:
                     type: array
                     items: { $ref: '#/components/schemas/ParkedIdea' }
+                  new_idea_locked_until:
+                    type: string
+                    format: date
+                    description: |
+                      Present only when `caught_on` is sent. The same rule that
+                      sets `locked_until` when the idea is parked
+                      (`docs/domain/parking-lock.md`).
+        '400':
+          description: '`caught_on` is malformed.'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '503': { $ref: '#/components/responses/Unavailable' }
     post:
@@ -1232,7 +1311,7 @@ components:
 
     EffortEntryWrite:
       type: object
-      required: [local_date, tz, minutes, note]
+      required: [local_date, tz, occurred_at_local, minutes, note]
       properties:
         local_date:
           type: string
@@ -1244,8 +1323,11 @@ components:
           example: 'Asia/Kolkata'
         occurred_at_local:
           type: string
-          pattern: '^[0-2][0-9]:[0-5][0-9]$'
-          description: When the work happened, which is not when it was logged.
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: |
+            When the work started, which is not when it was logged. With `minutes`
+            it is the entry's span, and no two of a user's entries on one day may
+            overlap, under any objective. Required.
         minutes: { type: integer, minimum: 1, maximum: 1440 }
         note: { type: string, minLength: 1, maxLength: 2000 }
         link: { type: [string, 'null'], maxLength: 500 }
@@ -1322,8 +1404,8 @@ components:
           description: |
             Start this objective from an **approved** parked idea. Taking an idea
             *is* creating an objective from it: the idea's `taken` verdict is
-            written in the same transaction as the objective, and there is no other
-            way to take one.
+            written in the same transaction as the objective, dated today in `tz`,
+            and there is no other way to take one.
 
     Figures:
       type: object
@@ -1342,6 +1424,42 @@ components:
           description: |
             Minutes logged above target on planned days, from the same pass
             (`docs/domain/adherence.md`). Never in adherence, which stays capped.
+        planned_weeks:
+          type: integer
+          description: Flexible schedules — the week slots in the span. 0 on a fixed schedule.
+        target_met_weeks:
+          type: integer
+          description: Flexible schedules — the week slots whose logged minutes reach the week's target. 0 on a fixed schedule.
+
+    Track:
+      type: [string, 'null']
+      enum: [on_track, at_risk, behind, null]
+      description: |
+        From the adherence so far: `on_track` at 80% or more, `at_risk` from 60 to
+        79%, `behind` below 60%. Null until a slot has ended
+        (`docs/domain/adherence.md`, *Track*).
+
+    PlanWeek:
+      type: object
+      required: [period_start, period_end, figures]
+      properties:
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date, description: 'Inclusive. The last week of a segment may be short.' }
+        figures: { $ref: '#/components/schemas/Figures' }
+
+    DueReview:
+      type: object
+      description: A review window that is due — closed, not saved, with a planned day.
+      required: [label, kind, period_start, period_end, review_id]
+      properties:
+        label: { type: string, example: 'Week 3' }
+        kind: { type: string, enum: [weekly, monthly, plan_end] }
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        review_id:
+          type: [string, 'null']
+          format: uuid
+          description: The draft started for this window, or null when none is.
 
     ScheduleGrid:
       type: object
@@ -1378,7 +1496,20 @@ components:
 
     ObjectiveSummary:
       type: object
-      required: [id, title, status, schedule, start_date, end_date, figures]
+      required:
+        [
+          id,
+          title,
+          status,
+          status_since,
+          schedule,
+          start_date,
+          end_date,
+          upcoming_review_on,
+          figures,
+          figures_to_date,
+          track,
+        ]
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
@@ -1391,6 +1522,10 @@ components:
             `active`. An objective with no status events has no status at all — that
             is a malformed record, not a state, and a read fails rather than
             defaulting (`docs/erd.md`, invariant 16).
+        status_since:
+          type: string
+          format: date
+          description: The `occurred_on` of the latest status event — "Paused since", "Ended". Derived.
         schedule: { $ref: '#/components/schemas/Schedule' }
         start_date: { type: string, format: date }
         end_date: { type: string, format: date, description: 'The latest segment''s end. Derived.' }
@@ -1402,14 +1537,40 @@ components:
             How many reviews are owed — every window that is due, not only the
             earliest. Computed (`docs/domain/review-windows.md`). 0 exactly when
             `next_review_on` is null.
+        upcoming_review_on:
+          type: [string, 'null']
+          format: date
+          description: |
+            The `period_end` of the earliest window not yet saved, due or not — the
+            first review before any is due. Null once none is left, or once the
+            objective is completed or ended (`docs/domain/review-windows.md`).
+            `next_review_on` keeps its meaning: the earliest *due* window.
         from_parking_lot: { type: boolean }
-        figures: { $ref: '#/components/schemas/Figures' }
+        figures:
+          description: The whole run, including days not yet reached.
+          allOf: [{ $ref: '#/components/schemas/Figures' }]
+        figures_to_date:
+          description: |
+            The same rule over the plan so far: the slots that have ended, plus
+            today's day slot. A flexible week counts once it has ended
+            (`docs/domain/adherence.md`, *So far*).
+          allOf: [{ $ref: '#/components/schemas/Figures' }]
+        track: { $ref: '#/components/schemas/Track' }
 
     Objective:
       allOf:
         - $ref: '#/components/schemas/ObjectiveSummary'
         - type: object
-          required: [why_now, success_criteria, segments, status_history, notes]
+          required:
+            [
+              why_now,
+              success_criteria,
+              segments,
+              status_history,
+              notes,
+              weeks,
+              last_logged_on,
+            ]
           properties:
             description: { type: string }
             why_now: { type: string }
@@ -1431,6 +1592,18 @@ components:
               type: array
               description: Oldest first. Returned with the objective, so reading notes is not a second call.
               items: { $ref: '#/components/schemas/Note' }
+            weeks:
+              type: array
+              description: |
+                One per plan week, oldest first: seven days tiled from each
+                segment's start, the last clipped to its end, each with its figures
+                by the same rule (`docs/domain/adherence.md`, *Plan weeks*). A week
+                in progress carries its whole target.
+              items: { $ref: '#/components/schemas/PlanWeek' }
+            last_logged_on:
+              type: [string, 'null']
+              format: date
+              description: The latest `local_date` with an entry, or null when nothing is logged. Derived.
             criteria_verdict:
               type: [string, 'null']
               enum: [met, partly_met, not_met, null]
@@ -1462,10 +1635,25 @@ components:
 
     DayObjective:
       type: object
-      required: [id, title, schedule, slot, entries, logged_minutes]
+      required:
+        [
+          id,
+          title,
+          start_date,
+          schedule,
+          slot,
+          entries,
+          logged_minutes,
+          adherence_to_date,
+          track,
+        ]
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
+        start_date:
+          type: string
+          format: date
+          description: Segment 0's start — tells "Not started" and "Day 1" apart from a day off.
         schedule: { $ref: '#/components/schemas/Schedule' }
         slot:
           oneOf:
@@ -1479,7 +1667,14 @@ components:
         logged_minutes: { type: integer }
         period_logged_minutes:
           type: integer
-          description: For a week slot — progress through the week so far.
+          description: For a week slot — the minutes logged in the slot's week, up to and including this date.
+        period_days_worked:
+          type: integer
+          description: For a week slot — the days of the slot's week, up to and including this date, with any effort.
+        adherence_to_date:
+          type: number
+          description: The objective's `figures_to_date.adherence_pct`, so Today stays one call (NFR-03).
+        track: { $ref: '#/components/schemas/Track' }
 
     Day:
       type: object
@@ -1493,8 +1688,18 @@ components:
           type: object
           properties:
             today_minutes: { type: integer }
-            week_minutes: { type: integer }
-            extra_off_day_minutes: { type: integer }
+            week_minutes: { type: integer, description: 'Monday to Sunday, the week the date falls in.' }
+            extra_off_day_minutes:
+              type: integer
+              description: Minutes no slot covers, over the same Monday-to-Sunday week as `week_minutes`.
+            today_planned_minutes:
+              type: integer
+              description: |
+                The targets of the date's fixed day slots. A flexible objective
+                plans no particular day, so it adds nothing.
+            today_to_go_minutes:
+              type: integer
+              description: For each of those slots, what is still unlogged, never below zero.
         last_deviation:
           oneOf:
             - { $ref: '#/components/schemas/Deviation' }
@@ -1563,6 +1768,20 @@ components:
           properties:
             id: { type: string, format: uuid }
             pattern_name: { type: [string, 'null'] }
+            pattern_nth:
+              type: [integer, 'null']
+              minimum: 1
+              description: |
+                This deviation's place among the user's deviations naming the same
+                pattern, by date, then as recorded — "3rd time". Null without a
+                pattern. Computed.
+            review_due_on:
+              type: [string, 'null']
+              format: date
+              description: |
+                The review that will judge it: the earliest `period_end` among the
+                review windows covering its date, across the objectives it names.
+                Null when none covers it (`docs/domain/review-windows.md`).
             verdict:
               type: [string, 'null']
               enum: [worth_it, not_worth_it, null]
@@ -1586,7 +1805,7 @@ components:
 
     ParkedIdea:
       type: object
-      required: [id, idea, why, caught_on, locked_until, verdict, locked, notes]
+      required: [id, idea, why, caught_on, locked_until, verdict, verdict_on, locked, notes]
       properties:
         id: { type: string, format: uuid }
         idea: { type: string }
@@ -1599,6 +1818,10 @@ components:
           description: Oldest first. Returned on every idea in the list, so the parking lot is one read.
           items: { $ref: '#/components/schemas/Note' }
         verdict: { type: string, enum: [parked, approved, taken, dropped], description: 'The latest verdict row.' }
+        verdict_on:
+          type: string
+          format: date
+          description: The current verdict's `occurred_on` — "Approved 22 Sep", "Taken 31 Aug".
         note: { type: [string, 'null'] }
         became_objective_id:
           type: [string, 'null']
@@ -1655,7 +1878,14 @@ components:
           description: When the draft was last written — the "Draft saved" time. Null until the first save.
         outcome: { type: [string, 'null'] }
         review_summary: { type: [string, 'null'] }
-        adherence_pct: { type: [number, 'null'], description: 'Computed for the period.' }
+        what_changes_next:
+          type: [string, 'null']
+          description: The change this review set — shown under each saved row.
+        adherence_pct:
+          type: [number, 'null']
+          description: |
+            Computed for the period. A `plan_end` review's covers the whole plan,
+            from the objective's start to its `period_end`.
 
     Review:
       allOf:
@@ -1670,7 +1900,13 @@ components:
             previous_what_changes_next:
               type: [string, 'null']
               description: The previous saved review's `what_changes_next`, quoted back so this review can answer whether it worked.
-            figures: { $ref: '#/components/schemas/Figures' }
+            figures:
+              description: |
+                Computed for the period. A `plan_end` review's figures cover the
+                whole plan, from the objective's start to its `period_end`; its
+                bars, deviations and quoted change stay on its own period
+                (`docs/domain/review-windows.md`).
+              allOf: [{ $ref: '#/components/schemas/Figures' }]
             minutes_per_day:
               type: array
               description: The bar chart. Computed for the period.

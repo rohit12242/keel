@@ -1,6 +1,6 @@
 # Keel — entity model and invariants
 
-Sprint 00 · Story W2-09 · **Revision 5** · 13 entities, 17 invariants, 0 stored aggregates
+Sprint 00 · Story W2-09 · **Revision 5** · 13 entities, 18 invariants, 0 stored aggregates
 
 Built against the current 15 screens. **NFR-06 (offline logging) is out of scope for v1.**
 
@@ -21,6 +21,11 @@ I-03 brought the parking lot to the approved design.
 - **Notes are new:** `objective_note` and `parked_idea_note`, append-only lists on an
   objective and on a parked idea, open in every state. The entity count went from 11
   to 13.
+- **Effort is fixed once its day is over.** An entry is written only for today and
+  changed only on its own day; it always has a start time, and a user's entries on
+  one day never overlap (invariant 18). `occurred_at_local` is no longer nullable.
+- **A `taken` verdict is dated the day it is taken** — the day the objective is
+  created — not the objective's start.
 
 ## What revision 4 changed
 
@@ -300,7 +305,7 @@ What you actually did. Several per day per objective is normal.
 | id | uuid PK |  |
 | objective_id | uuid FK | On the objective, not the segment — effort survives a schedule change. |
 | local_date | date | **The day you meant.** Stored, never derived, never moves (NFR-12). |
-| occurred_at_local | time null | The WHEN column — when the work happened, which is not when you logged it. |
+| occurred_at_local | time | The WHEN column — when the work started, which is not when you logged it. Required: with `minutes` it is the entry's span, and spans never overlap (invariant 18). |
 | logged_at | timestamptz | The instant the row was written. |
 | tz | text | The zone it was logged in, e.g. Asia/Kolkata. |
 | minutes | int |  |
@@ -387,7 +392,7 @@ The lock is a commitment, not a gate. It does not stop a decision; it records wh
 | parked_idea_id | uuid FK |  |
 | verdict | enum('parked','approved','taken','dropped') | `parked` ↔ `approved` freely; either → `dropped`; only `approved` → `taken`. |
 | note | text null | "Why it ended." **Required when the verdict is `dropped`.** Written once, with the row. |
-| occurred_on | date | Current verdict = the latest row. *Status then* = the latest row on or before the review's period end. |
+| occurred_on | date | Current verdict = the latest row. *Status then* = the latest row on or before the review's period end. A `taken` row is dated the day the objective was created, in the zone it was created in. |
 
 ### Notes — `objective_note`, `parked_idea_note`
 
@@ -487,6 +492,7 @@ the address, so reconnecting the two is an operator's decision (`docs/runbook.md
 15. **Nothing is ever counted twice.** No adherence, total, streak, extension count or sequence number is stored anywhere. Every figure on every screen — including "longest streak", "review 7 of the plan" and "the sentence that repeats" — is computed at read time. *(NFR-09)*
 16. **Every objective starts with a `created` event.** An objective's status is the latest status event, so an objective with no events has no status rather than a default one. The `created` event is written in the same transaction as the objective, and the W4-10 migration backfills one for every objective that predates `status_event`. A read that meets an objective with no events therefore fails loudly: the stored facts are malformed, and substituting `active` would hide it. *(ADR-008)*
 17. **Nothing is deleted.** There is no delete for an objective, a review, a deviation, a parked idea or a note. An objective can be completed or ended; a review can be discarded only while it is a draft. The record is the product. *(NFR-01)*
+18. **A day's effort is fixed once the day is over.** An effort entry is written only when its `local_date` is today in its `tz`, and edited or deleted only while that is still so. Every entry has a start (`occurred_at_local`), and no two of a user's entries on one `local_date` overlap, under any objective. The database cannot enforce the overlap — `effort_entry` reaches its user only through `objective` (invariant 1) — so the write path checks it under a lock on the user. Because a closed day cannot change, a saved review's recomputed figures move only if a rule changes (invariant 14, ADR-008). *(I-03.)*
 
 ## Modelling calls worth challenging
 

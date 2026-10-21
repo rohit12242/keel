@@ -22,7 +22,8 @@ ERD already decided for "review 7 of the plan".
   freezes its own `period_start` / `period_end` at that moment.
 - **Not the figures.** This rule returns boundaries and labels only. Adherence,
   logged-vs-target, the per-day bars, deviation costs — all computed by the
-  `adherence` / figures rules over the days the window covers.
+  `adherence` / figures rules over the days the window covers (the whole plan, for a
+  plan-end review — below).
 - **Not aware of the clock.** `reviewWindows` is a pure function of the plan. Which
   window is *due* is a separate, thin predicate that takes today's local date and
   the saved reviews (below).
@@ -146,6 +147,45 @@ the earliest. It is `0` exactly when `next_review_on` is null, and it is compute
 stored (invariant 15). A paused objective shows `0` like it shows no due date; the
 windows it owes come back, and are counted, on resume.
 
+**Which ones are due.** `GET /objectives/{objectiveId}/reviews` lists the same windows
+as `due`, oldest first, each with its label, kind and period, and the draft's id when
+one has been started — so the Reviews tab shows one card per owed review without
+re-deriving windows in the client. *(I-03.)*
+
+---
+
+## The next review, due or not *(I-03)*
+
+Onboarding and an empty Reviews tab say when the first review falls before any is due.
+`upcoming_review_on` is the `period_end` of the **earliest window without a saved
+review**, whether or not it has closed:
+
+- a window that has **closed with no planned day** is skipped — it can never become
+  due, so it would otherwise stick;
+- `null` once every window is saved, and once the objective is completed or ended. A
+  paused objective still shows one.
+
+`next_review_on` keeps its meaning — the earliest **due** window. Once something is
+due, the two agree.
+
+## The review that will judge a deviation *(I-03)*
+
+A chosen deviation is judged at a review of one of the objectives it names
+(invariant 12). `review_due_on` is the earliest `period_end` among the windows, across
+those objectives, whose period contains the deviation's `local_date`. It ignores
+whether a review has been saved: it says which review the deviation falls in, not
+whether that review has happened. Null when no window covers the date.
+
+## The figures a plan-end review shows *(I-03)*
+
+A weekly or monthly review's figures cover its own window. A **plan-end review's
+figures and adherence cover the whole plan**, from the objective's first day to the
+review's `period_end` — the final review asks how the plan went, not how its last week
+did. After an extension, the second plan-end review covers both segments.
+
+Its per-day bars, its deviations and the change it quotes back stay on its own window.
+The window boundaries do not change; only the span handed to the figures does.
+
 ---
 
 ## Worked examples
@@ -183,6 +223,12 @@ These extend ADR-007's named list for `reviewWindows`.
   with two closed-and-unsaved windows (earliest wins).
 - All boundary maths under `TZ=UTC`, `Asia/Kolkata`, `Pacific/Kiritimati`,
   `America/Los_Angeles` — identical windows (NFR-12).
+- `upcoming_review_on` before anything is due, after a save, past a wholly paused
+  window, and null once completed.
+- `review_due_on` for a date in Week 2, for two objectives (the earlier end wins), and
+  for a date no window covers.
+- A plan-end review's figures equal the figures over the whole plan to its end, while
+  its bars and deviations stay on its own window.
 
 ---
 

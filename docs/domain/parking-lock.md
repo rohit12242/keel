@@ -32,6 +32,10 @@ idea caught on 14 September, with a longer objective also running, opens on
 - **Nothing running, nothing to protect.** With no active objective there is no work
   to be interrupted, so the idea is unlocked the day it is caught.
 
+**Before it is parked.** The *Park an idea* dialog shows the lock before anything is
+saved. `GET /parked-ideas?caught_on=` returns it as `new_idea_locked_until`, from this
+same rule, so the dialog and the stored lock cannot disagree. *(I-03.)*
+
 ## It never moves
 
 `locked_until` is computed **once**, when the idea is parked, and stored (ERD:
@@ -59,7 +63,12 @@ never would.
 **Early** is computed, never stored: a decision is early when its verdict's
 `occurred_on` is before the idea's `locked_until`. The response carries it for the
 idea's current verdict (`decided_early`) — approved, dropped or taken; a parked idea
-is never early.
+is never early. The response also carries that verdict's date (`verdict_on`).
+
+**A take is dated the day it happens:** the `taken` row's `occurred_on` is the day the
+objective is created, in the zone it is created in — not the objective's start date,
+which may be later. So an idea taken on 31 August for a plan starting 1 September
+reads *Taken 31 Aug*, and is early if 31 August is before `locked_until`. *(I-03.)*
 
 ## Dropped and taken are final
 
