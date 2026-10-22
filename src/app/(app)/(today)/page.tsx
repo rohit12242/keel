@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { SignOutButton } from "@/app/SignOutButton";
 import { getConfig } from "@/config/env";
-import { signedInUser } from "@/modules/session/service";
 import type { Day } from "@/shared/contract";
 import { PageHeader } from "../PageHeader";
 import { requireUser } from "../requireUser";
@@ -71,24 +69,14 @@ export default async function TodayPage({
   }
 
   const data = fetched.day;
-  // Who is signed in, from the cookie alone: no database read (ADR-002).
-  const user = signedInUser((await headers()).get("cookie"), new Date());
   return (
     <>
-      {user ? (
-        <div className={styles.account}>
-          <span>
-            Signed in as <strong>{user.name}</strong>
-          </span>
-          <SignOutButton />
-        </div>
-      ) : null}
+      <PageHeader eyebrow={data.date} title="Today" />
       {reset === "done" ? (
         <p className={styles.notice} role="status">
           Password changed. You&rsquo;re signed in.
         </p>
       ) : null}
-      <PageHeader eyebrow={data.date} title="Today" />
       <section className={styles.summary} aria-label="Totals">
         <dl className={styles.totals}>
           <div>

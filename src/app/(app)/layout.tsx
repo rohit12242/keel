@@ -3,6 +3,7 @@ import { initialOf } from "@/modules/shell/domain/shell";
 import { Nav } from "./Nav";
 import { requireUser } from "./requireUser";
 import { ShellProvider } from "./ShellProvider";
+import { SignOut } from "./SignOut";
 import styles from "./shell.module.css";
 
 // The session is read per request, never at build time.
@@ -29,7 +30,17 @@ export default async function AppLayout({
             <span className={styles.wordmark}>Keel</span>
           </div>
           <Nav variant="side" />
-          <div className={styles.sideFoot} />
+          <div className={styles.sideFoot}>
+            <div className={styles.user}>
+              <span className={styles.avatar} aria-hidden="true">
+                {me.initial}
+              </span>
+              <span className={styles.userText}>
+                <span className={styles.userName}>{me.name}</span>
+                <SignOut label="Log out" className={styles.logOut} />
+              </span>
+            </div>
+          </div>
         </aside>
         <main className={styles.main}>{children}</main>
         <Nav variant="tabs" />

@@ -1,8 +1,10 @@
+import { AccountMenu } from "./AccountMenu";
 import styles from "./shell.module.css";
 
 /**
- * A page's header (01-shell.md): the eyebrow and the title. The primary
- * action and its keyboard hint arrive with the screen that has one.
+ * A page's header (01-shell.md): the eyebrow and the title, and on phone
+ * the avatar that opens the account menu. The primary action and its
+ * keyboard hint arrive with the screen that has one.
  */
 export function PageHeader({
   eyebrow,
@@ -16,6 +18,9 @@ export function PageHeader({
       <div className={styles.headText}>
         {eyebrow ? <span className={styles.eyebrow}>{eyebrow}</span> : null}
         <h1 className={styles.title}>{title}</h1>
+      </div>
+      <div className={styles.phoneOnly}>
+        <AccountMenu />
       </div>
     </header>
   );
