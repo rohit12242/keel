@@ -1,12 +1,17 @@
 /*
- * The Keel Modern look, for the sign-in screens only (I-04). The tokens are
- * docs/design/keel-modern-tokens.css, scoped to [data-look="modern"] rather
- * than :root, because several names (--space-4, --font-sans, …) mean
- * something else in src/app/tokens.css, which the rest of the app still uses
- * until the app-shell intent. Fonts come from next/font in the auth layout.
- * There is no theme switch yet, so dark follows the device.
+ * Keel Modern design tokens — the app's only set (docs/design/tokens.md).
+ * Generated from the Keel Modern design system. Consume from CSS Modules;
+ * never hard-code hex.
+ *
+ * Theme: light on :root. Dark applies when the person chose Dark (the server
+ * renders data-theme="dark" on <html> from the keel_theme cookie) or, before
+ * any choice, when the device prefers dark. CSS alone decides, so the first
+ * paint is always in the right theme. The dark values therefore appear twice.
+ *
+ * Fonts are the root layout's next/font variables, named differently from
+ * these tokens so the class next/font sets on <html> cannot override them.
  */
-[data-look="modern"] {
+:root {
   --bg: #f5f5f3;
   --surface-side: #fafaf9;
   --surface: #ffffff;
@@ -73,25 +78,11 @@
   --border-selected: 1.5px;
   --border-focus: 2px;
   --font-sans: var(--font-geist), "Helvetica Neue", Arial, sans-serif;
-  --font-brand: var(--font-serif), Georgia, serif;
-  /* The sign-in layout's own surfaces, from the prototype. */
-  --auth-bg: #ffffff;
-  --hl: #6f42f8;
-  --input-bg: #ffffff;
-  --chip-bg: #f5f5f3;
-  --chip-line: #f5f5f3;
-  --ring-track: #f5f5f3;
-  --ring-a: #f0ebff;
-  --ring-b: #e6f3eb;
-  --band: #6f42f8;
-  --band-text: #ffffff;
-  --band-hl: #ffffff;
-  color: var(--text);
-  font-family: var(--font-sans);
+  --font-mono: var(--font-plex-mono), ui-monospace, Menlo, monospace;
+  --font-brand: var(--font-spectral), Georgia, serif;
 }
-
 @media (prefers-color-scheme: dark) {
-  [data-look="modern"] {
+  :root:not([data-theme="light"]) {
     --bg: #0e0f11;
     --surface-side: #121316;
     --surface: #18191d;
@@ -122,16 +113,36 @@
       0 2px 4px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.5);
     --shadow-fab: 0 8px 20px rgba(0, 0, 0, 0.5);
     color-scheme: dark;
-    --auth-bg: #0e0f11;
-    --hl: #b4a0ff;
-    --input-bg: #121316;
-    --chip-bg: #18191d;
-    --chip-line: #2a2c31;
-    --ring-track: #1e2024;
-    --ring-a: rgba(155, 128, 255, 0.18);
-    --ring-b: rgba(92, 203, 147, 0.14);
-    --band: #2b2160;
-    --band-text: #f2efff;
-    --band-hl: #c9beff;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #0e0f11;
+  --surface-side: #121316;
+  --surface: #18191d;
+  --surface-row: #1e2024;
+  --surface-muted: #222428;
+  --line: #2a2c31;
+  --line-control: #6b6e76;
+  --track: #2a2c31;
+  --text: #edeef0;
+  --text-2: #b0b3ba;
+  --text-3: #9a9da4;
+  --accent: #9b80ff;
+  --accent-text: #b4a0ff;
+  --accent-tint: #262040;
+  --on-accent: #0e0f11;
+  --kbd-line: rgba(14, 15, 17, 0.4);
+  --on-text: #0e0f11;
+  --effort: #5ccb93;
+  --effort-tint: #15291f;
+  --deviation: #f27d73;
+  --deviation-tint: #2f1a19;
+  --caution: #e2b455;
+  --caution-tint: #2e2510;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-thumb: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-dialog: 0 2px 4px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.5);
+  --shadow-fab: 0 8px 20px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
 }

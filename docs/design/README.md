@@ -9,7 +9,7 @@ Everything here was reviewed and approved screen by screen in a clickable protot
 | File | What it is |
 |---|---|
 | `keel-modern-prototype.html` | The clickable prototype, one self-contained file. Open it in a browser. The **Prototype** button (bottom right) jumps between screens, switches sample data (planned day, day off, new user), starts onboarding and resets. Its panel also lists the fake codes and emails the auth screens accept. Sample data lives in the browser's local storage. |
-| `keel-modern-tokens.css` | Colour, type, spacing, radius, size and shadow tokens, light and dark. The replacement for `src/app/tokens.css`. |
+| `src/app/keel-modern-tokens.css` | Colour, type, spacing, radius, size and shadow tokens, light and dark. Moved into the app in I-05 so the design and the app share one copy. |
 | `tokens.md` | The token set explained, the old-to-new name map, type and theming rules. |
 | `contract-gaps.md` | **Read before building.** Where the design asks for something `docs/keel-api.yaml` or the domain rules do not provide yet. |
 | `screens/01-shell.md` | App frame: sidebar, phone tab bar, headers, account menu, theme, dialogs, toasts, keyboard shortcuts, shared patterns. |
@@ -34,7 +34,7 @@ Everything here was reviewed and approved screen by screen in a clickable protot
 
 Each line is roughly one intent. Contract gaps that block a step are listed in `contract-gaps.md`.
 
-1. Tokens and fonts (`keel-modern-tokens.css`, Geist + IBM Plex Mono + Spectral via `next/font`), app shell, theme switch.
+1. Tokens and fonts (`src/app/keel-modern-tokens.css`, Geist + IBM Plex Mono + Spectral via `next/font`), app shell, theme switch.
 2. Today, with Log time (create, edit, delete an entry).
 3. Objectives list and detail — Overview and Effort tabs.
 4. New objective.

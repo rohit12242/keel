@@ -157,16 +157,6 @@ because the story's plan ends on a Sunday. Options: date the event the day after
 `period_end`, or have `planSlots` treat a final status as in force from the next
 day. Either is a domain rule change (`docs/domain/` and the ERD), with tests.
 
-### The Keel Modern tokens exist twice · found in I-04
-
-The sign-in screens use the Keel Modern look, so I-04 copied
-`docs/design/keel-modern-tokens.css` into `src/app/(auth)/modern.css`, scoped to
-`[data-look="modern"]` because several names (`--space-4`, `--font-sans`, …) mean
-something else in `src/app/tokens.css`, which the rest of the app still uses. Geist is
-loaded by the auth layout alone. The app-shell intent (the design's build-order step 1)
-replaces `tokens.css` globally; it must then delete the scoped copy and its
-`data-look` wrapper rather than leave two sources for one set of tokens.
-
 ### A confirmed account lands on Today, not onboarding · found in I-04
 
 The design starts onboarding right after a new account's email is confirmed (G11). I-04

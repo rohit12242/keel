@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { getConfig } from "@/config/env";
-import { signedInUser } from "@/modules/session/service";
 import type { Day } from "@/shared/contract";
-import { SignOutButton } from "./SignOutButton";
-import styles from "./page.module.css";
+import { PageHeader } from "../PageHeader";
+import { requireUser } from "../requireUser";
+import styles from "./today.module.css";
+
+export const metadata: Metadata = { title: "Today · Keel" };
 
 // Server-rendered per request (D-04), fetched from the real endpoint.
 export const dynamic = "force-dynamic";
@@ -41,57 +45,39 @@ export default async function TodayPage({
 }: {
   searchParams: Promise<{ date?: string; reset?: string }>;
 }) {
+  await requireUser();
   const { date, reset } = await searchParams;
   // "Today" in the server's local zone; ?date= overrides for inspection.
   // Real per-user timezone handling is NFR-12 (v2) / arrives with auth (E-06).
   const day = date ?? new Date().toLocaleDateString("en-CA");
   const fetched = await fetchDay(day);
 
-  if (fetched === "signed_out") {
-    return (
-      <main className={styles.page}>
-        <h1 className={styles.title}>Today</h1>
-        <p>
-          <a href="/sign-in">Sign in</a> to see your log.
-        </p>
-      </main>
-    );
-  }
+  // The session ended between the frame's check and the fetch.
+  if (fetched === "signed_out") redirect("/sign-in");
 
   if (fetched === "unreachable") {
     // Error state: the endpoint could not be read (e.g. the database is down).
     return (
-      <main className={styles.page}>
-        <h1 className={styles.title}>Today</h1>
+      <>
+        <PageHeader eyebrow={day} title="Today" />
         <div className={styles.error} role="alert">
           <strong>Couldn&rsquo;t reach your log.</strong> The day for {day}{" "}
           could not be loaded. Nothing has been lost — try again in a moment.
         </div>
-      </main>
+      </>
     );
   }
 
   const data = fetched.day;
-  // Who is signed in, from the cookie alone: no database read (ADR-002).
-  const user = signedInUser((await headers()).get("cookie"), new Date());
   return (
-    <main className={styles.page}>
-      {user ? (
-        <div className={styles.account}>
-          <span>
-            Signed in as <strong>{user.name}</strong>
-          </span>
-          <SignOutButton />
-        </div>
-      ) : null}
+    <>
+      <PageHeader eyebrow={data.date} title="Today" />
       {reset === "done" ? (
         <p className={styles.notice} role="status">
           Password changed. You&rsquo;re signed in.
         </p>
       ) : null}
-      <header className={styles.header}>
-        <h1 className={styles.title}>Today</h1>
-        <p className={styles.date}>{data.date}</p>
+      <section className={styles.summary} aria-label="Totals">
         <dl className={styles.totals}>
           <div>
             <dt>Today</dt>
@@ -106,7 +92,7 @@ export default async function TodayPage({
             <dd>{formatMinutes(data.totals.extra_off_day_minutes)}</dd>
           </div>
         </dl>
-      </header>
+      </section>
 
       {data.objectives.length === 0 ? (
         <p className={styles.empty}>No active objectives.</p>
@@ -148,6 +134,6 @@ export default async function TodayPage({
           ))}
         </ul>
       )}
-    </main>
+    </>
   );
 }
