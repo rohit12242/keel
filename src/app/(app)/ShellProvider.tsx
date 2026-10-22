@@ -1,28 +1,42 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type { Theme } from "@/modules/shell/domain/shell";
 
 export type Me = { name: string; initial: string };
 
-const MeContext = createContext<Me | null>(null);
+type Shell = { me: Me; savedTheme: Theme | null };
+
+const ShellContext = createContext<Shell | null>(null);
 
 /**
- * Hands the signed-in person's name to the frame's client parts — the page
- * header's account menu, and Today's loading and error states — which the
- * layout cannot pass props to.
+ * Hands what the server knows to the frame's client parts — the page
+ * header's account menu, Today's loading and error states, the theme
+ * switches — which the layout cannot pass props to: who is signed in, and
+ * the theme the cookie held when the page was rendered.
  */
 export function ShellProvider({
   me,
+  savedTheme,
   children,
-}: {
-  me: Me;
-  children: React.ReactNode;
-}) {
-  return <MeContext.Provider value={me}>{children}</MeContext.Provider>;
+}: Shell & { children: React.ReactNode }) {
+  return (
+    <ShellContext.Provider value={{ me, savedTheme }}>
+      {children}
+    </ShellContext.Provider>
+  );
+}
+
+function useShell(): Shell {
+  const shell = useContext(ShellContext);
+  if (!shell) throw new Error("used outside ShellProvider");
+  return shell;
 }
 
 export function useMe(): Me {
-  const me = useContext(MeContext);
-  if (!me) throw new Error("useMe outside ShellProvider");
-  return me;
+  return useShell().me;
+}
+
+export function useSavedTheme(): Theme | null {
+  return useShell().savedTheme;
 }

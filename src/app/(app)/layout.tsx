@@ -1,9 +1,15 @@
 import { KeelMark } from "@/app/icons";
-import { initialOf } from "@/modules/shell/domain/shell";
+import { cookies } from "next/headers";
+import {
+  initialOf,
+  THEME_COOKIE,
+  themeFrom,
+} from "@/modules/shell/domain/shell";
 import { Nav } from "./Nav";
 import { requireUser } from "./requireUser";
 import { ShellProvider } from "./ShellProvider";
 import { SignOut } from "./SignOut";
+import { ThemeSwitch } from "./ThemeSwitch";
 import styles from "./shell.module.css";
 
 // The session is read per request, never at build time.
@@ -20,9 +26,10 @@ export default async function AppLayout({
 }) {
   const user = await requireUser();
   const me = { name: user.name, initial: initialOf(user.name) };
+  const savedTheme = themeFrom((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
-    <ShellProvider me={me}>
+    <ShellProvider me={me} savedTheme={savedTheme}>
       <div className={styles.app}>
         <aside className={styles.side}>
           <div className={styles.brand}>
@@ -31,6 +38,7 @@ export default async function AppLayout({
           </div>
           <Nav variant="side" />
           <div className={styles.sideFoot}>
+            <ThemeSwitch />
             <div className={styles.user}>
               <span className={styles.avatar} aria-hidden="true">
                 {me.initial}

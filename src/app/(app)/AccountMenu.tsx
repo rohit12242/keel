@@ -3,11 +3,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useMe } from "./ShellProvider";
 import { SignOut } from "./SignOut";
+import { ThemeSwitch } from "./ThemeSwitch";
 import styles from "./shell.module.css";
 
 /**
  * The phone header's avatar and its menu (01-shell.md): "Signed in as
- * {name}" and Sign out. A disclosure, not role="menu": it promises no arrow
+ * {name}", the theme and Sign out. It stays open while the theme changes,
+ * so the change is seen. A disclosure, not role="menu": it promises no arrow
  * keys. Esc closes it and puts focus back on the avatar; a press outside
  * closes it.
  */
@@ -51,6 +53,7 @@ export function AccountMenu() {
       </button>
       <div id={menuId} className={styles.menu} hidden={!open}>
         <span className={styles.menuLabel}>Signed in as {me.name}</span>
+        <ThemeSwitch inMenu />
         <SignOut label="Sign out" className={styles.menuItem} />
       </div>
     </div>

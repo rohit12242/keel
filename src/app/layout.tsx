@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, IBM_Plex_Mono, Spectral } from "next/font/google";
+import { cookies } from "next/headers";
+import { THEME_COOKIE, themeFrom } from "@/modules/shell/domain/shell";
 import "./globals.css";
 
 // The variable names differ from the tokens that read them
@@ -28,13 +30,20 @@ export const metadata: Metadata = {
     "A logbook that records effort against declared objectives — the record decides what to do next.",
 };
 
-export default function RootLayout({
+/**
+ * A theme the person chose is rendered on <html>, so no page is drawn in the
+ * other one first. Without a choice there is no attribute, and the tokens
+ * follow the device (keel-modern-tokens.css).
+ */
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const theme = themeFrom((await cookies()).get(THEME_COOKIE)?.value);
   return (
     <html
       lang="en"
       className={`${geist.variable} ${plexMono.variable} ${spectral.variable}`}
+      data-theme={theme ?? undefined}
     >
       <body>{children}</body>
     </html>
