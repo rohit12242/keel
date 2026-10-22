@@ -5,6 +5,7 @@ import {
   THEME_COOKIE,
   themeFrom,
 } from "@/modules/shell/domain/shell";
+import { FreshOnBack } from "./FreshOnBack";
 import { Nav } from "./Nav";
 import { requireUser } from "./requireUser";
 import { ShellProvider } from "./ShellProvider";
@@ -30,6 +31,7 @@ export default async function AppLayout({
 
   return (
     <ShellProvider me={me} savedTheme={savedTheme}>
+      <FreshOnBack />
       <div className={styles.app}>
         <aside className={styles.side}>
           <div className={styles.brand}>
