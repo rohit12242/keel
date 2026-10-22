@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { KeelMark } from "@/app/icons";
 import { getConfig } from "@/config/env";
 import { signedInUser } from "@/modules/session/service";
 import { AuthProvider } from "./AuthProvider";
@@ -46,19 +47,7 @@ export default async function AuthLayout({
       </svg>
 
       <div className={styles.brand}>
-        <svg
-          viewBox="0 0 18 18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M9 1.8v11" />
-          <path d="M3.4 8.6c0 3.1 2.5 5.6 5.6 7.6 3.1-2 5.6-4.5 5.6-7.6" />
-          <path d="M5.8 4.8h6.4" />
-        </svg>
+        <KeelMark />
         <span className={styles.wordmark}>Keel</span>
       </div>
 

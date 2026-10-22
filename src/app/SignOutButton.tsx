@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import styles from "./page.module.css";
+import styles from "./(app)/(today)/today.module.css";
 
 /**
  * Sign out: Keel clears its cookie, and the browser goes to Sign in. There is
