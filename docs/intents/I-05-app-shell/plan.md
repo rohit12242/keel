@@ -2,6 +2,13 @@
 
 **Intent:** `intent.md` · **Spec:** `spec.md` · **Status:** ACCEPTED 2026-10-22 · **Written:** 2026-10-22
 
+**Amended 2026-10-22, during the build, with Rohit's go-ahead.** Step 5's proof was
+wrong. After signing out, Back showed the signed-in frame again: the browser restored
+the old page from its back/forward cache without asking the server. Replacing the
+history entry on sign out removes only that one entry, not the earlier ones from the
+same page. A new step 7 makes a restored page ask the server again. The old step 7
+becomes step 8.
+
 ## What the code has today, and what replaces each part
 
 | Today | Where | Replaced by |
@@ -45,7 +52,8 @@
 | 4 | `src/app/(app)/objectives/page.tsx`, `deviations/page.tsx`, `parking-lot/page.tsx` *(new)* | Header and "This screen isn't built yet." Each calls `requireUser()` |
 | 5 | `src/app/(app)/SignOut.tsx`, `AccountMenu.tsx` *(new)*; **removed** `src/app/SignOutButton.tsx`; `(today)/page.tsx`, `today.module.css` | Sidebar: avatar initial, name, **Log out**. Phone: the 44 px avatar button in the page header opens the menu ("Signed in as {name}", **Sign out**). Esc closes it and returns focus to the avatar; a pointer-down outside closes it. Failure → `role="alert"` "Couldn't sign out. Try again.", stay put. The stop-gap and its styles are deleted |
 | 6 | `src/app/layout.tsx`, `src/app/(app)/ThemeSwitch.tsx` *(new)*, `AccountMenu.tsx`, `layout.tsx` | The root layout reads `keel_theme` through `themeFrom` and sets `data-theme` when it holds a choice. `ThemeSwitch`: a group of two `aria-pressed` buttons (Light ☀ / Dark ☾), in the sidebar foot and in the menu. Clicking sets `data-theme` on `<html>` and writes the cookie. Both switches read one store (`useSyncExternalStore`), so they agree |
-| 7 | `docs/intents/TRIAGE.md` | Anything found on the way that this intent doesn't own |
+| 7 | `src/app/(app)/FreshOnBack.tsx` *(new)*, `src/app/(app)/layout.tsx` | On `pageshow` with `persisted` (a page restored from the back/forward cache), reload, so the server decides again: Sign in without a session, the page as it is now with one |
+| 8 | `docs/intents/TRIAGE.md` | Anything found on the way that this intent doesn't own |
 
 ## Order of work
 
@@ -57,7 +65,8 @@
    Today for this one commit.
 5. **Who is signed in, and signing out.** The stop-gap goes.
 6. **The theme choice.**
-7. **Proof** on localhost, then TRIAGE. After Rohit merges and the release deploys, the
+7. **A page restored on Back asks the server again.** *(Added by the amendment.)*
+8. **Proof** on localhost, then TRIAGE. After Rohit merges and the release deploys, the
    same browser proof on the deployed service.
 
 No contract, migration, infra or dependency change in any step.
@@ -116,8 +125,13 @@ on `main` and on the branch, in light and dark, and compared.
 - **The formatted date ("Thursday, 22 October") as Today's eyebrow**, the
   Deviations week range, primary actions, keyboard hints and a skip link. They come with
   the screens. Today's eyebrow keeps the date it shows now.
-- **Sign out by `router.push`.** Sign out does a full navigation to `/sign-in`, so the
-  client router cache can't show the signed-in frame on Back.
+- **Sign out by `router.push`.** Sign out replaces the page with `/sign-in` in a full
+  navigation, so the client router cache can't show the signed-in frame. On its own
+  that was not enough. The back/forward cache still held the earlier pages, which is
+  why step 7 was added.
+- **`Cache-Control: no-store` to keep pages out of the back/forward cache.** Chrome
+  is starting to cache `no-store` pages too, so it can't be relied on. Reloading on
+  `pageshow` works whatever the browser decides to cache.
 
 ---
 
@@ -129,8 +143,9 @@ on `main` and on the branch, in light and dark, and compared.
 | 2 | All seven checks. `grep -rnE -- '--color-\|--font-serif\|var\(--radius\)\|var\(--space-[1368]\)\|data-look\|--font-geist' src` returns nothing. Archivo appears nowhere in `src`. A **real image build** (`docker build`) once: the CSS now comes from `src/`, and `next/font` fetches at build time. Chrome screenshots of Sign in, Create account, Check your email and both Reset steps, light and dark (by device), on `main` and on the branch, side by side. Today renders with the new tokens | Every page renders; only the palette moved |
 | 3 | `shell.test.ts`: `currentPlace` for `/`, `/objectives`, `/objectives/abc`, `/objectivesx` (none), `/sign-in` (none); `initialOf` for `"rohit"` → `R`, `" émile"` → `É`, `""` → `?`; `themeFrom` for `light`, `dark`, `system`, `undefined`; `themeCookie` with and without `Secure`. 100 % on the domain (ADR-007) | Unused code |
 | 4 | Build. `curl -sI` on localhost, no cookie: `/`, `/objectives`, `/deviations`, `/parking-lot` → 307 to `/sign-in`; with a session cookie → 200. Chrome at 1280 px and 390 px: sidebar or tab bar, never both; `read_page` shows `aria-current="page"` on exactly the current item in each; tab-bar targets measure ≥ 44 px. Today's error state in the frame with Postgres stopped. Soft-navigation guard: end the session with `DELETE /v1/session` in the console, then click a nav item → Sign in | All four places work; the stop-gap still signs out |
-| 5 | Chrome at 390 px: the avatar sets `aria-expanded`; Esc closes and focus is back on the avatar; a click outside closes. Sign out from the sidebar and from the menu → `/sign-in`; Back does not show the frame. Failure: with `window.fetch` made to reject (javascript_tool), the alert shows and the URL stays. `grep -rn "Signed in as" src` finds only `AccountMenu.tsx` | Sign out moved, never missing |
+| 5 | Chrome at 390 px: the avatar sets `aria-expanded`; Esc closes and focus is back on the avatar; a click outside closes. Sign out from the sidebar and from the menu → `/sign-in`. Failure: with `window.fetch` made to reject (javascript_tool), the alert shows and the URL stays. `grep -rn "Signed in as" src` finds only `AccountMenu.tsx` | Sign out moved, never missing |
 | 6 | Unit tests above. `curl` with `Cookie: keel_theme=dark` → `<html … data-theme="dark"`; with none → no `data-theme`. Chrome: Dark in the sidebar → `data-theme="dark"` and the cookie is set; reload, then all four places and (after Sign out) the sign-in screens are dark; the menu stays open while the theme changes and both switches agree. Contrast, computed via javascript_tool, of nav labels, eyebrow, name, Log out and menu text in both themes: ≥ 4.5:1 | Additive |
-| 7 | The whole journey recorded as a GIF: desktop and phone, move between the four places, switch the theme, sign out from each. After the release: the same on the deployed service | — |
+| 7 | Sign out, then Back: the restored page reloads and lands on Sign in. While still signed in, Back to a restored page shows it as it is now | Additive |
+| 8 | The whole journey recorded as a GIF: desktop and phone, move between the four places, switch the theme, sign out from each. After the release: the same on the deployed service | — |
 
 Integration tests are not touched: no route handler, query or contract changes.
