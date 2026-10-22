@@ -1,8 +1,54 @@
 /*
  * The sign-in screens (docs/design/screens/02-auth-and-onboarding.md), in the
  * Keel Modern look. Values come from the prototype; colours only ever from
- * the tokens in modern.css.
+ * the tokens (keel-modern-tokens.css) and the layout's own surfaces below.
  */
+
+/* ---------- The sign-in layout's own surfaces, from the prototype ---------- */
+/* Dark under the same two conditions as the tokens: chosen, or by device. */
+.auth {
+  --auth-bg: #ffffff;
+  --hl: #6f42f8;
+  --input-bg: #ffffff;
+  --chip-bg: #f5f5f3;
+  --chip-line: #f5f5f3;
+  --ring-track: #f5f5f3;
+  --ring-a: #f0ebff;
+  --ring-b: #e6f3eb;
+  --band: #6f42f8;
+  --band-text: #ffffff;
+  --band-hl: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .auth {
+    --auth-bg: #0e0f11;
+    --hl: #b4a0ff;
+    --input-bg: #121316;
+    --chip-bg: #18191d;
+    --chip-line: #2a2c31;
+    --ring-track: #1e2024;
+    --ring-a: rgba(155, 128, 255, 0.18);
+    --ring-b: rgba(92, 203, 147, 0.14);
+    --band: #2b2160;
+    --band-text: #f2efff;
+    --band-hl: #c9beff;
+  }
+}
+
+:global(:root[data-theme="dark"]) .auth {
+  --auth-bg: #0e0f11;
+  --hl: #b4a0ff;
+  --input-bg: #121316;
+  --chip-bg: #18191d;
+  --chip-line: #2a2c31;
+  --ring-track: #1e2024;
+  --ring-a: rgba(155, 128, 255, 0.18);
+  --ring-b: rgba(92, 203, 147, 0.14);
+  --band: #2b2160;
+  --band-text: #f2efff;
+  --band-hl: #c9beff;
+}
 
 /* ---------- Layout: hero on the left, card on the right ---------- */
 .auth {

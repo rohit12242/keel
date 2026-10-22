@@ -1,21 +1,24 @@
 import type { Metadata } from "next";
-import { Archivo, Spectral, IBM_Plex_Mono } from "next/font/google";
+import { Geist, IBM_Plex_Mono, Spectral } from "next/font/google";
 import "./globals.css";
 
-const sans = Archivo({
-  variable: "--font-sans",
+// The variable names differ from the tokens that read them
+// (keel-modern-tokens.css), so the class on <html> can't override a token.
+const geist = Geist({
+  variable: "--font-geist",
   subsets: ["latin"],
 });
 
-const serif = Spectral({
-  variable: "--font-serif",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   weight: ["400", "500", "600"],
   subsets: ["latin"],
 });
 
-const mono = IBM_Plex_Mono({
-  variable: "--font-mono",
-  weight: ["400", "500"],
+// The wordmark only.
+const spectral = Spectral({
+  variable: "--font-spectral",
+  weight: ["600"],
   subsets: ["latin"],
 });
 
@@ -31,7 +34,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${serif.variable} ${mono.variable}`}
+      className={`${geist.variable} ${plexMono.variable} ${spectral.variable}`}
     >
       <body>{children}</body>
     </html>

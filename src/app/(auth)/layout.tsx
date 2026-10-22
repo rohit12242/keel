@@ -1,13 +1,9 @@
-import { Geist } from "next/font/google";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getConfig } from "@/config/env";
 import { signedInUser } from "@/modules/session/service";
 import { AuthProvider } from "./AuthProvider";
 import styles from "./auth.module.css";
-import "./modern.css";
-
-const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 
 // The session and the Cognito ids are read per request, never at build time.
 export const dynamic = "force-dynamic";
@@ -27,7 +23,7 @@ export default async function AuthLayout({
   const { poolId, clientId } = getConfig().cognito;
 
   return (
-    <div data-look="modern" className={`${geist.variable} ${styles.auth}`}>
+    <div className={styles.auth}>
       <svg className={styles.rings} viewBox="0 0 760 760" aria-hidden="true">
         <circle className={styles.ringTrack} cx="380" cy="380" r="340" />
         <circle

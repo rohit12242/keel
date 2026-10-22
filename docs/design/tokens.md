@@ -1,6 +1,6 @@
 # Tokens
 
-`keel-modern-tokens.css` is the whole set. It replaces `src/app/tokens.css`; components read the variables from CSS Modules and never hard-code a hex value (the rule `tokens.css` already states).
+`src/app/keel-modern-tokens.css` is the whole set, and the app's only one; it replaced the old `src/app/tokens.css` in I-05. Components read the variables from CSS Modules and never hard-code a hex value.
 
 ## Colour
 
@@ -57,15 +57,15 @@ Sizes in use: page title 32 px / 700 / −0.025em (26–28 px on phone); detail 
 
 ## Spacing, radius, size, border
 
-All in `keel-modern-tokens.css` (`--space-2` … `--space-40`, `--radius-xs` … `--radius-full`, `--size-sidebar` 240 px, `--size-tabbar`, `--border-hairline`, `--border-selected`, `--border-focus`). Cards use `--radius-xl` (16 px) on desktop and `--radius-2xl` (18 px) on phone; inputs and buttons `--radius-lg` (10 px); pills `--radius-full`.
+All in `src/app/keel-modern-tokens.css` (`--space-2` … `--space-40`, `--radius-xs` … `--radius-full`, `--size-sidebar` 240 px, `--size-tabbar`, `--border-hairline`, `--border-selected`, `--border-focus`). Cards use `--radius-xl` (16 px) on desktop and `--radius-2xl` (18 px) on phone; inputs and buttons `--radius-lg` (10 px); pills `--radius-full`.
 
 ## Theme
 
-Two choices, **Light** and **Dark** — no "System" option. On first visit use the device's `prefers-color-scheme` once, then store the choice (a cookie, so the server renders the right theme without a flash; local storage is fine until then). Apply it as `data-theme="light" | "dark"` on `<html>`.
+Two choices, **Light** and **Dark** — no "System" option. Until a choice is made the device's `prefers-color-scheme` decides; after that the choice is kept in a cookie, so the server renders it as `data-theme="light" | "dark"` on `<html>` without a flash. The token file carries dark twice for this: under `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }` and under `:root[data-theme="dark"]`, so CSS alone picks the theme for the first paint.
 
 ## Old to new names
 
-| Old (`src/app/tokens.css`) | New |
+| Old (`src/app/tokens.css`, removed) | New |
 |---|---|
 | `--color-paper` | `--bg` |
 | `--color-surface` | `--surface` (cards) or `--surface-row` (rows) |
