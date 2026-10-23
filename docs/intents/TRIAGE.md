@@ -43,6 +43,11 @@ deviation dated in the future, an extension that must end after today, whether a
 parking lock has lifted. For someone in Asia/Kolkata, "today" turns over 5½ hours
 late. An intent that lets a user set their zone, or takes it at sign-in, closes this.
 
+Since I-06, Today itself reads the browser's day: a visit to `/` without a date renders
+its loading state while the browser replaces the URL with `?date=<its day>`. That costs
+one extra render per visit. A zone the server can trust would let Today pick its day on
+the first request and retire the hop.
+
 ### ADR-004 names a variable that no longer exists · found in I-02
 
 ADR-004 gives `SEED_DATA` as its example of configuration that differs between
@@ -169,3 +174,12 @@ onboarding intent has to tell a first sign-in from any other — the exchange kn
 One attribute in `aws_db_instance.main` is misaligned (`vpc_security_group_ids`), so
 `terraform fmt -check` fails for the whole directory. Nothing checks it in CI, which is
 how it got in. Either fix the file, or add the check and fix it with it.
+
+### The form pieces are copied between Sign in and New objective · found in I-06
+
+`(auth)/ui.tsx` has `Field`, `FieldError`, `described` and `Banner` for the sign-in
+screens; the New objective page has its own `FieldError`, `described`, banner and
+input styles. They agree today. The auth copies read the auth layout's own surfaces
+(`--input-bg`), so moving them in I-06 would have touched live screens for nothing the
+intent needed. The next screen with a form — a log dialog, a review — should start
+from one shared set rather than copy a third time.
