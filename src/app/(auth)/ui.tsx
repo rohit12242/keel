@@ -314,27 +314,6 @@ export function useResendWait(): { left: number; start: () => void } {
   return { left, start: () => setLeft(RESEND_WAIT_SECONDS) };
 }
 
-/** A short message at the bottom of the screen, read out as it appears. */
-export function useToast(): {
-  toast: React.ReactNode;
-  show: (text: string) => void;
-} {
-  const [text, setText] = useState<string | null>(null);
-  useEffect(() => {
-    if (!text) return;
-    const t = setTimeout(() => setText(null), 4000);
-    return () => clearTimeout(t);
-  }, [text]);
-  return {
-    toast: (
-      <div role="status" aria-live="polite">
-        {text ? <div className={styles.toast}>{text}</div> : null}
-      </div>
-    ),
-    show: setText,
-  };
-}
-
 /**
  * Focus a field once the form is no longer busy. While an answer from
  * Cognito is awaited every field is disabled, and a disabled field cannot

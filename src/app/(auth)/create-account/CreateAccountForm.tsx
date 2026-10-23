@@ -29,8 +29,8 @@ import {
   SubmitButton,
   useFocusWhenIdle,
   useResendWait,
-  useToast,
 } from "../ui";
+import { useToast } from "@/app/toast";
 import styles from "../auth.module.css";
 
 type Errors = {
@@ -63,7 +63,7 @@ export function CreateAccountForm() {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [busy, setBusy] = useState(false);
   const wait = useResendWait();
-  const { toast, show } = useToast();
+  const { show } = useToast();
 
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -268,7 +268,6 @@ export function CreateAccountForm() {
             Wrong email? Go back
           </button>
         </div>
-        {toast}
       </form>
     );
   }

@@ -612,22 +612,6 @@
   margin-top: 1px;
 }
 
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  z-index: 60;
-  background: var(--text);
-  color: var(--on-text);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 11px 16px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-dialog);
-  max-width: calc(100vw - 32px);
-}
-
 /* ---------- Phone: the hero becomes a violet band above the form ---------- */
 @media (max-width: 860px) {
   .auth {
@@ -690,9 +674,6 @@
   }
   .code {
     gap: 6px;
-  }
-  .toast {
-    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
   }
 }
 

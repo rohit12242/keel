@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { KeelMark } from "@/app/icons";
+import { ToastProvider } from "@/app/toast";
 import { getConfig } from "@/config/env";
 import { signedInUser } from "@/modules/session/service";
 import { AuthProvider } from "./AuthProvider";
@@ -77,7 +78,9 @@ export default async function AuthLayout({
         </div>
 
         <main className={styles.card}>
-          <AuthProvider cognito={{ poolId, clientId }}>{children}</AuthProvider>
+          <AuthProvider cognito={{ poolId, clientId }}>
+            <ToastProvider>{children}</ToastProvider>
+          </AuthProvider>
         </main>
       </div>
 
