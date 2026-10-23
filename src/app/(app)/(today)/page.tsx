@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getConfig } from "@/config/env";
+import { isIsoDate } from "@/modules/effort/domain/validateWrite";
 import type { Day } from "@/shared/contract";
 import { PageHeader } from "../PageHeader";
 import { requireUser } from "../requireUser";
+import { BrowserDay } from "./BrowserDay";
 import styles from "./today.module.css";
 
 export const metadata: Metadata = { title: "Today · Keel" };
@@ -47,9 +49,20 @@ export default async function TodayPage({
 }) {
   await requireUser();
   const { date, reset } = await searchParams;
-  // "Today" in the server's local zone; ?date= overrides for inspection.
-  // Real per-user timezone handling is NFR-12 (v2) / arrives with auth (E-06).
-  const day = date ?? new Date().toLocaleDateString("en-CA");
+  // The day is the browser's (NFR-12): without one, or with anything that
+  // is not a date — it goes into the fetch's path — the browser fills it in.
+  if (!date || !isIsoDate(date)) {
+    return (
+      <>
+        <PageHeader title="Today" />
+        <p className={styles.empty} aria-busy="true">
+          Loading your day…
+        </p>
+        <BrowserDay />
+      </>
+    );
+  }
+  const day = date;
   const fetched = await fetchDay(day);
 
   // The session ended between the frame's check and the fetch.

@@ -98,9 +98,12 @@ See `05-reviews.md`.
    - Choice cards: **Fixed · specific weekdays** ("The same days every week, with a daily target.") or **Flexible · days a week** ("Any days you choose, with a weekly target.").
    - Fixed: weekday checkboxes Mon … Sun, then **Daily target** "[ h ] h [ m ] m on each of those days".
    - Flexible: **Days a week** (1–7) and **Weekly target**, "across any 4 days".
+     - The weekly target is split evenly across the days and rounded up to the minute, because the plan stores a target per day. The **Each week** tile shows the result: 2h 05m across 3 days is 42m a day, so "2h 06m".
 4. **Plan:**
    - **Starts:** Today · Sat 5 Sep / Tomorrow · Sun 6 Sep / Next Monday · Mon 7 Sep.
    - **How long:** a number, then Weeks | Months, then "ends Sat 3 Oct". Plans may run into the next year; dates then show the year ("Tue 5 Jan 2027").
+     - *n* months end the day before the same date *n* months on, with the month-end clamping of monthly reviews (`docs/domain/review-windows.md`): from Sat 5 Sep, 1 month ends Sun 4 Oct.
+     - "A year or less" is up to 52 weeks or 12 months.
    - **Review every:** Week | Month.
    - Hint: "A review is due at the end of each week. The last one, on Sat 3 Oct, looks at the whole plan."
    - Three summary tiles: Planned days (fixed) or Days a week (flexible) · Each week · Reviews.
@@ -113,8 +116,9 @@ Validation:
 - "Say what would prove it worked."
 - "Pick at least one day."
 - "Set a target above zero."
+- "Set at least 15 minutes a day." (fixed) / "Set at least 45m a week, 15 minutes for each day." (flexible, with that week's figure)
 - "Minutes go up to 59."
-- "Keep a daily target under 16 hours."
+- "Keep a daily target under 16 hours." (fixed) / "Keep a weekly target under 48 hours, 16 for each day." (flexible, with that week's figure)
 - "Enter how long it runs."
 - "Keep it to a year or less."
 

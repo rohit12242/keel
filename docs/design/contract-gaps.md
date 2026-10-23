@@ -45,6 +45,9 @@ Checked against `docs/keel-api.yaml`, `docs/domain/*.md` and ADR-002 on 20 Oct 2
 | G37 | **"Taken 31 Aug · Runs 1 Sep – 2 Nov"**: an idea is taken the day the objective is created | The `taken` verdict is dated by the objective's `starts_on`. | Date it by the day it was created, in the request's zone. *(Found in I-03 planning.)* | No |
 | G38 | **"Locked until 2 Nov"** in Park an idea, before the idea is saved | The lock date exists only after parking. | Return the lock a new idea would get, from the same rule. *(Found in I-03 planning.)* | Yes, for the dialog's lock note |
 | G39 | **New objective's preview**: the number of reviews, and "The last one, on Sat 3 Oct" | Review windows are a domain rule (`review-windows.md`), with month-end clamping. | The UI imports the same pure `reviewWindows` the server uses. No endpoint. *(Found in I-03 planning.)* | No |
+| G40 | **A flexible weekly target**, any hours and minutes | The plan stores `minutes_per_planned_day`; a week's target is that times `days_per_week`, so 2h 05m across 3 days has no exact value. | Round the share per day up to the minute in the UI, and show the resulting week. *(Found in I-06.)* | No |
+| G41 | **Any target above zero** | `minutes_per_planned_day` is at least 15. | Keep 15; the UI says so. *(Found in I-06.)* | No |
+| G42 | **12 months** as "a year or less" | `runs_for_days` is at most 365; 12 months across a 29 February is 366 days. | Raise the limit to 366 for a new objective. *(Found in I-06.)* | No |
 
 ## Decided in I-03
 
@@ -99,6 +102,14 @@ The table above is the gap as the design found it. This is how each was closed
 |---|---|
 | G1 | **Keel's own screens**, not Cognito's managed login. The browser proves the password to Cognito with SRP (Amplify Auth) and exchanges the ID token for Keel's session at `POST /v1/session`; Keel never receives a password (ADR-002, revised). The honesty checkbox can stay on Create account. |
 | G30 | The name is Cognito's `name` attribute, asked for on Create account, copied into the session at sign-in and returned by `GET /v1/session`. Not stored in Keel. |
+
+## Decided in I-06
+
+| # | Decision |
+|---|---|
+| G40 | Kept: no backend change. The UI rounds the share per day up to the minute and shows the week it makes (`04-objectives.md`). |
+| G41 | Kept: 15 minutes a day. The UI checks it, in the words in `04-objectives.md`. |
+| G42 | `ObjectiveWrite.runs_for_days` goes up to 366. An extension keeps 365. |
 
 ## Names that differ (not gaps — map them in the UI)
 

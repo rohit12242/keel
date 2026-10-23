@@ -73,6 +73,15 @@ describe("validateObjectiveWrite — accepted", () => {
     expect(r.ok && r.value.end_date).toBe("2027-11-01");
   });
 
+  it("accepts 366 days, so twelve months across a 29 February fits (G42)", () => {
+    const r = validateObjectiveWrite({
+      ...FIXED,
+      starts_on: "2027-03-01",
+      runs_for_days: 366,
+    });
+    expect(r.ok && r.value.end_date).toBe("2028-02-29");
+  });
+
   it("sorts weekdays and drops repeats", () => {
     const r = validateObjectiveWrite({
       ...FIXED,
@@ -154,8 +163,8 @@ describe("validateObjectiveWrite — 400, a field wrong on its own", () => {
     expect(r.ok && r.value.tz).toBe("Asia/Kolkata");
   });
 
-  it("refuses runs_for_days outside 1–365 or not an integer", () => {
-    for (const days of [0, 366, 1.5, "28"]) {
+  it("refuses runs_for_days outside 1–366 or not an integer", () => {
+    for (const days of [0, 367, 1.5, "28"]) {
       expect(fields({ ...FIXED, runs_for_days: days })).toEqual([
         "runs_for_days",
       ]);

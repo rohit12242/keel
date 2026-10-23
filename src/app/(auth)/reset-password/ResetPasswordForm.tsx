@@ -24,8 +24,8 @@ import {
   SubmitButton,
   useFocusWhenIdle,
   useResendWait,
-  useToast,
 } from "../ui";
+import { useToast } from "@/app/toast";
 import styles from "../auth.module.css";
 
 /** Where a finished reset lands: Today, which then says so (`src/app/page.tsx`). */
@@ -52,7 +52,7 @@ export function ResetPasswordForm() {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [busy, setBusy] = useState(false);
   const wait = useResendWait();
-  const { toast, show } = useToast();
+  const { show } = useToast();
   const emailRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -214,7 +214,6 @@ export function ResetPasswordForm() {
             Start again
           </button>
         </p>
-        {toast}
       </form>
     );
   }

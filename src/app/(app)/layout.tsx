@@ -1,4 +1,5 @@
 import { KeelMark } from "@/app/icons";
+import { ToastProvider } from "@/app/toast";
 import { cookies } from "next/headers";
 import {
   initialOf,
@@ -31,30 +32,32 @@ export default async function AppLayout({
 
   return (
     <ShellProvider me={me} savedTheme={savedTheme}>
-      <FreshOnBack />
-      <div className={styles.app}>
-        <aside className={styles.side}>
-          <div className={styles.brand}>
-            <KeelMark />
-            <span className={styles.wordmark}>Keel</span>
-          </div>
-          <Nav variant="side" />
-          <div className={styles.sideFoot}>
-            <ThemeSwitch />
-            <div className={styles.user}>
-              <span className={styles.avatar} aria-hidden="true">
-                {me.initial}
-              </span>
-              <span className={styles.userText}>
-                <span className={styles.userName}>{me.name}</span>
-                <SignOut label="Log out" className={styles.logOut} />
-              </span>
+      <ToastProvider>
+        <FreshOnBack />
+        <div className={styles.app}>
+          <aside className={styles.side}>
+            <div className={styles.brand}>
+              <KeelMark />
+              <span className={styles.wordmark}>Keel</span>
             </div>
-          </div>
-        </aside>
-        <main className={styles.main}>{children}</main>
-        <Nav variant="tabs" />
-      </div>
+            <Nav variant="side" />
+            <div className={styles.sideFoot}>
+              <ThemeSwitch />
+              <div className={styles.user}>
+                <span className={styles.avatar} aria-hidden="true">
+                  {me.initial}
+                </span>
+                <span className={styles.userText}>
+                  <span className={styles.userName}>{me.name}</span>
+                  <SignOut label="Log out" className={styles.logOut} />
+                </span>
+              </div>
+            </div>
+          </aside>
+          <main className={styles.main}>{children}</main>
+          <Nav variant="tabs" />
+        </div>
+      </ToastProvider>
     </ShellProvider>
   );
 }

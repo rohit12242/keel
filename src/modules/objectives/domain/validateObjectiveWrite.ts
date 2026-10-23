@@ -107,8 +107,10 @@ export function validateObjectiveWrite(input: unknown): ObjectiveWriteResult {
   if (typeof body.tz !== "string" || !isValidTz(body.tz)) {
     fail("tz", "Required; must be a valid IANA time zone.");
   }
-  if (!isIntIn(body.runs_for_days, 1, 365)) {
-    fail("runs_for_days", "Required; an integer from 1 to 365.");
+  // 366, so twelve months across a 29 February fits (G42). An extension
+  // keeps 365.
+  if (!isIntIn(body.runs_for_days, 1, 366)) {
+    fail("runs_for_days", "Required; an integer from 1 to 366.");
   }
   if (body.review_cadence !== "weekly" && body.review_cadence !== "monthly") {
     fail("review_cadence", "Required; weekly or monthly.");
