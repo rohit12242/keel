@@ -61,3 +61,12 @@ export async function createUser(
 export async function setZone(userId: string, tz: string): Promise<void> {
   await query(`UPDATE "user" SET tz = $2 WHERE id = $1`, [userId, tz]);
 }
+
+/** The user's zone, or null if there is no such user. */
+export async function findZone(userId: string): Promise<string | null> {
+  const res = await query<{ tz: string }>(
+    `SELECT tz FROM "user" WHERE id = $1`,
+    [userId],
+  );
+  return res.rows[0]?.tz ?? null;
+}

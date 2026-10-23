@@ -14,7 +14,7 @@ import {
   signInDecision,
 } from "./domain/session";
 import { fetchSigningKeys, verifySignature } from "./cognito";
-import { createUser, findUserBySubject, setZone } from "./repo";
+import { createUser, findUserBySubject, findZone, setZone } from "./repo";
 import type { ProblemError } from "@/shared/contract";
 
 /**
@@ -105,6 +105,13 @@ export function signedInUser(
       }
     : null;
 }
+
+/**
+ * The zone the user last signed in from: the one the server reads "today"
+ * in (I-07). One read; who is signed in still comes from the cookie alone.
+ */
+export const zoneOf = (userId: string): Promise<string | null> =>
+  findZone(userId);
 
 /** Signing out clears the cookie; nothing is held server-side to revoke. */
 export const signOut = (): string => clearSessionCookie();
