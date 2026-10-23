@@ -9,11 +9,13 @@ import {
 import {
   checkIdClaims,
   displayName,
+  exchangeBody,
   issuerFor,
   signInDecision,
 } from "./domain/session";
 import { fetchSigningKeys, verifySignature } from "./cognito";
-import { createUser, findUserBySubject } from "./repo";
+import { createUser, findUserBySubject, setZone } from "./repo";
+import type { ProblemError } from "@/shared/contract";
 
 /**
  * session/service — turning a sign-in into a session, reading it, ending it
@@ -24,7 +26,7 @@ import { createUser, findUserBySubject } from "./repo";
 export type CreateSession =
   | { ok: true; cookie: string }
   | { ok: false; kind: "wrong_origin" }
-  | { ok: false; kind: "invalid" }
+  | { ok: false; kind: "invalid"; errors: ProblemError[] }
   | { ok: false; kind: "refused"; reason: string }
   | { ok: false; kind: "unavailable" }
   | { ok: false; kind: "email_taken" };
@@ -33,9 +35,10 @@ export type CreateSession =
  * Exchange a fresh Cognito ID token for Keel's session. In this order, so
  * each refusal costs as little as possible: the request must come from
  * Keel's own origin (before anything is read or fetched), the body must name
- * a token, the token must be signed by the pool and say what Keel accepts —
- * including a sign-in no older than five minutes — and then the user is found
- * by subject or created.
+ * a token and a known zone, the token must be signed by the pool and say what
+ * Keel accepts — including a sign-in no older than five minutes — and then
+ * the user is found by subject or created. Either way, the zone sent becomes
+ * the user's (I-07).
  */
 export async function createSession(
   origin: string | null,
@@ -47,13 +50,9 @@ export async function createSession(
     return { ok: false, kind: "wrong_origin" };
   }
 
-  const idToken =
-    typeof body === "object" && body !== null
-      ? (body as { id_token?: unknown }).id_token
-      : undefined;
-  if (typeof idToken !== "string" || idToken.length === 0) {
-    return { ok: false, kind: "invalid" };
-  }
+  const sent = exchangeBody(body);
+  if (!sent.ok) return { ok: false, kind: "invalid", errors: sent.error };
+  const { idToken, tz } = sent.value;
 
   const issuer = issuerFor(cognito.poolId);
   const keys = await fetchSigningKeys(issuer);
@@ -78,8 +77,9 @@ export async function createSession(
   let userId: string;
   if (decision.kind === "use") {
     userId = decision.userId;
+    await setZone(userId, tz);
   } else {
-    const created = await createUser(decision.identity);
+    const created = await createUser(decision.identity, tz);
     if (!created.ok) return { ok: false, kind: "email_taken" };
     userId = created.id;
   }

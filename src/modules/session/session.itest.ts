@@ -78,7 +78,19 @@ function exchange(
   );
 }
 
-const withToken = (c: object) => exchange({ id_token: signer.token(c) });
+/** The zone every case signs in from, unless it says otherwise. */
+const TZ = "Asia/Kolkata";
+
+const withToken = (c: object, tz = TZ) =>
+  exchange({ id_token: signer.token(c), tz });
+
+async function zoneOfRow(userId: string): Promise<string> {
+  const res = await query<{ tz: string }>(
+    `SELECT tz FROM "user" WHERE id = $1`,
+    [userId],
+  );
+  return res.rows[0].tz;
+}
 
 /** The user the response's session cookie names. */
 function sessionUser(res: Response) {
@@ -121,7 +133,10 @@ describe("POST /v1/session", () => {
 
   it("403 without Keel's own Origin, decided before any key is fetched", async () => {
     for (const origin of [null, "https://evil.example", "http://keel.test"]) {
-      const res = await exchange({ id_token: signer.token(claims()) }, origin);
+      const res = await exchange(
+        { id_token: signer.token(claims()), tz: TZ },
+        origin,
+      );
       expect((await problemOf(res)).status).toBe(403);
       expect(sessionUser(res)).toBeNull();
     }
@@ -129,7 +144,12 @@ describe("POST /v1/session", () => {
   });
 
   it("400 when the body names no token", async () => {
-    for (const body of [{}, { id_token: "" }, { id_token: 7 }, null]) {
+    for (const body of [
+      {},
+      { id_token: "", tz: TZ },
+      { id_token: 7, tz: TZ },
+      null,
+    ]) {
       expect((await problemOf(await exchange(body))).status).toBe(400);
     }
     expect(
@@ -138,11 +158,33 @@ describe("POST /v1/session", () => {
     expect(keys).not.toHaveBeenCalled();
   });
 
+  it("400 naming tz for a missing or unknown zone, before any key is fetched, writing nothing", async () => {
+    for (const tz of [undefined, "", "Mars/Olympus"]) {
+      const identity = claims();
+      const res = await exchange({ id_token: signer.token(identity), tz });
+      const body = (await problemOf(res)) as unknown as {
+        status: number;
+        errors: { field: string }[];
+      };
+      expect(body.status).toBe(400);
+      expect(body.errors.map((e) => e.field)).toEqual(["tz"]);
+      expect(sessionUser(res)).toBeNull();
+      const rows = await query(`SELECT 1 FROM "user" WHERE idp_subject = $1`, [
+        identity.sub,
+      ]);
+      expect(rows.rowCount).toBe(0);
+    }
+    expect(keys).not.toHaveBeenCalled();
+  });
+
   it("401 for a token Keel does not accept, writing nothing", async () => {
     const stranger = testSigner(signer.jwk.kid);
     const cases: [string, Promise<Response>][] = [
-      ["bad signature", exchange({ id_token: stranger.token(claims()) })],
-      ["not a JWT", exchange({ id_token: "not-a-token" })],
+      [
+        "bad signature",
+        exchange({ id_token: stranger.token(claims()), tz: TZ }),
+      ],
+      ["not a JWT", exchange({ id_token: "not-a-token", tz: TZ })],
       [
         "another pool",
         withToken(claims({ iss: issuerFor("us-east-1_Elsewhere") })),
@@ -199,6 +241,19 @@ describe("POST /v1/session", () => {
     expect(sessionUser(res2)).toEqual({ ...user, name: "Renamed" });
   });
 
+  it("stores the zone a first sign-in comes from, and replaces it at the next (I-07)", async () => {
+    const identity = claims();
+    const first = sessionUser(await withToken(identity));
+    expect(await zoneOfRow(first!.id)).toBe("Asia/Kolkata");
+
+    const res = await withToken(
+      { ...identity, auth_time: nowSeconds() },
+      "Pacific/Kiritimati",
+    );
+    expect(res.status).toBe(204);
+    expect(await zoneOfRow(first!.id)).toBe("Pacific/Kiritimati");
+  });
+
   it("409 when the email belongs to another subject, writing nothing", async () => {
     const email = `itest-${randomUUID()}@keel.test`;
     await withToken(claims({ email }));
@@ -220,10 +275,10 @@ describe("POST /v1/session", () => {
       testSigner(signer.jwk.kid).token(claims()),
     ];
     const out = await logged(async () => {
-      for (const t of tokens) await exchange({ id_token: t });
+      for (const t of tokens) await exchange({ id_token: t, tz: TZ });
       keys.mockResolvedValueOnce({ ok: false, kind: "unavailable" });
-      await exchange({ id_token: tokens[0] });
-      await exchange({ id_token: tokens[0] }, "https://evil.example");
+      await exchange({ id_token: tokens[0], tz: TZ });
+      await exchange({ id_token: tokens[0], tz: TZ }, "https://evil.example");
     });
     expect(out).toContain("POST /v1/session");
     for (const t of tokens) {
