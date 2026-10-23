@@ -364,10 +364,59 @@
   color: var(--text);
 }
 
+.button:disabled {
+  opacity: 0.78;
+  cursor: progress;
+  filter: none;
+}
+
+.spin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Create failed: above the buttons, the whole width of the bar. */
+.banner {
+  flex-basis: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-10);
+  padding: 12px 14px;
+  border-radius: var(--radius-panel);
+  background: var(--deviation-tint);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.banner svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 3px;
+  color: var(--deviation);
+}
+
 /* One shake on a failed Create; none under reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
   .shake {
     animation: shake 320ms ease-in-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation-duration: 2s;
   }
 }
 

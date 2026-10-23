@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { BackIcon } from "@/app/icons";
 import { useBrowserDay } from "@/app/browserDay";
+import { useToast } from "@/app/toast";
 import {
   checkDraft,
+  createdMessage,
   dayLabel,
   DEFAULT_DRAFT,
   NAME_MAX,
@@ -76,23 +79,27 @@ const described = (field: Field, errors: Errors, ...more: string[]) => ({
       .join(" ") || undefined,
 });
 
+const AlertIcon = () => (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    aria-hidden="true"
+  >
+    <circle cx="8" cy="8" r="6.2" />
+    <path d="M8 4.8v3.8M8 11v.1" />
+  </svg>
+);
+
 /** A field's error, under it. The icon and the words carry it, not colour alone. */
 function FieldError({ field, errors }: { field: Field; errors: Errors }) {
   const message = errors[field];
   if (!message) return null;
   return (
     <p className={styles.error} id={errorId(field)}>
-      <svg
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        aria-hidden="true"
-      >
-        <circle cx="8" cy="8" r="6.2" />
-        <path d="M8 4.8v3.8M8 11v.1" />
-      </svg>
+      <AlertIcon />
       <span>{message}</span>
     </p>
   );
@@ -228,6 +235,13 @@ export function NewObjectiveForm() {
   const [draft, setDraft] = useState<Draft>(DEFAULT_DRAFT);
   const [errors, setErrors] = useState<Errors>({});
   const [shaking, setShaking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  // Set on the first Create, before React renders the button disabled, so a
+  // second click in the same moment sends nothing.
+  const sending = useRef(false);
+  const router = useRouter();
+  const { show } = useToast();
   // An edit clears the errors of the checks it can change, and only those.
   const set = <K extends keyof Draft>(
     key: K,
@@ -263,8 +277,9 @@ export function NewObjectiveForm() {
   const p = preview(draft, today);
   const fixed = draft.mode === "fixed";
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (sending.current) return;
     const checked = checkDraft(draft, today, tz);
     if (!checked.ok) {
       // Every error at once, one shake, and the first bad field focused.
@@ -274,7 +289,36 @@ export function NewObjectiveForm() {
       return;
     }
     setErrors({});
-    // Sending it comes with its own step.
+
+    sending.current = true;
+    setBusy(true);
+    setFailed(false);
+    let status = 0;
+    try {
+      const res = await fetch("/v1/objectives", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(checked.body),
+      });
+      status = res.status;
+    } catch {
+      // Not reached: the same as any other failure.
+    }
+    if (status === 201) {
+      // The page is left, so `sending` stays set: nothing more is sent.
+      show(createdMessage(checked.body.starts_on, today));
+      router.push("/");
+      return;
+    }
+    if (status === 401) {
+      router.push("/sign-in");
+      return;
+    }
+    // Everything entered stays; the page says nothing was created.
+    sending.current = false;
+    setBusy(false);
+    setFailed(true);
   }
 
   return (
@@ -567,6 +611,15 @@ export function NewObjectiveForm() {
       </section>
 
       <div className={styles.bar}>
+        {failed ? (
+          <div className={styles.banner} role="alert">
+            <AlertIcon />
+            <span>
+              <b>Couldn&rsquo;t create the objective.</b> Nothing was created.
+              Try again.
+            </span>
+          </div>
+        ) : null}
         <span className={styles.hint}>
           Schedule and target are fixed once created. They change only when you
           extend at the final review.
@@ -575,8 +628,20 @@ export function NewObjectiveForm() {
           <Link className={styles.muted} href="/objectives">
             Cancel
           </Link>
-          <button className={styles.button} type="submit">
-            Create objective
+          <button
+            className={styles.button}
+            type="submit"
+            disabled={busy}
+            aria-busy={busy || undefined}
+          >
+            {busy ? (
+              <>
+                <span className={styles.spin} aria-hidden="true" />
+                Creating…
+              </>
+            ) : (
+              "Create objective"
+            )}
           </button>
         </span>
       </div>
