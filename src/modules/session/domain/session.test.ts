@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkIdClaims,
   displayName,
+  exchangeBody,
   FRESH_SIGN_IN_SECONDS,
   issuerFor,
   liveSession,
@@ -66,6 +67,38 @@ describe("issuerFor", () => {
     expect(issuerFor("ap-south-1_AbC123")).toBe(
       "https://cognito-idp.ap-south-1.amazonaws.com/ap-south-1_AbC123",
     );
+  });
+});
+
+describe("exchangeBody", () => {
+  const fields = (body: unknown) => {
+    const r = exchangeBody(body);
+    return r.ok ? [] : r.error.map((e) => e.field);
+  };
+
+  it("takes the ID token and the browser's zone", () => {
+    expect(exchangeBody({ id_token: "a.b.c", tz: "Asia/Kolkata" })).toEqual({
+      ok: true,
+      value: { idToken: "a.b.c", tz: "Asia/Kolkata" },
+    });
+  });
+
+  it("names a missing, empty or non-string token", () => {
+    for (const id_token of [undefined, "", 7]) {
+      expect(fields({ id_token, tz: "UTC" })).toEqual(["id_token"]);
+    }
+  });
+
+  it("names a missing, empty or unknown zone", () => {
+    for (const tz of [undefined, "", "Mars/Olympus", 5]) {
+      expect(fields({ id_token: "a.b.c", tz })).toEqual(["tz"]);
+    }
+  });
+
+  it("names both, for a body that is not an object or has neither", () => {
+    for (const body of [null, "x", [], {}]) {
+      expect(fields(body)).toEqual(["id_token", "tz"]);
+    }
   });
 });
 

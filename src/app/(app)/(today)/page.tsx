@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getConfig } from "@/config/env";
-import { isIsoDate } from "@/modules/effort/domain/validateWrite";
+import { zoneOf } from "@/modules/session/service";
+import { localDayOf } from "@/shared/time/localDay";
 import type { Day } from "@/shared/contract";
 import { PageHeader } from "../PageHeader";
 import { requireUser } from "../requireUser";
-import { BrowserDay } from "./BrowserDay";
 import styles from "./today.module.css";
 
 export const metadata: Metadata = { title: "Today · Keel" };
@@ -45,24 +45,15 @@ async function fetchDay(date: string): Promise<Fetched> {
 export default async function TodayPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; reset?: string }>;
+  searchParams: Promise<{ reset?: string }>;
 }) {
-  await requireUser();
-  const { date, reset } = await searchParams;
-  // The day is the browser's (NFR-12): without one, or with anything that
-  // is not a date — it goes into the fetch's path — the browser fills it in.
-  if (!date || !isIsoDate(date)) {
-    return (
-      <>
-        <PageHeader title="Today" />
-        <p className={styles.empty} aria-busy="true">
-          Loading your day…
-        </p>
-        <BrowserDay />
-      </>
-    );
-  }
-  const day = date;
+  const user = await requireUser();
+  const { reset } = await searchParams;
+  // Today in the zone the user last signed in from (I-07). It takes no date
+  // from the URL: every recorded date still comes from the client (NFR-12).
+  const zone = await zoneOf(user.id);
+  if (!zone) redirect("/sign-in");
+  const day = localDayOf(new Date(), zone);
   const fetched = await fetchDay(day);
 
   // The session ended between the frame's check and the fetch.

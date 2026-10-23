@@ -28,17 +28,20 @@ export type CreateUser =
  * - an email that already belongs to another subject — a provider account
  *   deleted and recreated: refused, nothing written.
  *
- * `tz` is UTC until the user has a way to say otherwise: the sign-in carries
- * no zone, and every recorded date comes from the client anyway (NFR-12).
+ * `tz` is the zone the sign-in came from (I-07). Two racing sign-ins for one
+ * subject carry the same zone, so the row is right whichever one wrote it.
  */
-export async function createUser(identity: Identity): Promise<CreateUser> {
+export async function createUser(
+  identity: Identity,
+  tz: string,
+): Promise<CreateUser> {
   try {
     const res = await query<{ id: string }>(
       `INSERT INTO "user" (email, tz, idp_subject)
-       VALUES ($1, 'UTC', $2)
+       VALUES ($1, $3, $2)
        ON CONFLICT (idp_subject) DO NOTHING
        RETURNING id`,
-      [identity.email, identity.subject],
+      [identity.email, identity.subject, tz],
     );
     if (res.rows[0]) return { ok: true, id: res.rows[0].id };
   } catch (e) {
@@ -52,4 +55,18 @@ export async function createUser(identity: Identity): Promise<CreateUser> {
   const existing = await findUserBySubject(identity.subject);
   if (!existing) throw new Error("user row vanished after a subject conflict");
   return { ok: true, id: existing.id };
+}
+
+/** Every sign-in stores the zone it came from as the user's (I-07). */
+export async function setZone(userId: string, tz: string): Promise<void> {
+  await query(`UPDATE "user" SET tz = $2 WHERE id = $1`, [userId, tz]);
+}
+
+/** The user's zone, or null if there is no such user. */
+export async function findZone(userId: string): Promise<string | null> {
+  const res = await query<{ tz: string }>(
+    `SELECT tz FROM "user" WHERE id = $1`,
+    [userId],
+  );
+  return res.rows[0]?.tz ?? null;
 }

@@ -459,7 +459,7 @@ would be stored and never read.
 | id | uuid PK |  |
 | email | citext UK |  |
 | idp_subject | text null UK | The provider's subject id (ADR-002). Null only on a row written before sign-in existed, which nobody signs in as. Every Keel row points at `user.id`, never at this — changing provider re-maps one column rather than re-keying the database. |
-| tz | text | The zone new entries are stamped with by default, and the zone "today" is read in wherever the server must compare against it. |
+| tz | text | The zone new entries are stamped with by default, and the zone "today" is read in wherever the server must compare against it. Set from the browser's zone at every sign-in (I-07); a zone that changes while signed in waits for the next one. |
 
 **No password, ever.** Credentials live at the provider (ADR-002); there is no column
 that could hold one.

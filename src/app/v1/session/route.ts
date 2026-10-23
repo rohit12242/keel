@@ -67,8 +67,8 @@ export async function POST(req: Request): Promise<Response> {
           400,
           "Invalid request",
           problemType("invalid"),
-          "The body must be JSON naming the ID token.",
-          [{ field: "id_token", message: "Required." }],
+          "The body must be JSON naming the ID token and the browser's zone.",
+          result.errors,
         );
       case "refused":
         logLine("sign_in_refused", { reason: result.reason });

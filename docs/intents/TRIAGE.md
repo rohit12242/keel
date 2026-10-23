@@ -31,23 +31,6 @@ copy drifting: a date the day route accepts but the effort write refuses is the 
 disagreement that moves a day (NFR-12). Small to fix, since both routes would import
 the shared one. It was left out of I-01 because neither route is in its plan.
 
-### A new user's zone is UTC, and nothing can change it · found in I-02
-
-`user.tz` is NOT NULL, and a first sign-in creates the user (ADR-002). The sign-in
-carries no zone — the contract's callback has nothing to take one from, and the pool
-asks for no `zoneinfo` — so `session/repo.ts` writes `UTC`. No operation changes it.
-
-Recorded dates are unaffected: every one comes from the client (NFR-12). What is
-affected is every comparison the server makes against *today in the user's zone* — a
-deviation dated in the future, an extension that must end after today, whether a
-parking lock has lifted. For someone in Asia/Kolkata, "today" turns over 5½ hours
-late. An intent that lets a user set their zone, or takes it at sign-in, closes this.
-
-Since I-06, Today itself reads the browser's day: a visit to `/` without a date renders
-its loading state while the browser replaces the URL with `?date=<its day>`. That costs
-one extra render per visit. A zone the server can trust would let Today pick its day on
-the first request and retire the hop.
-
 ### ADR-004 names a variable that no longer exists · found in I-02
 
 ADR-004 gives `SEED_DATA` as its example of configuration that differs between
