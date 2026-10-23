@@ -13,6 +13,7 @@ import {
   startChoices,
   TEXT_MAX,
   type Draft,
+  type Field,
   type StartChoice,
 } from "@/modules/objectives/domain/newObjective";
 import styles from "./newObjective.module.css";
@@ -35,6 +36,67 @@ const WEEKDAYS: [number, string][] = [
 ];
 
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
+
+/** The checks an edit to each part of the draft can change. */
+const AFFECTS: Record<keyof Draft, Field[]> = {
+  name: ["name"],
+  why: ["why"],
+  criteria: ["criteria"],
+  mode: ["days", "target"],
+  weekdays: ["days"],
+  daysPerWeek: ["target"],
+  hours: ["target"],
+  minutes: ["target"],
+  start: [],
+  length: ["length"],
+  unit: ["length"],
+  cadence: [],
+};
+
+/** Where focus goes when a field holds the first error. */
+const FOCUS: Record<Field, string> = {
+  name: "nf-name",
+  why: "nf-why",
+  criteria: "nf-criteria",
+  days: "nf-day-1",
+  target: "nf-hours",
+  length: "nf-length",
+};
+
+type Errors = Partial<Record<Field, string>>;
+
+const errorId = (f: Field) => `nf-${f}-error`;
+
+/** What a control needs to point at its error, and its hint. */
+const described = (field: Field, errors: Errors, ...more: string[]) => ({
+  "aria-invalid": errors[field] ? true : undefined,
+  "aria-describedby":
+    [errors[field] ? errorId(field) : null, ...more]
+      .filter(Boolean)
+      .join(" ") || undefined,
+});
+
+/** A field's error, under it. The icon and the words carry it, not colour alone. */
+function FieldError({ field, errors }: { field: Field; errors: Errors }) {
+  const message = errors[field];
+  if (!message) return null;
+  return (
+    <p className={styles.error} id={errorId(field)}>
+      <svg
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="8" cy="8" r="6.2" />
+        <path d="M8 4.8v3.8M8 11v.1" />
+      </svg>
+      <span>{message}</span>
+    </p>
+  );
+}
 
 /**
  * Buttons that act as one radio group: the chosen one is in the Tab order,
@@ -164,8 +226,29 @@ function CountedLabel({
 export function NewObjectiveForm() {
   const day = useBrowserDay();
   const [draft, setDraft] = useState<Draft>(DEFAULT_DRAFT);
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
-    setDraft((d) => ({ ...d, [key]: value }));
+  const [errors, setErrors] = useState<Errors>({});
+  const [shaking, setShaking] = useState(false);
+  // An edit clears the errors of the checks it can change, and only those.
+  const set = <K extends keyof Draft>(
+    key: K,
+    value: Draft[K] | ((current: Draft[K]) => Draft[K]),
+  ) => {
+    setDraft((d) => ({
+      ...d,
+      [key]:
+        typeof value === "function"
+          ? (value as (current: Draft[K]) => Draft[K])(d[key])
+          : value,
+    }));
+    if (AFFECTS[key].some((f) => errors[f])) {
+      setErrors((e) => {
+        const next = { ...e };
+        for (const f of AFFECTS[key]) delete next[f];
+        return next;
+      });
+    }
+  };
+  const marked = (f: Field) => (errors[f] ? styles.hasError : "");
 
   // The server has no browser to ask for the day; the form waits for it.
   if (!day) {
@@ -182,17 +265,30 @@ export function NewObjectiveForm() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    // Create checks the draft; sending it comes with its own step.
-    checkDraft(draft, today, tz);
+    const checked = checkDraft(draft, today, tz);
+    if (!checked.ok) {
+      // Every error at once, one shake, and the first bad field focused.
+      setErrors(checked.errors);
+      setShaking(true);
+      document.getElementById(FOCUS[checked.first])?.focus();
+      return;
+    }
+    setErrors({});
+    // Sending it comes with its own step.
   }
 
   return (
-    <form className={styles.form} noValidate onSubmit={submit}>
+    <form
+      className={`${styles.form} ${shaking ? styles.shake : ""}`}
+      noValidate
+      onSubmit={submit}
+      onAnimationEnd={() => setShaking(false)}
+    >
       <section className={styles.card} aria-labelledby="nf-what">
         <h2 className={styles.cardTitle} id="nf-what">
           What it is
         </h2>
-        <div className={styles.field}>
+        <div className={`${styles.field} ${marked("name")}`}>
           <CountedLabel
             htmlFor="nf-name"
             label="Name"
@@ -207,9 +303,11 @@ export function NewObjectiveForm() {
             placeholder="e.g. Conversational English"
             value={draft.name}
             onChange={(e) => set("name", e.target.value)}
+            {...described("name", errors)}
           />
+          <FieldError field="name" errors={errors} />
         </div>
-        <div className={styles.field}>
+        <div className={`${styles.field} ${marked("why")}`}>
           <CountedLabel
             htmlFor="nf-why"
             label="Why it matters"
@@ -223,9 +321,11 @@ export function NewObjectiveForm() {
             placeholder="e.g. I want to speak up in English at work without rehearsing every sentence first."
             value={draft.why}
             onChange={(e) => set("why", e.target.value)}
+            {...described("why", errors)}
           />
+          <FieldError field="why" errors={errors} />
         </div>
-        <div className={styles.field}>
+        <div className={`${styles.field} ${marked("criteria")}`}>
           <CountedLabel
             htmlFor="nf-criteria"
             label="Success criteria · what would prove it worked"
@@ -236,7 +336,7 @@ export function NewObjectiveForm() {
             id="nf-criteria"
             className={styles.textarea}
             maxLength={TEXT_MAX}
-            aria-describedby="nf-criteria-hint"
+            {...described("criteria", errors, "nf-criteria-hint")}
             placeholder="e.g. Hold a 15-minute conversation in English without switching to my first language."
             value={draft.criteria}
             onChange={(e) => set("criteria", e.target.value)}
@@ -245,6 +345,7 @@ export function NewObjectiveForm() {
             You&rsquo;ll check this at the final review, so make it something
             you can see happen.
           </span>
+          <FieldError field="criteria" errors={errors} />
         </div>
       </section>
 
@@ -280,7 +381,7 @@ export function NewObjectiveForm() {
           ]}
         />
         {fixed ? (
-          <div className={styles.field}>
+          <div className={`${styles.field} ${marked("days")}`}>
             <span className={styles.label} id="nf-days-label">
               Which days
             </span>
@@ -288,22 +389,23 @@ export function NewObjectiveForm() {
               className={styles.days}
               role="group"
               aria-labelledby="nf-days-label"
+              aria-describedby={errors.days ? errorId("days") : undefined}
             >
               {WEEKDAYS.map(([n, name]) => {
                 const on = draft.weekdays.includes(n);
                 return (
                   <button
                     key={n}
+                    id={`nf-day-${n}`}
                     type="button"
                     role="checkbox"
                     aria-checked={on}
                     className={styles.chip}
                     onClick={() =>
-                      set(
-                        "weekdays",
-                        on
-                          ? draft.weekdays.filter((d) => d !== n)
-                          : [...draft.weekdays, n],
+                      set("weekdays", (days) =>
+                        days.includes(n)
+                          ? days.filter((d) => d !== n)
+                          : [...days, n],
                       )
                     }
                   >
@@ -312,6 +414,7 @@ export function NewObjectiveForm() {
                 );
               })}
             </div>
+            <FieldError field="days" errors={errors} />
           </div>
         ) : (
           <div className={styles.field}>
@@ -331,7 +434,7 @@ export function NewObjectiveForm() {
             />
           </div>
         )}
-        <div className={styles.field}>
+        <div className={`${styles.field} ${marked("target")}`}>
           <span className={styles.label} id="nf-target-label">
             {fixed ? "Daily target" : "Weekly target"}
           </span>
@@ -348,6 +451,7 @@ export function NewObjectiveForm() {
               aria-label="Hours"
               value={draft.hours}
               onChange={(e) => set("hours", onlyDigits(e.target.value))}
+              {...described("target", errors)}
             />
             <span className={styles.unit}>h</span>
             <input
@@ -358,6 +462,7 @@ export function NewObjectiveForm() {
               aria-label="Minutes"
               value={draft.minutes}
               onChange={(e) => set("minutes", onlyDigits(e.target.value))}
+              {...described("target", errors)}
             />
             <span className={styles.unit}>m</span>
             <span className={styles.hint}>
@@ -366,6 +471,7 @@ export function NewObjectiveForm() {
                 : `across any ${draft.daysPerWeek} day${draft.daysPerWeek > 1 ? "s" : ""}`}
             </span>
           </div>
+          <FieldError field="target" errors={errors} />
         </div>
       </section>
 
@@ -396,7 +502,7 @@ export function NewObjectiveForm() {
           />
         </div>
         <div className={styles.two}>
-          <div className={styles.field}>
+          <div className={`${styles.field} ${marked("length")}`}>
             <span className={styles.label} id="nf-length-label">
               How long
             </span>
@@ -413,6 +519,7 @@ export function NewObjectiveForm() {
                 aria-label="How many"
                 value={draft.length}
                 onChange={(e) => set("length", onlyDigits(e.target.value))}
+                {...described("length", errors)}
               />
               <Segments
                 label="Unit"
@@ -425,6 +532,7 @@ export function NewObjectiveForm() {
               />
               <span className={styles.hint}>{p.endLabel}</span>
             </div>
+            <FieldError field="length" errors={errors} />
           </div>
           <div className={styles.field}>
             <span className={styles.label} id="nf-cadence-label">
