@@ -65,6 +65,12 @@ describe("validateExtensionWrite", () => {
     ]);
     expect(validateExtensionWrite(null).ok).toBe(false);
   });
+
+  it("an extension stays at 365 days, though a new objective may run 366 (G42)", () => {
+    expect(validateExtensionWrite(body({ extend_by_days: 365 })).ok).toBe(true);
+    const r = validateExtensionWrite(body({ extend_by_days: 366 }));
+    expect(r.ok ? [] : r.error.map((e) => e.field)).toEqual(["extend_by_days"]);
+  });
 });
 
 const segment = (

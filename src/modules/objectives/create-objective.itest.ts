@@ -73,6 +73,24 @@ describe("createObjective (real Postgres)", () => {
     ]);
   });
 
+  it("creates twelve months across a 29 February: 366 days (G42)", async () => {
+    const result = await createObjective(
+      user.id,
+      {
+        ...BODY,
+        title: `itest: I-06 366 days ${Date.now()}`,
+        starts_on: "2027-03-01",
+        runs_for_days: 366,
+      },
+      new Date(),
+    );
+    if (!result.ok) throw new Error(`create failed: ${result.kind}`);
+    expect(result.objective).toMatchObject({
+      start_date: "2027-03-01",
+      end_date: "2028-02-29",
+    });
+  });
+
   it("leaves nothing behind when the third write fails", async () => {
     const validated = validateObjectiveWrite({
       ...BODY,
