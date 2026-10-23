@@ -117,6 +117,10 @@ paths:
         (`docs/erd.md`, *User*), and sets its own session cookie. The browser then
         discards every Cognito token (ADR-002). No password ever reaches this
         endpoint, and the token is never logged.
+
+        `tz` is the browser's zone. Every sign-in stores it as the user's zone —
+        the first one, after creating an account, included — so the server reads
+        "today" in the zone the user last signed in from (I-07).
       operationId: createSession
       security: []
       requestBody:
@@ -125,9 +129,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [id_token]
+              required: [id_token, tz]
               properties:
                 id_token: { type: string, minLength: 1 }
+                tz:
+                  type: string
+                  minLength: 1
+                  description: An IANA time zone, e.g. Asia/Kolkata. One the server does not know is refused with 400.
       responses:
         '204':
           description: Signed in. The session cookie is set.
