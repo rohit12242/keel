@@ -35,15 +35,15 @@ Everything here was reviewed and approved screen by screen in a clickable protot
 Each line is roughly one intent. Contract gaps that block a step are listed in `contract-gaps.md`.
 
 1. Tokens and fonts (`src/app/keel-modern-tokens.css`, Geist + IBM Plex Mono + Spectral via `next/font`), app shell, theme switch.
-2. Today, with Log time (create, edit, delete an entry).
-3. Objectives list and detail — Overview and Effort tabs.
-4. New objective.
-5. Deviations screen and Log a deviation; the Deviations tab on an objective.
-6. Reviews — weekly and monthly, drafts, saved review.
-7. Final review — Complete and Extend.
-8. Pause, resume, terminate; notes.
-9. Parking lot.
-10. Onboarding.
+2. New objective — the form, without the "Start from" card, which needs approved ideas.
+3. Today, with Log time (create, edit, delete an entry); its empty card opens New objective.
+4. Onboarding — reuses the New objective form, so a new account can start one.
+5. Objectives list and detail — Overview and Effort tabs.
+6. Deviations screen and Log a deviation; the Deviations tab on an objective.
+7. Reviews — weekly and monthly, drafts, saved review.
+8. Final review — Complete and Extend.
+9. Pause, resume, terminate; notes.
+10. Parking lot, and New objective's "Start from" card.
 
 ## Sample data in the prototype
 
