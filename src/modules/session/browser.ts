@@ -128,7 +128,11 @@ export async function signInToKeel(
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id_token: idToken }),
+      // The zone the user is in: every sign-in stores it (I-07).
+      body: JSON.stringify({
+        id_token: idToken,
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
     });
     status = exchanged.status;
   } catch (e) {

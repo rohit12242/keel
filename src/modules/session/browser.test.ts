@@ -112,7 +112,7 @@ describe("signInToKeel", () => {
     expect(assign).toHaveBeenCalledWith("/");
   });
 
-  it("sends Keel the ID token and nothing else — never the password", async () => {
+  it("sends Keel the ID token and the zone, and nothing else — never the password", async () => {
     await browser.signInToKeel("r@example.com", "a long password");
     expect(posted).toHaveLength(1);
     const { url, init } = posted[0];
@@ -122,6 +122,7 @@ describe("signInToKeel", () => {
     expect(init.headers).toEqual({ "content-type": "application/json" });
     expect(JSON.parse(init.body as string)).toEqual({
       id_token: "the.id.token",
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     expect(init.body).not.toContain("a long password");
   });
