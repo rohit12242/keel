@@ -1,0 +1,487 @@
+"use client";
+
+import Link from "next/link";
+import { useRef, useState } from "react";
+import { BackIcon } from "@/app/icons";
+import { useBrowserDay } from "@/app/browserDay";
+import {
+  checkDraft,
+  dayLabel,
+  DEFAULT_DRAFT,
+  NAME_MAX,
+  preview,
+  startChoices,
+  TEXT_MAX,
+  type Draft,
+  type StartChoice,
+} from "@/modules/objectives/domain/newObjective";
+import styles from "./newObjective.module.css";
+
+/**
+ * The New objective page (04-objectives.md), without "Start from": What it
+ * is, Schedule, Plan with its preview, and the sticky footer. The rules —
+ * the Start dates, the preview, the checks — are in
+ * `modules/objectives/domain/newObjective.ts`; this draws them.
+ */
+
+const WEEKDAYS: [number, string][] = [
+  [1, "Mon"],
+  [2, "Tue"],
+  [3, "Wed"],
+  [4, "Thu"],
+  [5, "Fri"],
+  [6, "Sat"],
+  [7, "Sun"],
+];
+
+const onlyDigits = (s: string) => s.replace(/\D/g, "");
+
+/**
+ * Buttons that act as one radio group: the chosen one is in the Tab order,
+ * and the arrow keys move the choice (01-shell.md).
+ */
+function RadioGroup<T extends string | number>({
+  label,
+  labelledBy,
+  options,
+  value,
+  onChange,
+  className,
+  optionClass,
+}: {
+  label?: string;
+  labelledBy?: string;
+  options: { value: T; content: React.ReactNode }[];
+  value: T;
+  onChange: (v: T) => void;
+  className: string;
+  optionClass: string;
+}) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const move = (from: number, by: number) => {
+    const to = (from + by + options.length) % options.length;
+    onChange(options[to].value);
+    refs.current[to]?.focus();
+  };
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      aria-labelledby={labelledBy}
+      className={className}
+    >
+      {options.map((o, i) => (
+        <button
+          key={String(o.value)}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          type="button"
+          role="radio"
+          aria-checked={o.value === value}
+          tabIndex={o.value === value ? 0 : -1}
+          className={optionClass}
+          onClick={() => onChange(o.value)}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+              e.preventDefault();
+              move(i, 1);
+            } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+              e.preventDefault();
+              move(i, -1);
+            }
+          }}
+        >
+          {o.content}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Two or more buttons, one pressed. */
+function Segments<T extends string>({
+  label,
+  labelledBy,
+  options,
+  value,
+  onChange,
+}: {
+  label?: string;
+  labelledBy?: string;
+  options: [T, string][];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      aria-labelledby={labelledBy}
+      className={styles.seg}
+    >
+      {options.map(([v, text]) => (
+        <button
+          key={v}
+          type="button"
+          className={styles.segBtn}
+          aria-pressed={v === value}
+          onClick={() => onChange(v)}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** A label with its character counter, which turns amber at the limit. */
+function CountedLabel({
+  htmlFor,
+  label,
+  length,
+  max,
+}: {
+  htmlFor: string;
+  label: string;
+  length: number;
+  max: number;
+}) {
+  return (
+    <div className={styles.labelRow}>
+      <label className={styles.label} htmlFor={htmlFor}>
+        {label}
+      </label>
+      <span
+        className={`${styles.count} ${length >= max ? styles.countFull : ""}`}
+      >
+        {length}/{max}
+      </span>
+    </div>
+  );
+}
+
+export function NewObjectiveForm() {
+  const day = useBrowserDay();
+  const [draft, setDraft] = useState<Draft>(DEFAULT_DRAFT);
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
+    setDraft((d) => ({ ...d, [key]: value }));
+
+  // The server has no browser to ask for the day; the form waits for it.
+  if (!day) {
+    return (
+      <p className={styles.hint} aria-busy="true">
+        Loading…
+      </p>
+    );
+  }
+  const { today, tz } = day;
+  const starts = startChoices(today);
+  const p = preview(draft, today);
+  const fixed = draft.mode === "fixed";
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    // Create checks the draft; sending it comes with its own step.
+    checkDraft(draft, today, tz);
+  }
+
+  return (
+    <form className={styles.form} noValidate onSubmit={submit}>
+      <section className={styles.card} aria-labelledby="nf-what">
+        <h2 className={styles.cardTitle} id="nf-what">
+          What it is
+        </h2>
+        <div className={styles.field}>
+          <CountedLabel
+            htmlFor="nf-name"
+            label="Name"
+            length={draft.name.length}
+            max={NAME_MAX}
+          />
+          <input
+            id="nf-name"
+            className={styles.input}
+            maxLength={NAME_MAX}
+            autoComplete="off"
+            placeholder="e.g. Conversational English"
+            value={draft.name}
+            onChange={(e) => set("name", e.target.value)}
+          />
+        </div>
+        <div className={styles.field}>
+          <CountedLabel
+            htmlFor="nf-why"
+            label="Why it matters"
+            length={draft.why.length}
+            max={TEXT_MAX}
+          />
+          <textarea
+            id="nf-why"
+            className={styles.textarea}
+            maxLength={TEXT_MAX}
+            placeholder="e.g. I want to speak up in English at work without rehearsing every sentence first."
+            value={draft.why}
+            onChange={(e) => set("why", e.target.value)}
+          />
+        </div>
+        <div className={styles.field}>
+          <CountedLabel
+            htmlFor="nf-criteria"
+            label="Success criteria · what would prove it worked"
+            length={draft.criteria.length}
+            max={TEXT_MAX}
+          />
+          <textarea
+            id="nf-criteria"
+            className={styles.textarea}
+            maxLength={TEXT_MAX}
+            aria-describedby="nf-criteria-hint"
+            placeholder="e.g. Hold a 15-minute conversation in English without switching to my first language."
+            value={draft.criteria}
+            onChange={(e) => set("criteria", e.target.value)}
+          />
+          <span className={styles.hint} id="nf-criteria-hint">
+            You&rsquo;ll check this at the final review, so make it something
+            you can see happen.
+          </span>
+        </div>
+      </section>
+
+      <section className={styles.card} aria-labelledby="nf-schedule">
+        <h2 className={styles.cardTitle} id="nf-schedule">
+          Schedule
+        </h2>
+        <RadioGroup
+          label="Schedule"
+          className={styles.choices}
+          optionClass={styles.choice}
+          value={draft.mode}
+          onChange={(v) => set("mode", v)}
+          options={[
+            {
+              value: "fixed",
+              content: (
+                <>
+                  <b>Fixed · specific weekdays</b>
+                  <span>The same days every week, with a daily target.</span>
+                </>
+              ),
+            },
+            {
+              value: "flexible",
+              content: (
+                <>
+                  <b>Flexible · days a week</b>
+                  <span>Any days you choose, with a weekly target.</span>
+                </>
+              ),
+            },
+          ]}
+        />
+        {fixed ? (
+          <div className={styles.field}>
+            <span className={styles.label} id="nf-days-label">
+              Which days
+            </span>
+            <div
+              className={styles.days}
+              role="group"
+              aria-labelledby="nf-days-label"
+            >
+              {WEEKDAYS.map(([n, name]) => {
+                const on = draft.weekdays.includes(n);
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    className={styles.chip}
+                    onClick={() =>
+                      set(
+                        "weekdays",
+                        on
+                          ? draft.weekdays.filter((d) => d !== n)
+                          : [...draft.weekdays, n],
+                      )
+                    }
+                  >
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className={styles.field}>
+            <span className={styles.label} id="nf-pw-label">
+              Days a week
+            </span>
+            <RadioGroup
+              labelledBy="nf-pw-label"
+              className={styles.days}
+              optionClass={styles.chip}
+              value={draft.daysPerWeek}
+              onChange={(v) => set("daysPerWeek", v)}
+              options={[1, 2, 3, 4, 5, 6, 7].map((n) => ({
+                value: n,
+                content: String(n),
+              }))}
+            />
+          </div>
+        )}
+        <div className={styles.field}>
+          <span className={styles.label} id="nf-target-label">
+            {fixed ? "Daily target" : "Weekly target"}
+          </span>
+          <div
+            className={styles.hm}
+            role="group"
+            aria-labelledby="nf-target-label"
+          >
+            <input
+              id="nf-hours"
+              className={`${styles.input} ${styles.num}`}
+              inputMode="numeric"
+              maxLength={2}
+              aria-label="Hours"
+              value={draft.hours}
+              onChange={(e) => set("hours", onlyDigits(e.target.value))}
+            />
+            <span className={styles.unit}>h</span>
+            <input
+              id="nf-minutes"
+              className={`${styles.input} ${styles.num}`}
+              inputMode="numeric"
+              maxLength={2}
+              aria-label="Minutes"
+              value={draft.minutes}
+              onChange={(e) => set("minutes", onlyDigits(e.target.value))}
+            />
+            <span className={styles.unit}>m</span>
+            <span className={styles.hint}>
+              {fixed
+                ? "on each of those days"
+                : `across any ${draft.daysPerWeek} day${draft.daysPerWeek > 1 ? "s" : ""}`}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.card} aria-labelledby="nf-plan">
+        <h2 className={styles.cardTitle} id="nf-plan">
+          Plan
+        </h2>
+        <div className={styles.field}>
+          <span className={styles.label} id="nf-start-label">
+            Starts
+          </span>
+          <RadioGroup<StartChoice>
+            labelledBy="nf-start-label"
+            className={styles.chips}
+            optionClass={styles.chip}
+            value={draft.start}
+            onChange={(v) => set("start", v)}
+            options={(
+              [
+                ["today", "Today"],
+                ["tomorrow", "Tomorrow"],
+                ["monday", "Next Monday"],
+              ] as const
+            ).map(([v, name]) => ({
+              value: v,
+              content: `${name} · ${dayLabel(starts[v], today)}`,
+            }))}
+          />
+        </div>
+        <div className={styles.two}>
+          <div className={styles.field}>
+            <span className={styles.label} id="nf-length-label">
+              How long
+            </span>
+            <div
+              className={styles.hm}
+              role="group"
+              aria-labelledby="nf-length-label"
+            >
+              <input
+                id="nf-length"
+                className={`${styles.input} ${styles.num}`}
+                inputMode="numeric"
+                maxLength={2}
+                aria-label="How many"
+                value={draft.length}
+                onChange={(e) => set("length", onlyDigits(e.target.value))}
+              />
+              <Segments
+                label="Unit"
+                value={draft.unit}
+                onChange={(v) => set("unit", v)}
+                options={[
+                  ["weeks", "Weeks"],
+                  ["months", "Months"],
+                ]}
+              />
+              <span className={styles.hint}>{p.endLabel}</span>
+            </div>
+          </div>
+          <div className={styles.field}>
+            <span className={styles.label} id="nf-cadence-label">
+              Review every
+            </span>
+            <Segments
+              labelledBy="nf-cadence-label"
+              value={draft.cadence}
+              onChange={(v) => set("cadence", v)}
+              options={[
+                ["weekly", "Week"],
+                ["monthly", "Month"],
+              ]}
+            />
+          </div>
+        </div>
+        <span className={styles.hint}>{p.reviewHint}</span>
+        <dl className={styles.summary}>
+          <div>
+            <dt>{p.first.label}</dt>
+            <dd>{p.first.value}</dd>
+          </div>
+          <div>
+            <dt>Each week</dt>
+            <dd>{p.eachWeek}</dd>
+          </div>
+          <div>
+            <dt>Reviews</dt>
+            <dd>{p.reviews}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <div className={styles.bar}>
+        <span className={styles.hint}>
+          Schedule and target are fixed once created. They change only when you
+          extend at the final review.
+        </span>
+        <span className={styles.buttons}>
+          <Link className={styles.muted} href="/objectives">
+            Cancel
+          </Link>
+          <button className={styles.button} type="submit">
+            Create objective
+          </button>
+        </span>
+      </div>
+    </form>
+  );
+}
+
+/** "‹ Objectives": back to the list, nothing created. */
+export function BackToObjectives() {
+  return (
+    <Link className={styles.back} href="/objectives">
+      <BackIcon />
+      Objectives
+    </Link>
+  );
+}
