@@ -1,9 +1,11 @@
+import { isValidTz } from "@/modules/effort/domain/validateWrite";
+import type { ProblemError } from "@/shared/contract";
 import { err, ok, type Result } from "@/shared/result";
 
 /**
  * The session rules (ADR-002), pure: what a session holds, when it has
- * expired, what an identity token must say before Keel trusts it, and what a
- * sign-in does with the user it finds. No clock — `now` is always passed in,
+ * expired, what a sign-in must send, what an identity token must say before
+ * Keel trusts it, and what a sign-in does with the user it finds. No clock — `now` is always passed in,
  * in whole seconds since the epoch.
  */
 
@@ -74,6 +76,33 @@ export function displayName(name: string | null, email: string): string {
 /** The token issuer for a pool: its region is the pool id's prefix. */
 export const issuerFor = (poolId: string): string =>
   `https://cognito-idp.${poolId.split("_")[0]}.amazonaws.com/${poolId}`;
+
+/** What `POST /v1/session` must be sent: the ID token, and the browser's zone. */
+export type ExchangeBody = { idToken: string; tz: string };
+
+/**
+ * The exchange's body, or every field that is wrong with it. A zone the
+ * runtime does not know is refused like any other write's (I-07): it would
+ * become the zone the server reads "today" in.
+ */
+export function exchangeBody(
+  body: unknown,
+): Result<ExchangeBody, ProblemError[]> {
+  const { id_token: idToken, tz } = isRecord(body) ? body : {};
+  const errors: ProblemError[] = [];
+  if (typeof idToken !== "string" || idToken.length === 0) {
+    errors.push({ field: "id_token", message: "Required." });
+  }
+  if (typeof tz !== "string" || !isValidTz(tz)) {
+    errors.push({
+      field: "tz",
+      message: "Required; must be a valid IANA time zone.",
+    });
+  }
+  return errors.length > 0
+    ? err(errors)
+    : ok({ idToken: idToken as string, tz: tz as string });
+}
 
 /** Who signed in, once the identity token has been checked. */
 export type Identity = { subject: string; email: string; name: string | null };
