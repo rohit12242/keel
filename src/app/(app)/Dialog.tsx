@@ -7,35 +7,25 @@ import styles from "./dialog.module.css";
  * The app's dialog (01-shell.md, *Dialogs*): a native modal `<dialog>`, so
  * the scrim, `Esc`, the inert page behind and focus going back to the
  * button that opened it come from the browser. A centred card on desktop, a
- * bottom sheet on phone. Its body is a form: Enter submits it.
- *
- * `busy` holds it open while a request is in flight; `shake` runs the
- * one shake a failed check gets, and `onShaken` clears it.
+ * bottom sheet on phone. It draws the frame — the title and the close
+ * button — and the content brings its own form, laid out with `dialogParts`
+ * (a body, then a footer with the keyboard hint or a danger action on the
+ * left and the buttons on the right). Focus goes to the content's element
+ * marked `data-autofocus`. `busy` holds it open while a request is in
+ * flight.
  */
 export function Dialog({
   open,
   title,
   onClose,
-  onSubmit,
-  children,
-  actions,
-  start,
   busy = false,
-  shake = false,
-  onShaken,
+  children,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-  children: React.ReactNode;
-  /** The footer's buttons, on the right: Cancel, then the primary action. */
-  actions: React.ReactNode;
-  /** The footer's left side; the keyboard hint when there is nothing else. */
-  start?: React.ReactNode;
   busy?: boolean;
-  shake?: boolean;
-  onShaken?: () => void;
+  children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -43,7 +33,11 @@ export function Dialog({
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      // The content names its first field; otherwise the browser picks.
+      dialog.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+    }
     if (!open && dialog.open) dialog.close();
   }, [open]);
 
@@ -52,24 +46,14 @@ export function Dialog({
       ref={ref}
       className={styles.dialog}
       aria-labelledby={titleId}
-      aria-busy={busy || undefined}
-      // Esc, and closing by any other way the browser offers.
+      // Esc: the dialog closes through the page's state, never on its own.
       onCancel={(e) => {
         e.preventDefault();
         if (!busy) onClose();
       }}
-      onClose={() => open && onClose()}
     >
       {open ? (
-        <form
-          className={`${styles.form} ${shake ? styles.shake : ""}`}
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit(e);
-          }}
-          onAnimationEnd={() => onShaken?.()}
-        >
+        <>
           <div className={styles.head}>
             <h2 className={styles.title} id={titleId}>
               {title}
@@ -93,21 +77,22 @@ export function Dialog({
               </svg>
             </button>
           </div>
-          <div className={styles.body}>{children}</div>
-          <div className={styles.foot}>
-            <div className={styles.start}>
-              {start ?? <span className={styles.hint}>esc to close</span>}
-            </div>
-            <div className={styles.actions}>{actions}</div>
-          </div>
-        </form>
+          {children}
+        </>
       ) : null}
     </dialog>
   );
 }
 
-/** The dialog's buttons: muted Cancel, the primary action, a danger action. */
-export const dialogButton = {
+/** The parts a dialog's content is laid out with, and its buttons. */
+export const dialogParts = {
+  form: styles.form,
+  shake: styles.shake,
+  body: styles.body,
+  foot: styles.foot,
+  start: styles.start,
+  actions: styles.actions,
+  keys: styles.hint,
   primary: styles.primary,
   muted: styles.muted,
   danger: styles.danger,

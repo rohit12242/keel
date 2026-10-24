@@ -1,6 +1,8 @@
 /* The app's dialog (01-shell.md): a centred 520 px card over the scrim; a
    bottom sheet on phone. */
 .dialog {
+  /* The reset takes the browser's centring away; it comes back here. */
+  margin: auto;
   width: min(520px, calc(100vw - 32px));
   max-height: calc(100vh - 48px);
   padding: 0;
@@ -12,8 +14,9 @@
   overflow: auto;
 }
 
+/* A backdrop may not inherit the page's tokens; the light scrim stands in. */
 .dialog::backdrop {
-  background: var(--scrim);
+  background: var(--scrim, rgba(16, 17, 20, 0.32));
 }
 
 .form {
@@ -135,7 +138,8 @@
   outline-offset: 2px;
 }
 
-/* Opening: a quick scale from 0.98, off under reduced motion. */
+/* Opening: a quick scale from 0.98, and a failed check's one shake; both
+   off under reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
   .dialog[open] {
     animation: open 180ms ease-out;

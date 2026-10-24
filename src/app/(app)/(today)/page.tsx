@@ -68,5 +68,5 @@ export default async function TodayPage({
     );
   }
 
-  return <Today day={fetched.day} reset={reset === "done"} />;
+  return <Today day={fetched.day} zone={zone} reset={reset === "done"} />;
 }

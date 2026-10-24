@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import type { Day, DayObjective } from "@/shared/contract";
 import { PlusIcon } from "@/app/icons";
+import { useToast } from "@/app/toast";
+import { localDayOf } from "@/shared/time/localDay";
+import {
+  dayTurned,
+  SAVE_FAILED,
+  TOAST,
+  type EntryBody,
+} from "@/modules/today/domain/logTime";
 import {
   card,
   entryRows,
@@ -13,18 +22,123 @@ import {
   summary,
   type EntryRow,
 } from "@/modules/today/domain/todayView";
-import { PageHeader } from "../PageHeader";
+import { KeyHint, PageHeader } from "../PageHeader";
+import { useShortcut } from "../shortcuts";
+import { LogTime, type Opened, type SaveOutcome } from "./LogTime";
 import shell from "../shell.module.css";
 import styles from "./today.module.css";
 
 /**
  * Today (03-today.md): the summary, the filter, the objective cards and the
- * rail's Plan to date, drawn from one read of the day. Every word and
- * figure comes from `modules/today/domain/todayView.ts`.
+ * rail's Plan to date, drawn from one read of the day, and Log time. Every
+ * word and figure comes from `modules/today/domain/todayView.ts`.
+ *
+ * Each save is sent at once and answered with a toast; the day is then read
+ * again (`router.refresh()`, inside a transition so the page stays as it is
+ * until the new day arrives), so every figure on the page is the server's.
+ * `zone` is the one Today shows (I-07): entries are logged in it.
  */
-export function Today({ day, reset }: { day: Day; reset: boolean }) {
+
+/** A refusal's problem type, by its last path segment. */
+async function problemOf(
+  res: Response,
+): Promise<{ type: string; detail: string }> {
+  const p = (await res.json().catch(() => null)) as {
+    type?: string;
+    detail?: string;
+  } | null;
+  return {
+    type: p?.type?.split("/").pop() ?? "",
+    detail: p?.detail ?? "",
+  };
+}
+
+export function Today({
+  day,
+  zone,
+  reset,
+}: {
+  day: Day;
+  zone: string;
+  reset: boolean;
+}) {
   const [filter, setFilter] = useState<string>("all");
+  const [opened, setOpened] = useState<Opened | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const router = useRouter();
+  const { show } = useToast();
   const date = day.date;
+  const refresh = () => startTransition(() => router.refresh());
+  const logNew = (objectiveId: string | null = null) =>
+    setOpened({ kind: "new", objectiveId });
+
+  useShortcut("l", () => {
+    if (day.objectives.length > 0) logNew();
+  });
+
+  /** What a refused write shows, or where it goes. */
+  async function refused(res: Response): Promise<SaveOutcome> {
+    if (res.status === 401) {
+      router.push("/sign-in");
+      return { done: true };
+    }
+    const p = await problemOf(res);
+    if (p.type === "entry-overlaps") {
+      return { done: false, field: "when", message: p.detail };
+    }
+    if (p.type === "not-today") {
+      refresh();
+      return { done: false, message: dayTurned(longDate(date)) };
+    }
+    return { done: false, message: SAVE_FAILED };
+  }
+
+  /** Send a write; a network failure reads as any other failed save. */
+  async function send(url: string, method: string, body?: unknown) {
+    try {
+      return await fetch(url, {
+        method,
+        credentials: "same-origin",
+        headers: body ? { "content-type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function logEntry(
+    objectiveId: string,
+    body: EntryBody,
+  ): Promise<SaveOutcome> {
+    // Nothing is logged to a day that is over (invariant 18).
+    if (localDayOf(new Date(), zone) !== date) {
+      refresh();
+      return { done: false, message: dayTurned(longDate(date)) };
+    }
+    const res = await send(
+      `/v1/objectives/${objectiveId}/effort-entries`,
+      "POST",
+      body,
+    );
+    if (!res) return { done: false, message: SAVE_FAILED };
+    if (res.status !== 201) return refused(res);
+    const entry = (await res.json()) as { id: string };
+    const title = day.objectives.find((o) => o.id === objectiveId)?.title ?? "";
+    setOpened(null);
+    setFlash(entry.id);
+    show(TOAST.logged(body.minutes, title), {
+      undo: async () => {
+        const undone = await send(`/v1/effort-entries/${entry.id}`, "DELETE");
+        if (undone?.status !== 204) return TOAST.undoFailed;
+        refresh();
+        return TOAST.loggedUndone;
+      },
+    });
+    refresh();
+    return { done: true };
+  }
   const shown = (o: DayObjective) => filter === "all" || filter === o.id;
   const planned = day.objectives.filter(
     (o) => card(o, date).kind === "planned",
@@ -33,7 +147,36 @@ export function Today({ day, reset }: { day: Day; reset: boolean }) {
 
   return (
     <>
-      <PageHeader eyebrow={longDate(date)} title="Today" />
+      <PageHeader
+        eyebrow={longDate(date)}
+        title="Today"
+        action={
+          day.objectives.length > 0 ? (
+            <button
+              type="button"
+              className={shell.primary}
+              onClick={() => logNew()}
+              aria-keyshortcuts="L"
+            >
+              <PlusIcon />
+              Log time
+              <KeyHint k="L" />
+            </button>
+          ) : null
+        }
+        phoneAction={
+          day.objectives.length > 0 ? (
+            <button
+              type="button"
+              className={`${shell.primary} ${shell.primarySmall}`}
+              onClick={() => logNew()}
+            >
+              <PlusIcon />
+              Log time
+            </button>
+          ) : null
+        }
+      />
       {reset ? (
         <p className={styles.notice} role="status">
           Password changed. You&rsquo;re signed in.
@@ -54,14 +197,26 @@ export function Today({ day, reset }: { day: Day; reset: boolean }) {
             {planned.some(shown) ? (
               <div className={styles.grid}>
                 {planned.filter(shown).map((o) => (
-                  <PlannedCard key={o.id} o={o} date={date} />
+                  <PlannedCard
+                    key={o.id}
+                    o={o}
+                    date={date}
+                    flash={flash}
+                    onLog={() => logNew(o.id)}
+                  />
                 ))}
               </div>
             ) : null}
             {others.some(shown) ? (
               <div className={styles.others}>
                 {others.filter(shown).map((o) => (
-                  <OtherCard key={o.id} o={o} date={date} />
+                  <OtherCard
+                    key={o.id}
+                    o={o}
+                    date={date}
+                    flash={flash}
+                    onLog={() => logNew(o.id)}
+                  />
                 ))}
               </div>
             ) : null}
@@ -71,6 +226,14 @@ export function Today({ day, reset }: { day: Day; reset: boolean }) {
           </aside>
         </div>
       )}
+
+      <LogTime
+        opened={opened}
+        day={day}
+        zone={zone}
+        onClose={() => setOpened(null)}
+        onSave={logEntry}
+      />
     </>
   );
 }
@@ -178,11 +341,14 @@ function Filter({
   );
 }
 
-function Entries({ rows }: { rows: EntryRow[] }) {
+function Entries({ rows, flash }: { rows: EntryRow[]; flash: string | null }) {
   return (
     <ul className={styles.entries}>
       {rows.map((r) => (
-        <li key={r.id} className={styles.entry}>
+        <li
+          key={r.id}
+          className={`${styles.entry} ${r.id === flash ? styles.flash : ""}`}
+        >
           <span className={styles.entryTime}>{r.time}</span>
           <span className={styles.entryNote}>{r.note}</span>
           <span className={styles.entryMins}>{r.minutes}</span>
@@ -192,7 +358,14 @@ function Entries({ rows }: { rows: EntryRow[] }) {
   );
 }
 
-function PlannedCard({ o, date }: { o: DayObjective; date: string }) {
+type CardProps = {
+  o: DayObjective;
+  date: string;
+  flash: string | null;
+  onLog: () => void;
+};
+
+function PlannedCard({ o, date, flash, onLog }: CardProps) {
   const c = card(o, date);
   if (c.kind !== "planned") return null;
   const pct = Math.round(c.progress * 100);
@@ -226,15 +399,24 @@ function PlannedCard({ o, date }: { o: DayObjective; date: string }) {
         </div>
       </div>
       {rows.length > 0 ? (
-        <Entries rows={rows} />
+        <Entries rows={rows} flash={flash} />
       ) : (
         <p className={styles.nothing}>Nothing logged yet today.</p>
       )}
+      <button
+        type="button"
+        className={styles.ghost}
+        onClick={onLog}
+        aria-label={`Add entry to ${o.title}`}
+      >
+        <PlusIcon />
+        Add entry
+      </button>
     </section>
   );
 }
 
-function OtherCard({ o, date }: { o: DayObjective; date: string }) {
+function OtherCard({ o, date, flash, onLog }: CardProps) {
   const c = card(o, date);
   const rows = entryRows(o);
   return (
@@ -245,9 +427,19 @@ function OtherCard({ o, date }: { o: DayObjective; date: string }) {
         </h2>
         <span className={styles.sub}>{c.note}</span>
       </div>
+      {c.kind === "other" && c.canLog ? (
+        <button
+          type="button"
+          className={styles.secondary}
+          onClick={onLog}
+          aria-label={`Log time anyway to ${o.title}`}
+        >
+          Log anyway
+        </button>
+      ) : null}
       {rows.length > 0 ? (
         <div className={styles.mutedLog}>
-          <Entries rows={rows} />
+          <Entries rows={rows} flash={flash} />
         </div>
       ) : null}
     </section>
