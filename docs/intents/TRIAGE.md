@@ -183,3 +183,14 @@ all paused, completed or ended gets the new-account card, which invites it to ad
 *first* objective. Telling the two apart needs a second read or a count on the day
 (NFR-03). The design has no state for it yet: it needs words ("Nothing is running
 today…") and a way back to the paused objective, which arrives with Objectives.
+
+### More logged than planned, yet the ring is under 100 % · found in I-08
+
+Today's big total counts every minute logged, while the ring counts only today's
+planned time met, objective by objective, with time over one objective's plan never
+covering another's (`03-today.md`, G27). So a day can read "2h 55m logged" against
+"2h 45m planned" with the ring at 73 %, because one objective is over and another has
+nothing. Adherence works the same way: time over a slot's target is shown as over, not
+credited (`docs/domain/adherence.md`, rules 3 and 7). The rule is deliberate, but the
+page doesn't say it, and a user can read it as a bug. Rohit will look at how the page
+explains it: the summary line, a note on the ring, or showing over-plan time apart.
