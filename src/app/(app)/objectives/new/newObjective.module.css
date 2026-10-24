@@ -160,44 +160,6 @@
   color: var(--text-3);
 }
 
-/* Fixed or flexible: two choice cards. */
-.choices {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-8);
-}
-
-.choice {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: 12px 14px;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  background: var(--surface);
-  border: var(--border-hairline) solid var(--line);
-  border-radius: var(--radius-panel);
-  cursor: pointer;
-}
-
-.choice b {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.choice span {
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--text-2);
-}
-
-.choice[aria-checked="true"] {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-  background: var(--accent-tint);
-}
-
 .chips,
 .days {
   display: flex;
@@ -264,7 +226,6 @@
   box-shadow: var(--shadow-thumb);
 }
 
-.choice:focus-visible,
 .chip:focus-visible,
 .segBtn:focus-visible,
 .button:focus-visible,
@@ -442,7 +403,6 @@
     border-radius: var(--radius-2xl);
   }
 
-  .choices,
   .two {
     grid-template-columns: minmax(0, 1fr);
   }
