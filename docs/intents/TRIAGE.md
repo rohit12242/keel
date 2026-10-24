@@ -175,3 +175,11 @@ that reads flexible plans stays, tested. Bringing them back needs: the weekly ta
 (G40), their weeks on the Monday-to-Sunday week I-09 sets, a short first and last week,
 every flexible variant in the design ("Weeks met", "Days worked", "15h / 20h this
 week", "1 day left"), and the monthly-review entry above.
+
+### An account whose objectives are all paused sees "Add your first objective" · found in I-08
+
+Today's day read returns active objectives only, so an account whose objectives are
+all paused, completed or ended gets the new-account card, which invites it to add its
+*first* objective. Telling the two apart needs a second read or a count on the day
+(NFR-03). The design has no state for it yet: it needs words ("Nothing is running
+today…") and a way back to the paused objective, which arrives with Objectives.
