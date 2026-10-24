@@ -5,6 +5,7 @@ import {
   daysFrom,
   testObjectiveToday,
   testUser,
+  todayAt,
   todayIn,
   type TestUser,
 } from "@/test/fixtures";
@@ -36,9 +37,9 @@ function body(over: Record<string, unknown> = {}) {
 let user: TestUser;
 let OBJECTIVE_ID: string;
 
-/** Log as the case's own user, now. */
-const log = (objectiveId: string, b: unknown) =>
-  createEffortEntry(user.id, objectiveId, b, new Date());
+/** Log as the case's own user, late today, so every fixed time has happened. */
+const log = (objectiveId: string, b: unknown, now = todayAt(TZ, "23:59")) =>
+  createEffortEntry(user.id, objectiveId, b, now);
 
 describe("createEffortEntry (real Postgres)", () => {
   beforeEach(async () => {
@@ -98,12 +99,15 @@ describe("createEffortEntry (real Postgres)", () => {
 
   it("judges today in the zone the entry is logged in", async () => {
     // Kiritimati (UTC+14) and Pago Pago (UTC−11) are never on the same date.
+    // Late on Kiritimati's clock, so the entry has happened there.
     const kiritimati = todayIn("Pacific/Kiritimati");
+    const late = todayAt("Pacific/Kiritimati", "23:59");
     expect(
       (
         await log(
           OBJECTIVE_ID,
           body({ local_date: kiritimati, tz: "Pacific/Kiritimati" }),
+          late,
         )
       ).ok,
     ).toBe(true);
@@ -115,6 +119,7 @@ describe("createEffortEntry (real Postgres)", () => {
           tz: "Pacific/Pago_Pago",
           occurred_at_local: "15:00",
         }),
+        late,
       ),
     ).toMatchObject({ ok: false, kind: "not_today" });
   });
@@ -155,6 +160,25 @@ describe("createEffortEntry (real Postgres)", () => {
     expect(written.rowCount).toBe(0);
   });
 
+  it("is in_future for an entry that ends after now on its zone's clock, past the grace — and writes nothing", async () => {
+    // 09:20–10:20, logged at 10:15 and at 10:14: within five minutes' grace,
+    // and one minute past it.
+    expect((await log(OBJECTIVE_ID, body(), todayAt(TZ, "10:15"))).ok).toBe(
+      true,
+    );
+    const result = await log(
+      OBJECTIVE_ID,
+      body({ occurred_at_local: "10:20", note: "future probe" }),
+      todayAt(TZ, "10:14"),
+    );
+    expect(result).toMatchObject({ ok: false, kind: "in_future" });
+    const written = await query(
+      "SELECT 1 FROM effort_entry WHERE note = 'future probe' AND objective_id = $1",
+      [OBJECTIVE_ID],
+    );
+    expect(written.rowCount).toBe(0);
+  });
+
   it("allows an entry that only touches another, or overlaps another user's", async () => {
     expect((await log(OBJECTIVE_ID, body())).ok).toBe(true); // 09:20–10:20
     expect(
@@ -166,7 +190,7 @@ describe("createEffortEntry (real Postgres)", () => {
       someoneElse.id,
       theirs,
       body(),
-      new Date(),
+      todayAt(TZ, "23:59"),
     );
     expect(theirLog.ok).toBe(true);
   });

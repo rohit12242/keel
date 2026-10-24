@@ -9,6 +9,7 @@ import { useToast } from "@/app/toast";
 import { localDayOf } from "@/shared/time/localDay";
 import {
   dayTurned,
+  IN_FUTURE,
   SAVE_FAILED,
   TOAST,
   type EntryBody,
@@ -86,6 +87,9 @@ export function Today({
     const p = await problemOf(res);
     if (p.type === "entry-overlaps") {
       return { done: false, field: "when", message: p.detail };
+    }
+    if (p.type === "entry-in-future") {
+      return { done: false, field: "when", message: IN_FUTURE };
     }
     if (p.type === "not-today") {
       refresh();

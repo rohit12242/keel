@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DayObjective } from "@/shared/contract";
 import { validateEffortEntryWrite } from "@/modules/effort/domain/validateWrite";
+import { futureRefusal } from "@/modules/effort/domain/effortDay";
 import {
   buttonLabel,
   checkEntry,
@@ -8,7 +9,9 @@ import {
   cut,
   dayTurned,
   durationLabel,
+  fitTime,
   hint,
+  IN_FUTURE,
   nowTimes,
   parseTime,
   SAVE_FAILED,
@@ -20,9 +23,14 @@ import {
 
 const DATE = "2026-09-05";
 const ZONE = "Asia/Kolkata";
-const ctx = (entries: PageEntry[] = [], editing?: PageEntry) => ({
+const ctx = (
+  entries: PageEntry[] = [],
+  editing?: PageEntry,
+  now = "23:59",
+) => ({
   date: DATE,
   zone: ZONE,
+  now,
   entries,
   editing,
 });
@@ -90,6 +98,34 @@ describe("Now", () => {
   });
 });
 
+describe("fitTime — a time box holds no more than a time", () => {
+  it("keeps every form the design accepts as typed", () => {
+    for (const t of [
+      "9",
+      "920",
+      "0920",
+      "9:20",
+      "09:20",
+      "9.20",
+      "21",
+      "21:",
+    ]) {
+      expect(fitTime(t)).toBe(t);
+    }
+  });
+
+  it("stops at four digits, or two either side of the mark", () => {
+    expect(fitTime("22405")).toBe("2240");
+    expect(fitTime("123:456")).toBe("12:45");
+  });
+
+  it("drops anything that isn't a digit or the first mark", () => {
+    expect(fitTime("9a2b0")).toBe("920");
+    expect(fitTime(" 9:2:0")).toBe("9:20");
+    expect(fitTime("9.2:0")).toBe("9.20");
+  });
+});
+
 describe("checkEntry — the design's messages", () => {
   it("names every bad field, objective first", () => {
     expect(
@@ -117,6 +153,17 @@ describe("checkEntry — the design's messages", () => {
         first: "when",
       });
     }
+  });
+
+  it("an entry may end now, but not a minute later", () => {
+    const at = (end: string) =>
+      checkEntry(draft({ start: "10:00", end }), ctx([], undefined, "11:00"));
+    expect(at("11:00").ok).toBe(true);
+    expect(at("11:01")).toMatchObject({
+      ok: false,
+      errors: { when: IN_FUTURE },
+      first: "when",
+    });
   });
 
   it("an overlap names the entry, its note cut to fit", () => {
@@ -183,7 +230,7 @@ describe("checkEntry — the body", () => {
 });
 
 describe("whatever passes the dialog, the API accepts", () => {
-  it("a grid of drafts: every body checkEntry passes is one validateEffortEntryWrite takes", () => {
+  it("a grid of drafts: every body checkEntry passes is one validateEffortEntryWrite takes, and none ends after now", () => {
     const times = [
       "0",
       "000",
@@ -200,20 +247,21 @@ describe("whatever passes the dialog, the API accepts", () => {
     for (const start of times)
       for (const end of times)
         for (const note of notes)
-          for (const zone of [ZONE, "UTC", "America/Los_Angeles"]) {
-            const checked = checkEntry(
-              { objectiveId: "o1", start, end, note },
-              { date: DATE, zone, entries: [] },
-            );
-            if (!checked.ok) continue;
-            passed++;
-            const accepted = validateEffortEntryWrite(checked.body);
-            if (!accepted.ok) {
-              throw new Error(
-                `refused: ${JSON.stringify(checked.body)} → ${JSON.stringify(accepted)}`,
+          for (const zone of [ZONE, "UTC", "America/Los_Angeles"])
+            for (const now of ["00:00", "12:00", "23:59"]) {
+              const checked = checkEntry(
+                { objectiveId: "o1", start, end, note },
+                { date: DATE, zone, now, entries: [] },
               );
+              if (!checked.ok) continue;
+              passed++;
+              const accepted = validateEffortEntryWrite(checked.body);
+              if (!accepted.ok || futureRefusal(checked.body, now)) {
+                throw new Error(
+                  `refused: ${JSON.stringify(checked.body)} at ${now} → ${JSON.stringify(accepted)}`,
+                );
+              }
             }
-          }
     expect(passed).toBeGreaterThan(100);
   });
 });

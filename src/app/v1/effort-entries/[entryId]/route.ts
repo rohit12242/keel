@@ -30,6 +30,14 @@ const notToday = () =>
     "An entry is changed only on its own day, in the zone it was logged in.",
   );
 
+const inFuture = () =>
+  problem(
+    422,
+    "This entry ends after now",
+    problemType("entry-in-future"),
+    "Effort is logged once it has happened: the entry may not end after now in tz.",
+  );
+
 /**
  * PATCH /v1/effort-entries/{entryId} — correct an entry on its own day.
  * `local_date` cannot change (docs/keel-api.yaml).
@@ -74,6 +82,8 @@ export const PATCH = withSession(
               return notFound("entry");
             case "not_today":
               return notToday();
+            case "in_future":
+              return inFuture();
             case "not_active":
               return notActive();
             case "overlap":

@@ -50,12 +50,12 @@ v1 plans fixed objectives only (I-09). The flexible card — "Flexible · 5 days
 | Part | Behaviour |
 |---|---|
 | Objective | Chips, one per objective whose plan covers today. Preselected when opened from a card. |
-| When | **Start** and **End** (hh:mm, 24-hour, 84 px mono boxes), a **Now** button that fills End with the current time (and Start one hour earlier if empty), and the duration on the right ("1h 00m"). Typing accepts `920`, `0920`, `9:20`, `9.20`, `21`. |
+| When | **Start** and **End** (hh:mm, 24-hour, 84 px mono boxes), a **Now** button that fills End with the current time (and Start one hour earlier if empty), and the duration on the right ("1h 00m"). Typing accepts `920`, `0920`, `9:20`, `9.20`, `21`, and nothing a time can't hold (`22405` stops at `2240`); each box shows what it read as hh:mm once focus leaves it. |
 | What did you do? | Textarea, 120 chars, required. |
 | Hint line | Planned today: "Leaves 20m on today's plan" or "Meets today's plan". Not planned today: "Counts as extra, off-day time". |
 | Buttons | **Cancel** and **Log 1h** (the label carries the duration; "Log time" until times are valid). Editing: title "Edit entry", button **Save**, plus **Delete entry** on the left in red. |
 
-Errors: "Enter start and end in 24-hour time, like 09:20." · "End time must be after start time." · "Overlaps 09:20–10:20 (Two-pointer problems — four…). Change the times." · "Add a line about what you did."
+Errors: "Enter start and end in 24-hour time, like 09:20." · "End time must be after start time." · "End time can't be later than now." · "Overlaps 09:20–10:20 (Two-pointer problems — four…). Change the times." · "Add a line about what you did."
 
 After saving: the new row flashes, and a toast says "Logged 1h to Python and DSA." with **Undo**. Edit: "Entry updated." with Undo ("Change undone."). Delete: "Entry deleted." with Undo ("Entry restored.").
 

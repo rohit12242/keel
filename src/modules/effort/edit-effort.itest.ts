@@ -1,4 +1,12 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { getPool, query } from "@/shared/db";
 import type { EffortEntry } from "@/shared/contract";
 import * as route from "@/app/v1/effort-entries/[entryId]/route";
@@ -8,6 +16,7 @@ import {
   testEntry,
   testObjectiveToday,
   testUser,
+  todayAt,
   todayIn,
   type TestUser,
 } from "@/test/fixtures";
@@ -60,10 +69,18 @@ const stored = async (id: string) =>
 describe("editing and deleting effort (real Postgres)", () => {
   beforeEach(async () => {
     today = todayIn(TZ);
+    // The route reads the clock, and an entry may not end after now: late
+    // today, every fixed time below has happened, whenever CI runs.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(todayAt(TZ, "23:59"));
     me = await testUser();
     objectiveId = (await testObjectiveToday(me)).id;
     // Today, 09:00–10:00, on a planned day.
     entry = await testEntry(objectiveId, { local_date: today, tz: TZ });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   afterAll(async () => {
@@ -108,6 +125,7 @@ describe("editing and deleting effort (real Postgres)", () => {
   });
 
   it("judges the day in the zone the entry was logged in", async () => {
+    vi.setSystemTime(todayAt("Pacific/Kiritimati", "23:59"));
     // Pago Pago (UTC−11) is never on the same date as Kiritimati (UTC+14).
     const kiritimati = await testEntry(objectiveId, {
       local_date: todayIn("Pacific/Kiritimati"),
@@ -137,6 +155,18 @@ describe("editing and deleting effort (real Postgres)", () => {
     );
     expect((await patch(entry.id, { minutes: 120 })).status).toBe(422);
     expect(await stored(entry.id)).toEqual({ minutes: 45, local_date: today });
+  });
+
+  it("422s an edit that would end after now, past the grace, and changes nothing", async () => {
+    // entry is 09:00–10:00; at 10:00, 10:05 is inside the grace, 10:06 past it.
+    vi.setSystemTime(todayAt(TZ, "10:00"));
+    expect((await patch(entry.id, { minutes: 65 })).status).toBe(200);
+    const res = await patch(entry.id, { minutes: 66 });
+    expect(res.status).toBe(422);
+    expect(((await res.json()) as { type: string }).type).toMatch(
+      /entry-in-future$/,
+    );
+    expect(await stored(entry.id)).toEqual({ minutes: 65, local_date: today });
   });
 
   it("200s an edit that keeps its own time — an entry never overlaps itself", async () => {
