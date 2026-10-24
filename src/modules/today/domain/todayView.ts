@@ -184,7 +184,7 @@ export function card(o: DayObjective, date: string): Card {
   }
   return {
     kind: "other",
-    note: `Not planned again · plan ends ${dayLabel(o.end_date, date)}${extra}`,
+    note: `No planned day left · plan ends ${dayLabel(o.end_date, date)}${extra}`,
     canLog: true,
   };
 }

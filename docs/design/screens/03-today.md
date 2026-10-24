@@ -33,7 +33,7 @@ Desktop is two columns: the main stack (summary, filter, objective cards) and a 
 
 An objective that starts later shows here with its start day as "next on". Paused, completed and terminated objectives don't appear on Today.
 
-An objective whose plan has ended but whose final review isn't saved is still active, so it shows here too: name, "Plan ended Fri 4 Sep · final review due", and no **Log anyway**. The link to the review comes with Reviews *(G45)*. One with no planned day left before its plan ends reads "Not planned again · plan ends Wed 9 Sep".
+An objective whose plan has ended but whose final review isn't saved is still active, so it shows here too: name, "Plan ended Fri 4 Sep · final review due", and no **Log anyway**. The link to the review comes with Reviews *(G45)*. One with no planned day left before its plan ends reads "No planned day left · plan ends Wed 9 Sep".
 
 Time can be logged only against an objective whose plan covers today. One that hasn't started yet, or whose plan has ended, has no **Log anyway** and no chip in Log time.
 

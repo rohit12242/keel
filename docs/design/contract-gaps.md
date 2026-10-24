@@ -120,7 +120,7 @@ The table above is the gap as the design found it. This is how each was closed
 |---|---|
 | G43 | Kept: no short name. The UI cuts the title to fit, and screen readers read it whole (`03-today.md`). |
 | G44 | Kept: the contract's rule. A card or chip offers logging only when the objective's plan covers today (`03-today.md`). |
-| G45 | `end_date` on `DayObjective`: the last segment's end. Today shows "Plan ended {date} · final review due" after it, and "Not planned again · plan ends {date}" when no planned day is left before it (`03-today.md`). |
+| G45 | `end_date` on `DayObjective`: the last segment's end. Today shows "Plan ended {date} · final review due" after it, and "No planned day left · plan ends {date}" when no planned day is left before it (`03-today.md`). |
 
 ## Names that differ (not gaps — map them in the UI)
 

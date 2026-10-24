@@ -222,7 +222,7 @@ describe("card", () => {
       card(offToday({ end_date: DATE, next_planned_date: null }), DATE),
     ).toEqual({
       kind: "other",
-      note: "Not planned again · plan ends Sat 5 Sep",
+      note: "No planned day left · plan ends Sat 5 Sep",
       canLog: true,
     });
     expect(
@@ -245,7 +245,7 @@ describe("card", () => {
         DATE,
       ),
     ).toMatchObject({
-      note: "Not planned again · plan ends Wed 9 Sep · 30m extra today",
+      note: "No planned day left · plan ends Wed 9 Sep · 30m extra today",
       canLog: true,
     });
   });
