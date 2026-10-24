@@ -45,9 +45,7 @@ const AFFECTS: Record<keyof Draft, Field[]> = {
   name: ["name"],
   why: ["why"],
   criteria: ["criteria"],
-  mode: ["days", "target"],
   weekdays: ["days"],
-  daysPerWeek: ["target"],
   hours: ["target"],
   minutes: ["target"],
   start: [],
@@ -275,7 +273,6 @@ export function NewObjectiveForm() {
   const { today, tz } = day;
   const starts = startChoices(today);
   const p = preview(draft, today);
-  const fixed = draft.mode === "fixed";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -397,90 +394,44 @@ export function NewObjectiveForm() {
         <h2 className={styles.cardTitle} id="nf-schedule">
           Schedule
         </h2>
-        <RadioGroup
-          label="Schedule"
-          className={styles.choices}
-          optionClass={styles.choice}
-          value={draft.mode}
-          onChange={(v) => set("mode", v)}
-          options={[
-            {
-              value: "fixed",
-              content: (
-                <>
-                  <b>Fixed · specific weekdays</b>
-                  <span>The same days every week, with a daily target.</span>
-                </>
-              ),
-            },
-            {
-              value: "flexible",
-              content: (
-                <>
-                  <b>Flexible · days a week</b>
-                  <span>Any days you choose, with a weekly target.</span>
-                </>
-              ),
-            },
-          ]}
-        />
-        {fixed ? (
-          <div className={`${styles.field} ${marked("days")}`}>
-            <span className={styles.label} id="nf-days-label">
-              Which days
-            </span>
-            <div
-              className={styles.days}
-              role="group"
-              aria-labelledby="nf-days-label"
-              aria-describedby={errors.days ? errorId("days") : undefined}
-            >
-              {WEEKDAYS.map(([n, name]) => {
-                const on = draft.weekdays.includes(n);
-                return (
-                  <button
-                    key={n}
-                    id={`nf-day-${n}`}
-                    type="button"
-                    role="checkbox"
-                    aria-checked={on}
-                    className={styles.chip}
-                    onClick={() =>
-                      set("weekdays", (days) =>
-                        days.includes(n)
-                          ? days.filter((d) => d !== n)
-                          : [...days, n],
-                      )
-                    }
-                  >
-                    {name}
-                  </button>
-                );
-              })}
-            </div>
-            <FieldError field="days" errors={errors} />
+        <div className={`${styles.field} ${marked("days")}`}>
+          <span className={styles.label} id="nf-days-label">
+            Which days
+          </span>
+          <div
+            className={styles.days}
+            role="group"
+            aria-labelledby="nf-days-label"
+            aria-describedby={errors.days ? errorId("days") : undefined}
+          >
+            {WEEKDAYS.map(([n, name]) => {
+              const on = draft.weekdays.includes(n);
+              return (
+                <button
+                  key={n}
+                  id={`nf-day-${n}`}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  className={styles.chip}
+                  onClick={() =>
+                    set("weekdays", (days) =>
+                      days.includes(n)
+                        ? days.filter((d) => d !== n)
+                        : [...days, n],
+                    )
+                  }
+                >
+                  {name}
+                </button>
+              );
+            })}
           </div>
-        ) : (
-          <div className={styles.field}>
-            <span className={styles.label} id="nf-pw-label">
-              Days a week
-            </span>
-            <RadioGroup
-              labelledBy="nf-pw-label"
-              className={styles.days}
-              optionClass={styles.chip}
-              value={draft.daysPerWeek}
-              onChange={(v) => set("daysPerWeek", v)}
-              options={[1, 2, 3, 4, 5, 6, 7].map((n) => ({
-                value: n,
-                content: String(n),
-              }))}
-            />
-          </div>
-        )}
+          <FieldError field="days" errors={errors} />
+        </div>
         <div className={`${styles.field} ${marked("target")}`}>
           <span className={styles.label} id="nf-target-label">
-            {fixed ? "Daily target" : "Weekly target"}
+            Daily target
           </span>
           <div
             className={styles.hm}
@@ -509,11 +460,7 @@ export function NewObjectiveForm() {
               {...described("target", errors)}
             />
             <span className={styles.unit}>m</span>
-            <span className={styles.hint}>
-              {fixed
-                ? "on each of those days"
-                : `across any ${draft.daysPerWeek} day${draft.daysPerWeek > 1 ? "s" : ""}`}
-            </span>
+            <span className={styles.hint}>on each of those days</span>
           </div>
           <FieldError field="target" errors={errors} />
         </div>
@@ -596,8 +543,8 @@ export function NewObjectiveForm() {
         <span className={styles.hint}>{p.reviewHint}</span>
         <dl className={styles.summary}>
           <div>
-            <dt>{p.first.label}</dt>
-            <dd>{p.first.value}</dd>
+            <dt>Planned days</dt>
+            <dd>{p.plannedDays}</dd>
           </div>
           <div>
             <dt>Each week</dt>

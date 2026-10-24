@@ -10,13 +10,12 @@ import {
 } from "@/modules/reviews/domain/reviewWindows";
 
 /**
- * The run week by week (G16; docs/domain/adherence.md, *Plan weeks*): seven
- * days tiled from each segment's start, the last clipped to the segment's
- * end — the same tiling as flexible week slots and weekly review windows,
- * which is why it is `reviewWindows("weekly", …)` and not a second
- * implementation. Each week's figures are `windowFigures` over it, so a week
- * never cuts a week slot and no minute is lost. A week in progress carries its
- * whole target.
+ * The run week by week (G16; docs/domain/adherence.md, *Plan weeks*):
+ * Monday-to-Sunday weeks clipped to each segment, a short first or last week
+ * joined to its neighbour (I-09) — the weekly review windows, which is why it
+ * is `reviewWindows("weekly", …)` and not a second implementation, and "Week 2"
+ * means the same days everywhere. Each week's figures are `windowFigures` over
+ * it. A week in progress carries its whole target.
  */
 export type PlanWeek = {
   period_start: string;

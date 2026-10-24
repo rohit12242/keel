@@ -11,6 +11,7 @@ import * as schedule from "@/app/v1/objectives/[objectiveId]/schedule/route";
 import {
   addStatusEvents,
   testEntry,
+  testFlexibleObjective,
   testObjective,
   testUser,
   type TestUser,
@@ -19,7 +20,9 @@ import {
 /**
  * I-01's check, as intent.md states it, through the real route handlers.
  *
- * Create a fixed objective (weekly reviews) and a flexible one (monthly).
+ * Create a fixed objective (weekly reviews) and a flexible one (monthly) —
+ * the flexible one written by its fixture, since v1 refuses it through the
+ * API (I-09) while reads keep it.
  * The list returns both, active, with a schedule and 0 of a real target.
  * Opening one returns its plan and its history. Then effort is seeded on
  * planned days and an off day — past days cannot be logged through the route
@@ -89,7 +92,7 @@ const stateOn = (g: ScheduleGrid, date: string) =>
 
 describe("I-01 — declare an objective (the intent's check)", () => {
   let fixed: Objective;
-  let flexible: Objective;
+  let flexible: { id: string };
 
   beforeAll(async () => {
     me = await testUser();
@@ -103,16 +106,11 @@ describe("I-01 — declare an objective (the intent's check)", () => {
       },
       review_cadence: "weekly",
     });
-    flexible = await create({
-      ...COMMON,
-      title: "itest: I-01 flexible",
-      schedule: {
-        mode: "flexible",
-        days_per_week: 3,
-        minutes_per_planned_day: 60,
-      },
-      review_cadence: "monthly",
-    });
+    flexible = await testFlexibleObjective(
+      me,
+      { daysPerWeek: 3, minutes: 60 },
+      { ...COMMON, title: "itest: I-01 flexible", review_cadence: "monthly" },
+    );
   });
 
   afterAll(async () => {

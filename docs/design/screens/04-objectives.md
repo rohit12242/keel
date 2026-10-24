@@ -63,8 +63,8 @@ In order:
   - Flexible objectives show "flexible · about 4h a day" instead of a target.
   - Under it, the day's entries: "09:20 – 10:20 · note · 1h".
   - None yet: "Nothing logged yet."
-- **By week**: "Open a week to see each day". Table columns: Week (a link, "Week 2 · Sun 30 Aug – Sat 5 Sep" + "so far") · Planned (Target for flexible) · Logged · Days met (Days worked) · **Over plan** ("+30m" / "0m") · Extra, off days ("—" for flexible).
-- **Week dialog** (640 px): title "Week 2 · Sun 30 Aug – Sat 5 Sep", sub "Planned 12h 00m · logged 10h 25m · 3 of 6 met · +30m over plan".
+- **By week**: "Open a week to see each day". Table columns: Week (a link, "Week 2 · Mon 31 Aug – Sun 6 Sep" + "so far") · Planned (Target for flexible) · Logged · Days met (Days worked) · **Over plan** ("+30m" / "0m") · Extra, off days ("—" for flexible).
+- **Week dialog** (640 px): title "Week 2 · Mon 31 Aug – Sun 6 Sep", sub "Planned 12h 00m · logged 10h 25m · 3 of 6 met · +30m over plan".
   - Day chips: All days, Sun 30 … Sat 5.
   - One block per day: "Sat 5 Sep · planned 2h", total, tag, and the entries. "Nothing logged." when empty.
   - Future days aren't listed.
@@ -95,6 +95,7 @@ See `05-reviews.md`.
    - **Why it matters** (280).
    - **Success criteria · what would prove it worked** (280), hint "You'll check this at the final review, so make it something you can see happen."
 3. **Schedule:**
+   - **v1 offers Fixed only** *(I-09)*: no choice cards; the card shows the weekday checkboxes and the daily target. The choice and the Flexible fields below come back in v2 (`docs/intents/TRIAGE.md`).
    - Choice cards: **Fixed · specific weekdays** ("The same days every week, with a daily target.") or **Flexible · days a week** ("Any days you choose, with a weekly target.").
    - Fixed: weekday checkboxes Mon … Sun, then **Daily target** "[ h ] h [ m ] m on each of those days".
    - Flexible: **Days a week** (1–7) and **Weekly target**, "across any 4 days".

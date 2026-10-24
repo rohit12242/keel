@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { getPool, query } from "@/shared/db";
+import { getPool, query, withTransaction } from "@/shared/db";
 import type { Objective } from "@/shared/contract";
 import { createObjective } from "@/modules/objectives/service";
+import { insertObjective } from "@/modules/objectives/repo";
+import { validateObjectiveWrite } from "@/modules/objectives/domain/validateObjectiveWrite";
 import { insertEffortEntry, type EffortEntryRow } from "@/modules/effort/repo";
 import { createParkedIdea } from "@/modules/parking/service";
 import { startReview } from "@/modules/reviews/service";
@@ -67,6 +69,34 @@ export async function testObjective(
     throw new Error(`testObjective: ${JSON.stringify(result)}`);
   }
   return result.objective;
+}
+
+/**
+ * A flexible objective, written straight to the repository: v1 refuses one
+ * through the API (I-09), but the backend that reads flexible plans stays,
+ * tested, for v2. The body is checked as a fixed one, then given a
+ * flexible schedule of `daysPerWeek` days at `minutes` each.
+ */
+export async function testFlexibleObjective(
+  user: TestUser,
+  flexible: { daysPerWeek: number; minutes: number },
+  over: Record<string, unknown> = {},
+): Promise<{ id: string }> {
+  const checked = validateObjectiveWrite({ ...OBJECTIVE_BODY, ...over });
+  if (!checked.ok) {
+    throw new Error(`testFlexibleObjective: ${JSON.stringify(checked)}`);
+  }
+  const id = await withTransaction((tx) =>
+    insertObjective(tx, user.id, {
+      ...checked.value,
+      schedule: {
+        mode: "flexible",
+        days_per_week: flexible.daysPerWeek,
+        minutes_per_planned_day: flexible.minutes,
+      },
+    }),
+  );
+  return { id };
 }
 
 /** Today in a zone, as the client would send it (NFR-12). */

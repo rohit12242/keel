@@ -7,7 +7,6 @@ import {
   dayLabel,
   DEFAULT_DRAFT,
   duration,
-  perDayShare,
   preview,
   runsForDays,
   startChoices,
@@ -94,13 +93,6 @@ describe("runsForDays", () => {
   });
 });
 
-describe("perDayShare", () => {
-  it("rounds the weekly target up to the minute per day (G40)", () => {
-    expect(perDayShare(125, 3)).toBe(42);
-    expect(perDayShare(180, 3)).toBe(60);
-  });
-});
-
 describe("preview", () => {
   it("the prototype's defaults: tomorrow, 4 weeks, Mon–Fri at 1h", () => {
     expect(preview(FILLED, TODAY)).toEqual({
@@ -109,19 +101,10 @@ describe("preview", () => {
       endLabel: "ends Sat 3 Oct",
       reviewHint:
         "A review is due at the end of each week. The last one, on Sat 3 Oct, looks at the whole plan.",
-      first: { label: "Planned days", value: 20 },
+      plannedDays: 20,
       eachWeek: "5h 00m",
       reviews: 4,
     });
-  });
-
-  it("a flexible week shows what it really makes: 2h 05m over 3 days is 2h 06m", () => {
-    const p = preview(
-      draft({ mode: "flexible", hours: "2", minutes: "05", daysPerWeek: 3 }),
-      TODAY,
-    );
-    expect(p.first).toEqual({ label: "Days a week", value: 3 });
-    expect(p.eachWeek).toBe("2h 06m");
   });
 
   it("reads — with no target, and runs a week while the length is empty", () => {
@@ -145,6 +128,16 @@ describe("preview", () => {
     expect(p.reviews).toBe(5);
   });
 
+  it("reviews follow the calendar week: from a Thursday, 4 weeks is 4 reviews", () => {
+    // Thu 10 Sep … Wed 7 Oct: a 4-day first week, and a 3-day tail joined.
+    const p = preview(draft({ start: "tomorrow" }), "2026-09-09");
+    expect([p.startsOn, p.endsOn, p.reviews]).toEqual([
+      "2026-09-10",
+      "2026-10-07",
+      4,
+    ]);
+  });
+
   it("counts planned days and reviews with the server's own rules", () => {
     for (const d of [
       draft({ weekdays: [1, 3], length: "9", cadence: "monthly" }),
@@ -152,7 +145,7 @@ describe("preview", () => {
     ]) {
       const p = preview(d, TODAY);
       const span = { start_date: p.startsOn, end_date: p.endsOn };
-      expect(p.first.value).toBe(
+      expect(p.plannedDays).toBe(
         generateSlots({
           scheduleMode: "fixed",
           plannedWeekdays: d.weekdays,
@@ -194,12 +187,6 @@ describe("checkDraft — the design's messages", () => {
     });
   });
 
-  it("a flexible schedule needs no weekdays", () => {
-    expect(
-      checkDraft(draft({ mode: "flexible", weekdays: [] }), TODAY, TZ).ok,
-    ).toBe(true);
-  });
-
   it("minutes go up to 59", () => {
     expect(targetError({ hours: "1", minutes: "59" })).toBeNull();
     expect(targetError({ hours: "1", minutes: "60" })).toBe(
@@ -216,21 +203,6 @@ describe("checkDraft — the design's messages", () => {
     expect(targetError({ hours: "16", minutes: "01" })).toBe(
       "Keep a daily target under 16 hours.",
     );
-  });
-
-  it("a flexible week says that week's figures", () => {
-    const flex = { mode: "flexible" as const, daysPerWeek: 3 };
-    expect(targetError({ ...flex, hours: "0", minutes: "44" })).toBe(
-      "Set at least 45m a week, 15 minutes for each day.",
-    );
-    expect(targetError({ ...flex, hours: "0", minutes: "45" })).toBeNull();
-    expect(targetError({ ...flex, hours: "48", minutes: "00" })).toBeNull();
-    expect(targetError({ ...flex, hours: "48", minutes: "01" })).toBe(
-      "Keep a weekly target under 48 hours, 16 for each day.",
-    );
-    expect(
-      targetError({ ...flex, daysPerWeek: 7, hours: "1", minutes: "44" }),
-    ).toBe("Set at least 1h 45m a week, 15 minutes for each day.");
   });
 
   it("anything but digits reads as nothing typed", () => {
@@ -277,19 +249,6 @@ describe("checkDraft — the body", () => {
       },
     });
   });
-
-  it("a flexible target is sent as the rounded-up share per day", () => {
-    const r = checkDraft(
-      draft({ mode: "flexible", daysPerWeek: 3, hours: "2", minutes: "05" }),
-      TODAY,
-      TZ,
-    );
-    expect(r.ok && r.body.schedule).toEqual({
-      mode: "flexible",
-      days_per_week: 3,
-      minutes_per_planned_day: 42,
-    });
-  });
 });
 
 describe("whatever passes the page, the API accepts", () => {
@@ -298,7 +257,6 @@ describe("whatever passes the page, the API accepts", () => {
     ["1", "00"],
     ["2", "05"],
     ["16", "00"],
-    ["48", "00"],
     ["99", "59"],
   ];
   const lengths: [string, Draft["unit"]][] = [
@@ -317,14 +275,9 @@ describe("whatever passes the page, the API accepts", () => {
         for (const [length, unit] of lengths)
           for (const cadence of ["weekly", "monthly"] as const)
             for (const [hours, minutes] of targets)
-              for (const s of [
-                { mode: "fixed" as const, weekdays: [1] },
-                { mode: "fixed" as const, weekdays: [1, 2, 3, 4, 5, 6, 7] },
-                { mode: "flexible" as const, daysPerWeek: 1 },
-                { mode: "flexible" as const, daysPerWeek: 7 },
-              ]) {
+              for (const weekdays of [[1], [6, 7], [1, 2, 3, 4, 5, 6, 7]]) {
                 const d = draft({
-                  ...s,
+                  weekdays,
                   start,
                   length,
                   unit,

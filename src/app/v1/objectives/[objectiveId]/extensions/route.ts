@@ -65,6 +65,13 @@ export const POST = withSession(
                 problemType("extension-not-authorised"),
                 result.detail,
               );
+            case "fixed_only":
+              return problem(
+                422,
+                "v1 plans fixed objectives only",
+                problemType("fixed-only"),
+                result.detail,
+              );
             case "not_in_future":
               return problem(
                 422,

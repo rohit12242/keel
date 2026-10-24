@@ -124,9 +124,9 @@ covers — so a day whose slot started before the window is not extra. One funct
 `windowFigures(window, slots, dailyMinutes)`, does this for every caller.
 
 The sum holds only when every slot covering a day of the window also starts in it. A
-plan week always meets that, because weeks and week slots tile from the same segment
-start. A monthly review window can cut a flexible week in two; those minutes are
-lost (`docs/intents/TRIAGE.md`).
+day slot always does. v1 creates only fixed objectives, whose slots are days
+*(I-09)*; a flexible week can be cut by a window, and those minutes are lost until
+flexible weeks follow the same calendar (`docs/intents/TRIAGE.md`).
 
 ## So far *(I-03)*
 
@@ -155,9 +155,11 @@ One band over the figures to date, so every screen that shows one agrees:
 
 ## Plan weeks *(I-03)*
 
-The Effort tab and the reviews show the run week by week. A **plan week** is seven
-days tiled from each segment's start, the last one clipped to the segment's end — the
-same tiling as flexible week slots and weekly review windows. Each week's figures are
+The Effort tab and the reviews show the run week by week. A **plan week** is a
+Monday-to-Sunday week clipped to its segment, with a short first or last week joined
+to its neighbour — the same tiling as weekly review windows
+(`docs/domain/review-windows.md`, *I-09*), so "Week 2" means the same days on the
+Effort tab and in the reviews, whatever the objective's review cadence. Each week's figures are
 `windowFigures` over it. A week in progress carries its whole target; the screen
 labels it "so far".
 

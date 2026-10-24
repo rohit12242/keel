@@ -408,8 +408,8 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '422':
           description: |
-            The schedule is inconsistent with its mode — weekdays given for a
-            flexible schedule, or a day count for a fixed one — or the parked
+            The schedule is flexible — v1 creates fixed objectives only (I-09) —
+            or inconsistent with its mode — a day count for a fixed one — or the parked
             idea named is not the caller's, or is not **approved** — only an
             approved idea can be taken. A locked one may be; that is an early
             take, not an error (`docs/domain/parking-lock.md`). The `taken` verdict
@@ -633,7 +633,8 @@ paths:
               schema: { $ref: '#/components/schemas/Problem' }
         '422':
           description: |
-            The new end date is not strictly after today. An extension that would
+            The new end date is not strictly after today, or the schedule is
+            flexible (v1 plans fixed objectives only, I-09). An extension that would
             end in the past is refused, never silently adjusted.
           content:
             application/problem+json:
@@ -1286,7 +1287,12 @@ components:
       type: object
       required: [mode, minutes_per_planned_day]
       properties:
-        mode: { type: string, enum: [fixed, flexible] }
+        mode:
+          type: string
+          enum: [fixed, flexible]
+          description: |
+            A write accepts `fixed` only in v1 (I-09): creating or extending with
+            `flexible` is a `422`. Reads keep `flexible` in the enum for v2.
         planned_weekdays:
           type: array
           description: Required when fixed, absent when flexible. 1 is Monday.
@@ -1619,10 +1625,11 @@ components:
             weeks:
               type: array
               description: |
-                One per plan week, oldest first: seven days tiled from each
-                segment's start, the last clipped to its end, each with its figures
-                by the same rule (`docs/domain/adherence.md`, *Plan weeks*). A week
-                in progress carries its whole target.
+                One per plan week, oldest first: Monday-to-Sunday weeks clipped to
+                each segment, a short first or last week joined to its neighbour —
+                the weekly review windows' tiling — each with its figures by the
+                same rule (`docs/domain/adherence.md`, *Plan weeks*). A week in
+                progress carries its whole target.
               items: { $ref: '#/components/schemas/PlanWeek' }
             last_logged_on:
               type: [string, 'null']

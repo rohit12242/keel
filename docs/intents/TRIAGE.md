@@ -166,3 +166,13 @@ input styles. They agree today. The auth copies read the auth layout's own surfa
 (`--input-bg`), so moving them in I-06 would have touched live screens for nothing the
 intent needed. The next screen with a form — a log dialog, a review — should start
 from one shared set rather than copy a third time.
+
+### Flexible objectives are v2 · found in I-08
+
+A flexible objective's target is a week's, counted over its own week, so Today's summary
+could not add it to the fixed objectives' day honestly. I-09 keeps v1 to fixed
+objectives: New objective hides the choice and the API refuses a new one. The backend
+that reads flexible plans stays, tested. Bringing them back needs: the weekly target
+(G40), their weeks on the Monday-to-Sunday week I-09 sets, a short first and last week,
+every flexible variant in the design ("Weeks met", "Days worked", "15h / 20h this
+week", "1 day left"), and the monthly-review entry above.

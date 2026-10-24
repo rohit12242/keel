@@ -30,6 +30,10 @@ Everything here was reviewed and approved screen by screen in a clickable protot
 6. **Durations** read `2h 00m` in totals and `45m` / `1h 40m` / `2h` in compact places. **Times** are 24-hour, `09:20 – 10:20`.
 7. **Phone is first-class.** Every screen has a phone layout at ≤ 860 px: list → detail navigation, bottom tab bar, sheets for dialogs, inputs at 16 px so iOS does not zoom.
 
+## Weeks and months *(I-09)*
+
+Every week is Monday to Sunday and every month a calendar month: weekly and monthly reviews, an objective's weeks, Today's week. A first or last week of fewer than 4 days, or month of fewer than 15, joins its neighbour (`docs/domain/review-windows.md`). The prototype's sample weeks run Sunday to Saturday; the screen docs' examples follow the rule. v1 plans fixed objectives only; flexible returns in v2.
+
 ## Suggested build order
 
 Each line is roughly one intent. Contract gaps that block a step are listed in `contract-gaps.md`.
