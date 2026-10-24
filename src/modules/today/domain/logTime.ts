@@ -36,6 +36,20 @@ export function parseTime(typed: string): string | null {
   return h < 24 && min < 60 ? `${pad(h)}:${pad(min)}` : null;
 }
 
+/**
+ * What a time box keeps as it is typed into: digits and one ":" or ".", no
+ * more than a time can hold — four digits, or two either side of the mark.
+ * "22405" stops at "2240"; letters never appear.
+ */
+export function fitTime(typed: string): string {
+  const mark = typed.search(/[:.]/);
+  const digits = (t: string) => t.replace(/\D/g, "");
+  if (mark === -1) return digits(typed).slice(0, 4);
+  const h = digits(typed.slice(0, mark)).slice(0, 2);
+  const m = digits(typed.slice(mark + 1)).slice(0, 2);
+  return `${h}${typed[mark]}${m}`;
+}
+
 const minuteOf = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 const timeOf = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 
@@ -120,16 +134,21 @@ export type CheckedEntry =
 export const cut = (note: string, max = 27): string =>
   note.length > max ? `${note.slice(0, max).trimEnd()}…` : note;
 
+/** An entry is logged once it has happened (the API's `entry-in-future`). */
+export const IN_FUTURE = "End time can't be later than now.";
+
 /**
  * Every check in the design, in its words and the dialog's order, or the body
- * to send. `date` and `zone` are the day Today shows; `entries` every entry on
- * the page; `editing` the entry being edited, which never clashes with itself.
+ * to send. `date` and `zone` are the day Today shows, and `now` the time there
+ * ("HH:MM"); `entries` every entry on the page; `editing` the entry being
+ * edited, which never clashes with itself.
  */
 export function checkEntry(
   draft: Draft,
   ctx: {
     date: string;
     zone: string;
+    now: string;
     entries: readonly PageEntry[];
     editing?: PageEntry;
   },
@@ -144,6 +163,9 @@ export function checkEntry(
     errors.when = "Enter start and end in 24-hour time, like 09:20.";
   } else if (minuteOf(end) <= minuteOf(start)) {
     errors.when = "End time must be after start time.";
+  } else if (minuteOf(end) > minuteOf(ctx.now)) {
+    // Stricter than the API, which allows a few minutes for clock drift.
+    errors.when = IN_FUTURE;
   } else {
     minutes = minuteOf(end) - minuteOf(start);
     const others = ctx.entries.filter(

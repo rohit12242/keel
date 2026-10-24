@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localDayOf } from "./localDay";
+import { localDayOf, localTimeOf } from "./localDay";
 
 /**
  * NFR-12, the half v1 keeps: the calendar day an instant belongs to depends
@@ -40,5 +40,21 @@ describe("localDayOf — the day depends only on the client's zone", () => {
     expect(localDayOf(noonUtc, "Pacific/Kiritimati")).toBe("2026-09-19"); // UTC+14
     expect(localDayOf(noonUtc, "America/Los_Angeles")).toBe("2026-09-18"); // UTC-8
     expect(localDayOf(noonUtc, "Asia/Kolkata")).toBe("2026-09-18"); // +05:30
+  });
+});
+
+describe("localTimeOf — the clock depends only on the client's zone", () => {
+  it("reads the same instant on each zone's own clock", () => {
+    const instant = new Date("2026-09-18T18:25:40Z");
+    expect(localTimeOf(instant, "UTC")).toBe("18:25");
+    expect(localTimeOf(instant, "Asia/Kolkata")).toBe("23:55"); // +05:30
+    expect(localTimeOf(instant, "Pacific/Kiritimati")).toBe("08:25"); // UTC+14
+    expect(localTimeOf(instant, "America/Los_Angeles")).toBe("11:25"); // UTC-7
+  });
+
+  it("gives midnight as 00:00, not 24:00", () => {
+    expect(localTimeOf(new Date("2026-09-17T18:30:00Z"), "Asia/Kolkata")).toBe(
+      "00:00",
+    );
   });
 });

@@ -257,7 +257,8 @@ paths:
         The server never derives the day from the time the request arrived — an
         entry logged at 23:55 belongs to that date for good (NFR-12).
 
-        Effort is logged **only for today**: `local_date` must be today in `tz`.
+        Effort is logged **only for today**, and only once it has happened:
+        `local_date` must be today in `tz`, and the entry may not end after now.
         Once a day is over, its effort is fixed, so a saved review's recomputed
         figures move only if a rule changes (`docs/erd.md`, invariant 18).
       operationId: createEffortEntry
@@ -279,9 +280,11 @@ paths:
         '422':
           description: |
             The objective is not active, or `local_date` falls outside every plan
-            segment, or `local_date` is not today in `tz`, or the entry's start and
-            minutes overlap another of the caller's entries on that day, under any
-            objective. Ended and completed objectives accept no new effort.
+            segment, or `local_date` is not today in `tz`, or the entry ends after
+            now on `tz`'s clock (`entry-in-future`; five minutes' grace for a
+            client clock running ahead), or the entry's start and minutes overlap
+            another of the caller's entries on that day, under any objective.
+            Ended and completed objectives accept no new effort.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -319,8 +322,10 @@ paths:
         '422':
           description: |
             The entry's objective is not active, or the entry's day is over in the
-            zone it was logged in, or the new start and minutes overlap another of
-            the caller's entries on that day. Effort on a completed, ended or
+            zone it was logged in, or the entry as edited would end after now on
+            that zone's clock (`entry-in-future`, with the same grace as a new
+            entry), or the new start and minutes overlap another of the caller's
+            entries on that day. Effort on a completed, ended or
             paused objective is the record as it stood, and is corrected only
             while the objective is running — the same rule that stops new effort
             being logged against it.

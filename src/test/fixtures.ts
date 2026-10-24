@@ -10,7 +10,7 @@ import { startReview } from "@/modules/reviews/service";
 import { createDeviation } from "@/modules/deviations/service";
 import type { Deviation } from "@/shared/contract";
 import type { EffortEntryWrite } from "@/shared/contract";
-import { localDayOf } from "@/shared/time/localDay";
+import { localDayOf, localTimeOf } from "@/shared/time/localDay";
 import { cookieFor } from "./session";
 
 /**
@@ -101,6 +101,19 @@ export async function testFlexibleObjective(
 
 /** Today in a zone, as the client would send it (NFR-12). */
 export const todayIn = (tz: string): string => localDayOf(new Date(), tz);
+
+/**
+ * The instant that is `time` ("HH:MM") today in `tz`, so a suite that logs
+ * fixed times today doesn't depend on when CI runs: an entry may not end
+ * after now (`entry-in-future`). Pass "23:59" for "late enough for any entry".
+ * The zones the suites use have no DST change today.
+ */
+export function todayAt(tz: string, time: string): Date {
+  const now = new Date();
+  const minute = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+  const shift = minute(time) - minute(localTimeOf(now, tz));
+  return new Date(Math.floor(now.getTime() / 60_000) * 60_000 + shift * 60_000);
+}
 
 /** `date` plus `n` days, as a local date. */
 export const daysFrom = (date: string, n: number): string =>

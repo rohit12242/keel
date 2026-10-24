@@ -51,6 +51,12 @@ export function Dialog({
         e.preventDefault();
         if (!busy) onClose();
       }}
+      // But the browser may close it anyway: Chrome lets a page refuse Esc
+      // only once in a row. Then the page's state follows, or it stays "open"
+      // and the dialog can't be opened again.
+      onClose={() => {
+        if (open) onClose();
+      }}
     >
       {open ? (
         <>
