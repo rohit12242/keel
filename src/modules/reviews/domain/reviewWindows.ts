@@ -1,4 +1,5 @@
 import { parseIso, toIso } from "@/modules/objectives/domain/generateSlots";
+import { mondayOf } from "@/modules/effort/domain/effortMonth";
 import type { PlannedSlot } from "@/modules/objectives/domain/planSlots";
 import type { ObjectiveStatus } from "@/modules/objectives/domain/statusTimeline";
 
@@ -28,7 +29,10 @@ export type SegmentSpan = { id: string; start_date: string; end_date: string };
 const DAY = 86_400_000;
 const addDays = (date: string, n: number) => toIso(parseIso(date) + n * DAY);
 
-/** `date` plus `k` calendar months, clamped to the last day of the target month. */
+/**
+ * `date` plus `k` calendar months, clamped to the last day of the target
+ * month. Not a window rule: New objective uses it for how long *n* months runs.
+ */
 export function addMonths(date: string, k: number): string {
   const [y, m, d] = date.split("-").map(Number);
   const total = y * 12 + (m - 1) + k;
@@ -38,36 +42,53 @@ export function addMonths(date: string, k: number): string {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
 }
 
+/** A period shorter than this joins its neighbour: under half a full one. */
+const SHORT: Record<Cadence, number> = { weekly: 4, monthly: 15 };
+
+/** The last day of the calendar period `date` falls in: its Sunday, or its month's last day. */
+function periodEnd(cadence: Cadence, date: string): string {
+  if (cadence === "weekly") return addDays(mondayOf(date), 6);
+  const [y, m] = date.split("-").map(Number);
+  return toIso(Date.UTC(y, m, 0));
+}
+
+const length = (p: { start: string; end: string }) =>
+  (parseIso(p.end) - parseIso(p.start)) / DAY + 1;
+
 /**
- * Tile the segment from its start; clip the last window to its end; the last
- * window is the plan-end review, whatever its length.
+ * The calendar periods — Monday-to-Sunday weeks, or calendar months — that
+ * overlap the segment, clipped to it. A short first period joins the one
+ * after it, a short last one the one before. The last window is the plan-end
+ * review, whatever its length.
  */
 export function reviewWindows(
   cadence: Cadence,
   segment: SegmentSpan,
 ): ReviewWindow[] {
-  const windows: ReviewWindow[] = [];
-  const S = segment.start_date;
   const E = segment.end_date;
-  // Each window starts the day after the last one ended, which was before E,
-  // so every start is inside the segment; the window that reaches E ends it.
-  for (let k = 0; ; k++) {
-    const start = cadence === "weekly" ? addDays(S, 7 * k) : addMonths(S, k);
-    const natural =
-      cadence === "weekly"
-        ? addDays(S, 7 * k + 6)
-        : addDays(addMonths(S, k + 1), -1);
+  const periods: { start: string; end: string }[] = [];
+  for (let start = segment.start_date; start <= E;) {
+    const natural = periodEnd(cadence, start);
     const end = natural < E ? natural : E;
-    windows.push({
-      segment_id: segment.id,
-      kind: end === E ? "plan_end" : cadence,
-      seq_in_seg: k,
-      period_start: start,
-      period_end: end,
-    });
-    if (end === E) break;
+    periods.push({ start, end });
+    start = addDays(end, 1);
   }
-  return windows;
+  if (periods.length > 1 && length(periods[0]) < SHORT[cadence]) {
+    const [first, second] = periods.splice(0, 2);
+    periods.unshift({ start: first.start, end: second.end });
+  }
+  const n = periods.length;
+  if (n > 1 && length(periods[n - 1]) < SHORT[cadence]) {
+    const [before, last] = periods.splice(n - 2, 2);
+    periods.push({ start: before.start, end: last.end });
+  }
+  return periods.map((p, k) => ({
+    segment_id: segment.id,
+    kind: p.end === E ? "plan_end" : cadence,
+    seq_in_seg: k,
+    period_start: p.start,
+    period_end: p.end,
+  }));
 }
 
 export type LabelledWindow = ReviewWindow & { label: string };
