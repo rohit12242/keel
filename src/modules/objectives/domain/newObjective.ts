@@ -9,17 +9,19 @@ import type { NewSchedule } from "./validateObjectiveWrite";
 /**
  * The New objective page's rules (`docs/design/screens/04-objectives.md`),
  * pure: the Start choices, how long *n* weeks or months runs, the preview,
- * and the checks in the design's words. The preview's numbers come from the
- * rules the server uses — `generateSlots` for planned days, `reviewWindows`
- * for the reviews — so the page shows what Create would store. A draft that
- * passes `checkDraft` is one `validateObjectiveWrite` accepts.
+ * and the checks in the design's words. v1 plans fixed objectives only
+ * (I-09); flexible comes back in v2, on the calendar week. The preview's
+ * numbers come from the rules the server uses — `generateSlots` for planned
+ * days, `reviewWindows` for the reviews — so the page shows what Create
+ * would store. A draft that passes `checkDraft` is one
+ * `validateObjectiveWrite` accepts.
  */
 
 /** The design's text limits; the contract keeps its own, longer ones. */
 export const NAME_MAX = 80;
 export const TEXT_MAX = 280;
 
-/** A daily target's bounds, in minutes (G41, and "under 16 hours"). */
+/** A daily target's bounds, in minutes ("under 16 hours"). */
 const MIN_PER_DAY = 15;
 const MAX_PER_DAY = 16 * 60;
 
@@ -35,10 +37,8 @@ export type Draft = {
   name: string;
   why: string;
   criteria: string;
-  mode: "fixed" | "flexible";
   /** ISO weekdays, 1 = Monday … 7 = Sunday. */
   weekdays: number[];
-  daysPerWeek: number;
   hours: string;
   minutes: string;
   start: StartChoice;
@@ -63,9 +63,7 @@ export const DEFAULT_DRAFT: Draft = {
   name: "",
   why: "",
   criteria: "",
-  mode: "fixed",
   weekdays: [1, 2, 3, 4, 5],
-  daysPerWeek: 3,
   hours: "1",
   minutes: "00",
   start: "tomorrow",
@@ -134,13 +132,6 @@ export function runsForDays(
   return unit === "weeks" ? n * 7 : daysFrom(start, addMonths(start, n));
 }
 
-/**
- * A flexible weekly target split across its days, rounded up to the minute,
- * because the plan stores a target per day (G40).
- */
-export const perDayShare = (weekMinutes: number, days: number): number =>
-  Math.ceil(weekMinutes / days);
-
 /** Digits typed into a number field; anything else reads as 0. */
 const digits = (s: string): number => (/^\d+$/.test(s) ? Number(s) : 0);
 
@@ -156,8 +147,7 @@ export type Preview = {
   endLabel: string;
   /** "A review is due at the end of each week. The last one, on …". */
   reviewHint: string;
-  /** Planned days (fixed) or Days a week (flexible). */
-  first: { label: "Planned days" | "Days a week"; value: number };
+  plannedDays: number;
   /** The week the plan really makes, or "—" with no target yet. */
   eachWeek: string;
   reviews: number;
@@ -171,10 +161,7 @@ export function preview(draft: Draft, today: string): Preview {
     runsForDays(startsOn, lengthOf(draft), draft.unit) - 1,
   );
   const target = targetOf(draft);
-  const fixed = draft.mode === "fixed";
-  const week = fixed
-    ? target * draft.weekdays.length
-    : perDayShare(target, draft.daysPerWeek) * draft.daysPerWeek;
+  const week = target * draft.weekdays.length;
   const plannedDays = generateSlots({
     scheduleMode: "fixed",
     plannedWeekdays: draft.weekdays,
@@ -190,9 +177,7 @@ export function preview(draft: Draft, today: string): Preview {
     reviewHint: `A review is due at the end of each ${
       draft.cadence === "weekly" ? "week" : "month"
     }. The last one, on ${end}, looks at the whole plan.`,
-    first: fixed
-      ? { label: "Planned days", value: plannedDays }
-      : { label: "Days a week", value: draft.daysPerWeek },
+    plannedDays,
     eachWeek: week > 0 ? duration(week) : "—",
     reviews: reviewWindows(draft.cadence, {
       id: "new",
@@ -222,18 +207,8 @@ function targetError(d: Draft): string | null {
   const t = targetOf(d);
   if (t === 0) return "Set a target above zero.";
   if (digits(d.minutes) > 59) return "Minutes go up to 59.";
-  if (d.mode === "fixed") {
-    if (t < MIN_PER_DAY) return "Set at least 15 minutes a day.";
-    if (t > MAX_PER_DAY) return "Keep a daily target under 16 hours.";
-    return null;
-  }
-  const n = d.daysPerWeek;
-  if (t < MIN_PER_DAY * n) {
-    return `Set at least ${duration(MIN_PER_DAY * n)} a week, 15 minutes for each day.`;
-  }
-  if (t > MAX_PER_DAY * n) {
-    return `Keep a weekly target under ${16 * n} hours, 16 for each day.`;
-  }
+  if (t < MIN_PER_DAY) return "Set at least 15 minutes a day.";
+  if (t > MAX_PER_DAY) return "Keep a daily target under 16 hours.";
   return null;
 }
 
@@ -256,10 +231,7 @@ export function checkDraft(draft: Draft, today: string, tz: string): Checked {
       ? null
       : "Say why it matters. You'll read it again at review.",
     criteria: draft.criteria.trim() ? null : "Say what would prove it worked.",
-    days:
-      draft.mode === "fixed" && draft.weekdays.length === 0
-        ? "Pick at least one day."
-        : null,
+    days: draft.weekdays.length === 0 ? "Pick at least one day." : null,
     target: targetError(draft),
     length: lengthError(draft),
   };
@@ -279,18 +251,11 @@ export function checkDraft(draft: Draft, today: string, tz: string): Checked {
       title: draft.name.trim(),
       why_now: draft.why.trim(),
       success_criteria: draft.criteria.trim(),
-      schedule:
-        draft.mode === "fixed"
-          ? {
-              mode: "fixed",
-              planned_weekdays: [...draft.weekdays].sort((a, b) => a - b),
-              minutes_per_planned_day: target,
-            }
-          : {
-              mode: "flexible",
-              days_per_week: draft.daysPerWeek,
-              minutes_per_planned_day: perDayShare(target, draft.daysPerWeek),
-            },
+      schedule: {
+        mode: "fixed",
+        planned_weekdays: [...draft.weekdays].sort((a, b) => a - b),
+        minutes_per_planned_day: target,
+      },
       starts_on: startsOn,
       tz,
       runs_for_days: runsForDays(startsOn, digits(draft.length), draft.unit),

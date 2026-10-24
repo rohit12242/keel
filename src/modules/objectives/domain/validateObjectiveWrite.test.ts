@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateObjectiveWrite } from "./validateObjectiveWrite";
+import { FIXED_ONLY, validateObjectiveWrite } from "./validateObjectiveWrite";
 
 const FIXED = {
   title: "Ship Keel",
@@ -51,16 +51,6 @@ describe("validateObjectiveWrite — accepted", () => {
         tz: FIXED.tz,
       },
     });
-  });
-
-  it("normalises a flexible write", () => {
-    const r = validateObjectiveWrite(FLEXIBLE);
-    expect(r.ok && r.value.schedule).toEqual({
-      mode: "flexible",
-      days_per_week: 3,
-      minutes_per_planned_day: 60,
-    });
-    expect(r.ok && r.value.review_cadence).toBe("monthly");
   });
 
   it("starts and ends a one-day objective on the same date", () => {
@@ -251,6 +241,25 @@ describe("validateObjectiveWrite — 400, a field wrong on its own", () => {
         },
       ],
     });
+  });
+});
+
+describe("validateObjectiveWrite — 422, v1 plans fixed objectives only (I-09)", () => {
+  it("refuses a well-formed flexible schedule", () => {
+    expect(validateObjectiveWrite(FLEXIBLE)).toEqual({
+      ok: false,
+      kind: "fixed_only",
+      detail: FIXED_ONLY,
+    });
+  });
+
+  it("still names a flexible schedule's bad fields first, as a 400", () => {
+    expect(
+      fields({
+        ...FLEXIBLE,
+        schedule: { mode: "flexible", minutes_per_planned_day: 60 },
+      }),
+    ).toEqual(["schedule.days_per_week"]);
   });
 });
 

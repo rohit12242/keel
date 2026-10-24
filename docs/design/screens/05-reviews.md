@@ -16,9 +16,9 @@ Data: `GET /objectives/{id}/reviews`, `POST /objectives/{id}/reviews` (start or 
   - Label ("Week 2 review" / "Final review"), "Draft saved" pill if any.
   - The period ("Sun 30 Aug – Sat 5 Sep", or "The whole plan · ended Fri 4 Sep") and "· last edited 5 Sep, 18:40".
   - **Start review** / **Continue draft** on the first card; the others are muted.
-- Nothing due and nothing saved yet: "No reviews yet. The first one is due Sat 29 Aug."
+- Nothing due and nothing saved yet: "No reviews yet. The first one is due Sun 30 Aug."
 - **Saved n**, hint "Newest first · kept exactly as written". A header row (Review · Adherence · Saved), then one row per review:
-  - "Week 1 · Sun 23 – Sat 29 Aug" with "Change: 'Do the hardest problem first, before 10:00.'" under it (for a final review: "Final review · whole plan" + a **Final** pill, and "Outcome: completed").
+  - "Week 1 · Mon 24 – Sun 30 Aug" with "Change: 'Do the hardest problem first, before 10:00.'" under it (for a final review: "Final review · whole plan" + a **Final** pill, and "Outcome: completed").
   - A mini adherence bar with the %, the saved date (mono), and a chevron. The row opens the saved review.
 - **Many reviews:**
   - More than 8 saved: group the rows under month headings (August, July …) and show the newest 8, then **Show 17 earlier reviews**.
@@ -27,7 +27,7 @@ Data: `GET /objectives/{id}/reviews`, `POST /objectives/{id}/reviews` (start or 
 
 ## Weekly or monthly review (full page)
 
-Back link to the objective. Title "Week 2 review" (or "Month 1 review"), sub "Sun 30 Aug – Sat 5 Sep · Python and DSA for AI roles", pill "Draft saved · 5 Sep, 18:40" or "Due Sat 5 Sep".
+Back link to the objective. Title "Week 2 review" (or "Month 1 review"), sub "Mon 31 Aug – Sun 6 Sep · Python and DSA for AI roles", pill "Draft saved · 5 Sep, 18:40" or "Due Sun 6 Sep".
 
 Four numbered cards:
 

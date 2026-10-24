@@ -76,7 +76,7 @@ Shown once, right after the new account's email is confirmed (G11). Full screen,
 ### Step 3 — You're set
 
 - A green check, title "You're set.", lead "Your first objective starts today. Here is what it asks of you." (or "starts {Sun 6 Sep}.").
-- **Your objective** card: name, schedule line (e.g. "Fixed · Every day · 45m a day · weekly reviews · Sat 5 Sep – Fri 2 Oct"), and three tiles: *Today* "Day 1 of 28" (or *Starts* "Sun 6 Sep"), *Planned today* "45m" (fixed; "Off day" if today isn't planned) or *Each week* "5h" (flexible), *First review* "Fri 11 Sep".
+- **Your objective** card: name, schedule line (e.g. "Fixed · Every day · 45m a day · weekly reviews · Sat 5 Sep – Fri 2 Oct"), and three tiles: *Today* "Day 1 of 28" (or *Starts* "Sun 6 Sep"), *Planned today* "45m" (fixed; "Off day" if today isn't planned) or *Each week* "5h" (flexible), *First review* "Sun 13 Sep".
 - **Each day, on Today**: three rows with tinted icons and their keyboard keys: *Log time* (L) "When a block ends, log its start, end and what you did." · *Log a deviation* (D) "When time goes elsewhere, say so: Chosen or Drifted." · *Park an idea* (P) "When a new idea pulls at you, park it and get back to work."
 - **Go to Today →**.
 

@@ -58,14 +58,15 @@ instant.
 
 Given a segment with `start_date` **S** and `end_date` **E** (inclusive, S ≤ E):
 
-1. **Tile from the start.** Lay consecutive windows beginning at S.
-   - *weekly:* window *k* is `[S + 7k, S + 7k + 6]`.
-   - *monthly:* window *k* is `[addMonths(S, k), addMonths(S, k+1) − 1 day]`.
-     `addMonths` clamps a day that overflows the target month to that month's last
-     day: `addMonths(Jan 31, 1) = Feb 28` (or 29). Monthly windows are therefore
-     28–31 days; weekly windows are always 7.
-2. **Clip the last window to E.** The final window ends at E, whatever its natural
-   length — so it may be short (a partial final period).
+1. **Tile by the calendar.** *(I-09.)* Lay the calendar periods that overlap
+   `[S, E]`, clipping the first to start at S and the last to end at E.
+   - *weekly:* Monday-to-Sunday weeks.
+   - *monthly:* calendar months, the 1st to the month's last day.
+2. **Join a short first and last period.** *(I-09.)* A period is **short** when it has
+   fewer than **4** days (weekly) or fewer than **15** days (monthly) — under half a
+   full one. A short first window joins the window after it; a short last window joins
+   the window before it. So a joined weekly window runs up to 10 days, a monthly one up
+   to 45. When joining leaves one window, it is `[S, E]`.
 3. **The last window is the plan-end review.** Whichever window ends at E is typed
    `plan_end` and labelled *End of plan*, **not** by cadence — even when it is a
    full-length week. Every earlier window keeps the cadence kind (`weekly` /
@@ -194,13 +195,15 @@ Assume weekly cadence unless stated. Dates written `MM-DD`.
 
 | Plan | Windows produced |
 |---|---|
-| **Start 09-01, end 09-21 (21 days)** | Week 1 `09-01…09-07` · Week 2 `09-08…09-14` · **End of plan** `09-15…09-21` (a full week, but it ends at E, so it is the plan-end review) |
-| **Start 09-01, end 09-30 (30 days)** | Week 1…Week 4 (`09-01…09-28`) · **End of plan** `09-29…09-30` (2-day tail) |
-| **Start 09-01, end 09-04 (4 days)** | **End of plan** `09-01…09-04` only — shorter than one week, nothing numbered |
-| **Weekly, paused 09-08…09-14 entirely** | Windows unchanged; Week 2 `09-08…09-14` has zero planned days and is **never surfaced as due** |
-| **Weekly, paused 09-10…09-12 (mid-window)** | Week 2 `09-08…09-14` still due, with a lower target for the three paused days |
-| **Monthly, start 01-31** | Month 1 `01-31…02-27` (`addMonths(01-31,1)=02-28`, minus a day) · Month 2 `02-28…03-30` · … |
-| **Extended: seg 0 ends 09-21, seg 1 09-22…10-12** | seg 0: Week 1, Week 2, End of plan `09-15…09-21`; seg 1: **Week 3** `09-22…09-28`, Week 4 `09-29…10-05`, End of plan `10-06…10-12` — weeks continue, second plan-end review appears |
+| **Mon 09-07 to Sun 09-27 (21 days)** | Week 1 `09-07…09-13` · Week 2 `09-14…09-20` · **End of plan** `09-21…09-27` (a full week, but it ends at E, so it is the plan-end review) |
+| **Thu 09-03 to Wed 09-30** | Week 1 `09-03…09-06` (4 days, not short) · Week 2 `09-07…09-13` · Week 3 `09-14…09-20` · **End of plan** `09-21…09-30` (the 3-day tail `09-28…09-30` joined the week before) |
+| **Sat 09-05 to Fri 10-02 (28 days)** | Week 1 `09-05…09-13` (the 2-day `09-05…09-06` joined the next week) · Week 2 `09-14…09-20` · Week 3 `09-21…09-27` · **End of plan** `09-28…10-02` (5 days, not short) |
+| **Sat 09-05 to Tue 09-08 (4 days)** | **End of plan** `09-05…09-08` only — two short weeks joined, nothing numbered |
+| **Weekly, Mon 09-07 start, paused 09-14…09-20 entirely** | Windows unchanged; Week 2 `09-14…09-20` has zero planned days and is **never surfaced as due** |
+| **Weekly, paused 09-16…09-18 (mid-window)** | Week 2 `09-14…09-20` still due, with a lower target for the three paused days |
+| **Monthly, 09-10 to 12-09** | Month 1 `09-10…09-30` (21 days, not short) · Month 2 `10-01…10-31` · **End of plan** `11-01…12-09` (the 9-day December joined November) |
+| **Monthly, start 2027-01-20** | Month 1 `01-20…02-28` (the 12-day January joined February) · … |
+| **Extended: seg 0 Mon 09-07…Sun 09-27, seg 1 09-28…10-14** | seg 0: Week 1, Week 2, End of plan `09-21…09-27`; seg 1: **Week 3** `09-28…10-04`, End of plan `10-05…10-14` (the 3-day tail joined) — weeks continue, second plan-end review appears |
 
 ---
 
@@ -212,7 +215,11 @@ These extend ADR-007's named list for `reviewWindows`.
 - Partial final window (E not on a boundary) vs. exact final window (E on a
   boundary) — both must type the last window `plan_end`, never a numbered one.
 - A segment shorter than one window → single `plan_end`, no numbered windows.
-- `addMonths` clamping at month ends (Jan 31 → Feb; leap vs non-leap February).
+- Every start weekday, Monday to Sunday: weeks end on Sundays, and a first week of
+  1–3 days joins the next one; a last week of 1–3 days joins the one before.
+- Months end on the month's last day, including February in leap and non-leap years;
+  a first or last month of 1–14 days joins its neighbour, of 15 or more stands alone.
+- Two short windows only (Sat to Tue) join into one `plan_end`.
 - A fully-paused window has zero planned days and is not due; a partly-paused window
   is due with a reduced target.
 - Continuous labels across an extension boundary; a second `plan_end` for the second
@@ -234,11 +241,14 @@ These extend ADR-007's named list for `reviewWindows`.
 
 ## Decisions taken here (veto any that are wrong)
 
-1. **Windows are calendar-anchored at the segment start; pauses never move a
-   boundary.** Empty windows are dropped by the due predicate, not by shifting.
+1. **Windows follow the calendar: Monday-to-Sunday weeks and calendar months**
+   *(Rohit, I-09, 2026-10-24; before, they were anchored at the segment start)*.
+   Pauses never move a boundary. Empty windows are dropped by the due predicate, not
+   by shifting.
 2. **The last window is always the plan-end review**, even when it is a full week.
-3. **Monthly = true calendar months** with end-of-month clamping, not fixed 28-day
-   blocks.
+3. **A short first or last period joins its neighbour** — under 4 days for a week,
+   under 15 for a month *(Rohit, I-09, 2026-10-24)*. The same rule for every segment,
+   an extension's included.
 4. **Labels run continuously across segments** (G-08), each segment keeping its own
    *End of plan*.
 5. **A review is due on its `period_end` day**, not before.

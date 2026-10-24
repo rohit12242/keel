@@ -3,6 +3,7 @@ import { err, ok, type Result } from "@/shared/result";
 import { parseIso, toIso } from "./generateSlots";
 import type { ObjectiveRow } from "./rows";
 import {
+  FIXED_ONLY,
   missesEveryWeekday,
   normaliseSchedule,
   parseSchedule,
@@ -18,7 +19,9 @@ import {
  *   whose outcome is `continued` and which has not already extended it — and
  *   only once the plan's end date has passed (409);
  * - the new end date is strictly after today, refused rather than adjusted
- *   (422, invariant 6).
+ *   (422, invariant 6);
+ * - the schedule is fixed: v1 plans fixed objectives only (422, I-09).
+ *   Decided here, after the objective is found, so another user's is a 404.
  */
 export type ExtensionWrite = {
   review_id: string;
@@ -91,7 +94,8 @@ export type NewSegment = {
 export type ExtensionRefusal =
   | { kind: "invalid"; error: ProblemError }
   | { kind: "conflict"; detail: string }
-  | { kind: "not_in_future"; detail: string };
+  | { kind: "not_in_future"; detail: string }
+  | { kind: "fixed_only"; detail: string };
 
 const DAY = 86_400_000;
 
@@ -100,6 +104,9 @@ export function extensionDecision(
   write: ExtensionWrite,
   today: string,
 ): Result<NewSegment, ExtensionRefusal> {
+  if (write.schedule.mode === "flexible") {
+    return err({ kind: "fixed_only", detail: FIXED_ONLY });
+  }
   const segments = [...row.segments].sort((a, b) => a.seq - b.seq);
   const latest = segments[segments.length - 1];
   const review = row.saved_reviews.find((r) => r.id === write.review_id);
