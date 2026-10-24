@@ -99,12 +99,15 @@ describe("createEffortEntry (real Postgres)", () => {
 
   it("judges today in the zone the entry is logged in", async () => {
     // Kiritimati (UTC+14) and Pago Pago (UTC−11) are never on the same date.
+    // Late on Kiritimati's clock, so the entry has happened there.
     const kiritimati = todayIn("Pacific/Kiritimati");
+    const late = todayAt("Pacific/Kiritimati", "23:59");
     expect(
       (
         await log(
           OBJECTIVE_ID,
           body({ local_date: kiritimati, tz: "Pacific/Kiritimati" }),
+          late,
         )
       ).ok,
     ).toBe(true);
@@ -116,6 +119,7 @@ describe("createEffortEntry (real Postgres)", () => {
           tz: "Pacific/Pago_Pago",
           occurred_at_local: "15:00",
         }),
+        late,
       ),
     ).toMatchObject({ ok: false, kind: "not_today" });
   });
