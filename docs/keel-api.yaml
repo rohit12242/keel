@@ -1671,6 +1671,7 @@ components:
           id,
           title,
           start_date,
+          end_date,
           schedule,
           slot,
           entries,
@@ -1685,6 +1686,12 @@ components:
           type: string
           format: date
           description: Segment 0's start — tells "Not started" and "Day 1" apart from a day off.
+        end_date:
+          type: string
+          format: date
+          description: |
+            The last segment's end. After it, an active objective's plan has ended and
+            its final review is due — "Plan ended · final review due" on Today (G45).
         schedule: { $ref: '#/components/schemas/Schedule' }
         slot:
           oneOf:

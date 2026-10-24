@@ -1,0 +1,621 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import type { Day, DayObjective, EffortEntry } from "@/shared/contract";
+import { PlusIcon } from "@/app/icons";
+import { useToast } from "@/app/toast";
+import { localDayOf } from "@/shared/time/localDay";
+import {
+  dayTurned,
+  SAVE_FAILED,
+  TOAST,
+  type EntryBody,
+} from "@/modules/today/domain/logTime";
+import {
+  card,
+  entryRows,
+  longDate,
+  railRow,
+  schedulePill,
+  summary,
+  type EntryRow,
+} from "@/modules/today/domain/todayView";
+import { KeyHint, PageHeader } from "../PageHeader";
+import { useShortcut } from "../shortcuts";
+import { LogTime, type Opened, type SaveOutcome } from "./LogTime";
+import shell from "../shell.module.css";
+import styles from "./today.module.css";
+
+/**
+ * Today (03-today.md): the summary, the filter, the objective cards and the
+ * rail's Plan to date, drawn from one read of the day, and Log time. Every
+ * word and figure comes from `modules/today/domain/todayView.ts`.
+ *
+ * Each save is sent at once and answered with a toast; the day is then read
+ * again (`router.refresh()`, inside a transition so the page stays as it is
+ * until the new day arrives), so every figure on the page is the server's.
+ * `zone` is the one Today shows (I-07): entries are logged in it.
+ */
+
+/** A refusal's problem type, by its last path segment. */
+async function problemOf(
+  res: Response,
+): Promise<{ type: string; detail: string }> {
+  const p = (await res.json().catch(() => null)) as {
+    type?: string;
+    detail?: string;
+  } | null;
+  return {
+    type: p?.type?.split("/").pop() ?? "",
+    detail: p?.detail ?? "",
+  };
+}
+
+export function Today({
+  day,
+  zone,
+  reset,
+}: {
+  day: Day;
+  zone: string;
+  reset: boolean;
+}) {
+  const [filter, setFilter] = useState<string>("all");
+  const [opened, setOpened] = useState<Opened | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const router = useRouter();
+  const { show } = useToast();
+  const date = day.date;
+  const refresh = () => startTransition(() => router.refresh());
+  const logNew = (objectiveId: string | null = null) =>
+    setOpened({ kind: "new", objectiveId });
+
+  useShortcut("l", () => {
+    if (day.objectives.length > 0) logNew();
+  });
+
+  /** What a refused write shows, or where it goes. */
+  async function refused(res: Response): Promise<SaveOutcome> {
+    if (res.status === 401) {
+      router.push("/sign-in");
+      return { done: true };
+    }
+    const p = await problemOf(res);
+    if (p.type === "entry-overlaps") {
+      return { done: false, field: "when", message: p.detail };
+    }
+    if (p.type === "not-today") {
+      refresh();
+      return { done: false, message: dayTurned(longDate(date)) };
+    }
+    return { done: false, message: SAVE_FAILED };
+  }
+
+  /** Send a write; a network failure reads as any other failed save. */
+  async function send(url: string, method: string, body?: unknown) {
+    try {
+      return await fetch(url, {
+        method,
+        credentials: "same-origin",
+        headers: body ? { "content-type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function logEntry(
+    objectiveId: string,
+    body: EntryBody,
+  ): Promise<SaveOutcome> {
+    // Nothing is logged to a day that is over (invariant 18).
+    if (localDayOf(new Date(), zone) !== date) {
+      refresh();
+      return { done: false, message: dayTurned(longDate(date)) };
+    }
+    const res = await send(
+      `/v1/objectives/${objectiveId}/effort-entries`,
+      "POST",
+      body,
+    );
+    if (!res) return { done: false, message: SAVE_FAILED };
+    if (res.status !== 201) return refused(res);
+    const entry = (await res.json()) as { id: string };
+    const title = day.objectives.find((o) => o.id === objectiveId)?.title ?? "";
+    setOpened(null);
+    setFlash(entry.id);
+    show(TOAST.logged(body.minutes, title), {
+      undo: async () => {
+        const undone = await send(`/v1/effort-entries/${entry.id}`, "DELETE");
+        if (undone?.status !== 204) return TOAST.undoFailed;
+        refresh();
+        return TOAST.loggedUndone;
+      },
+    });
+    refresh();
+    return { done: true };
+  }
+
+  /** Save an edit; Undo puts the entry's old values back. */
+  async function editEntry(
+    entry: EffortEntry,
+    body: EntryBody,
+  ): Promise<SaveOutcome> {
+    if (localDayOf(new Date(), zone) !== date) {
+      refresh();
+      return { done: false, message: dayTurned(longDate(date)) };
+    }
+    const res = await send(`/v1/effort-entries/${entry.id}`, "PATCH", {
+      occurred_at_local: body.occurred_at_local,
+      minutes: body.minutes,
+      note: body.note,
+    });
+    if (!res) return { done: false, message: SAVE_FAILED };
+    if (res.status !== 200) return refused(res);
+    setOpened(null);
+    show(TOAST.updated, {
+      undo: async () => {
+        const undone = await send(`/v1/effort-entries/${entry.id}`, "PATCH", {
+          ...(entry.occurred_at_local
+            ? { occurred_at_local: entry.occurred_at_local }
+            : {}),
+          minutes: entry.minutes,
+          note: entry.note,
+        });
+        if (undone?.status !== 200) return TOAST.undoFailed;
+        refresh();
+        return TOAST.updatedUndone;
+      },
+    });
+    refresh();
+    return { done: true };
+  }
+
+  /** Delete an entry; Undo logs it again as it was, under a new id. */
+  async function deleteEntry(entry: EffortEntry): Promise<SaveOutcome> {
+    const res = await send(`/v1/effort-entries/${entry.id}`, "DELETE");
+    if (!res) return { done: false, message: SAVE_FAILED };
+    if (res.status !== 204) return refused(res);
+    setOpened(null);
+    show(TOAST.deleted, {
+      undo: async () => {
+        const undone = await send(
+          `/v1/objectives/${entry.objective_id}/effort-entries`,
+          "POST",
+          {
+            local_date: entry.local_date,
+            tz: entry.tz,
+            occurred_at_local: entry.occurred_at_local,
+            minutes: entry.minutes,
+            note: entry.note,
+            link: entry.link,
+          },
+        );
+        if (undone?.status !== 201) return TOAST.undoFailed;
+        setFlash(((await undone.json()) as { id: string }).id);
+        refresh();
+        return TOAST.deletedUndone;
+      },
+    });
+    refresh();
+    return { done: true };
+  }
+
+  const edit = (o: DayObjective, id: string) => {
+    const entry = o.entries.find((e) => e.id === id);
+    if (entry) setOpened({ kind: "edit", entry });
+  };
+  const shown = (o: DayObjective) => filter === "all" || filter === o.id;
+  const planned = day.objectives.filter(
+    (o) => card(o, date).kind === "planned",
+  );
+  const others = day.objectives.filter((o) => card(o, date).kind === "other");
+
+  return (
+    <>
+      <PageHeader
+        eyebrow={longDate(date)}
+        title="Today"
+        action={
+          day.objectives.length > 0 ? (
+            <button
+              type="button"
+              className={shell.primary}
+              onClick={() => logNew()}
+              aria-keyshortcuts="L"
+            >
+              <PlusIcon />
+              Log time
+              <KeyHint k="L" />
+            </button>
+          ) : null
+        }
+        phoneAction={
+          day.objectives.length > 0 ? (
+            <button
+              type="button"
+              className={`${shell.primary} ${shell.primarySmall}`}
+              onClick={() => logNew()}
+            >
+              <PlusIcon />
+              Log time
+            </button>
+          ) : null
+        }
+      />
+      {reset ? (
+        <p className={styles.notice} role="status">
+          Password changed. You&rsquo;re signed in.
+        </p>
+      ) : null}
+
+      {day.objectives.length === 0 ? (
+        <EmptyToday />
+      ) : (
+        <div className={styles.split}>
+          <div className={styles.stack}>
+            <Summary day={day} />
+            <Filter
+              objectives={day.objectives}
+              value={filter}
+              onChange={setFilter}
+            />
+            {planned.some(shown) ? (
+              <div className={styles.grid}>
+                {planned.filter(shown).map((o) => (
+                  <PlannedCard
+                    key={o.id}
+                    o={o}
+                    date={date}
+                    flash={flash}
+                    onLog={() => logNew(o.id)}
+                    onEdit={(id) => edit(o, id)}
+                  />
+                ))}
+              </div>
+            ) : null}
+            {others.some(shown) ? (
+              <div className={styles.others}>
+                {others.filter(shown).map((o) => (
+                  <OtherCard
+                    key={o.id}
+                    o={o}
+                    date={date}
+                    flash={flash}
+                    onLog={() => logNew(o.id)}
+                    onEdit={(id) => edit(o, id)}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <aside className={styles.rail} aria-label="Plan to date">
+            <Adherence objectives={day.objectives} date={date} />
+          </aside>
+        </div>
+      )}
+
+      <LogTime
+        opened={opened}
+        day={day}
+        zone={zone}
+        onClose={() => setOpened(null)}
+        onSave={(objectiveId, body) =>
+          opened?.kind === "edit"
+            ? editEntry(opened.entry, body)
+            : logEntry(objectiveId, body)
+        }
+        onDelete={deleteEntry}
+      />
+    </>
+  );
+}
+
+const RING = 2 * Math.PI * 46;
+
+function Summary({ day }: { day: Day }) {
+  const s = summary(day);
+  return (
+    <section
+      className={`${styles.card} ${styles.summary}`}
+      aria-label="Today's total"
+    >
+      {s.ring !== null ? (
+        <svg
+          className={styles.ring}
+          viewBox="0 0 112 112"
+          role="img"
+          aria-label={`${s.ring} percent of today's planned time logged`}
+        >
+          <circle
+            className={styles.ringTrack}
+            cx="56"
+            cy="56"
+            r="46"
+            strokeWidth="10"
+          />
+          <circle
+            className={styles.ringFill}
+            cx="56"
+            cy="56"
+            r="46"
+            strokeWidth="10"
+            strokeDasharray={`${((s.ring / 100) * RING).toFixed(1)} ${RING.toFixed(1)}`}
+            transform="rotate(-90 56 56)"
+          />
+          <text
+            className={styles.ringLabel}
+            x="56"
+            y="62"
+            textAnchor="middle"
+            fontSize="17"
+          >
+            {s.ring}%
+          </text>
+        </svg>
+      ) : null}
+      <div className={styles.summaryMain}>
+        {s.ring === null ? (
+          <span className={`${styles.status} ${styles.accent}`}>Day off</span>
+        ) : null}
+        <span className={styles.total}>{s.total}</span>
+        {s.dayOff ? (
+          <span className={styles.line}>{s.dayOff}</span>
+        ) : (
+          <span className={styles.line}>
+            logged today · <strong>{s.strong}</strong>
+            {s.rest}
+          </span>
+        )}
+        <span className={styles.weekShort}>{s.week} this week</span>
+      </div>
+      <div className={styles.stats}>
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>This week</span>
+          <span className={styles.statValue}>{s.week}</span>
+        </div>
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>Extra, off days</span>
+          <span className={styles.statValue}>{s.extra}</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** All, then one option per objective: a segmented control, pills on phone. */
+function Filter({
+  objectives,
+  value,
+  onChange,
+}: {
+  objectives: DayObjective[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const options = [
+    { id: "all", name: "All" },
+    ...objectives.map((o) => ({ id: o.id, name: o.title })),
+  ];
+  return (
+    <div className={styles.filter} role="group" aria-label="Viewing">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          className={styles.filterBtn}
+          aria-pressed={value === o.id}
+          onClick={() => onChange(o.id)}
+        >
+          <span className={styles.cut}>{o.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The day's entries; each row opens Edit entry. */
+function Entries({
+  rows,
+  flash,
+  onEdit,
+}: {
+  rows: EntryRow[];
+  flash: string | null;
+  onEdit: (id: string) => void;
+}) {
+  return (
+    <ul className={styles.entries}>
+      {rows.map((r) => (
+        <li key={r.id}>
+          <button
+            type="button"
+            className={`${styles.entry} ${r.id === flash ? styles.flash : ""}`}
+            aria-label={`Edit entry: ${r.time}, ${r.minutes}, ${r.note}`}
+            onClick={() => onEdit(r.id)}
+          >
+            <span className={styles.entryTime}>{r.time}</span>
+            <span className={styles.entryNote}>{r.note}</span>
+            <span className={styles.entryMins}>{r.minutes}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+type CardProps = {
+  o: DayObjective;
+  date: string;
+  flash: string | null;
+  onLog: () => void;
+  onEdit: (id: string) => void;
+};
+
+function PlannedCard({ o, date, flash, onLog, onEdit }: CardProps) {
+  const c = card(o, date);
+  if (c.kind !== "planned") return null;
+  const pct = Math.round(c.progress * 100);
+  const rows = entryRows(o);
+  return (
+    <section className={styles.card} aria-labelledby={`t-${o.id}`}>
+      <div className={styles.cardTop}>
+        <div className={styles.cardHead}>
+          <span className={styles.pill}>{schedulePill(o.schedule.label)}</span>
+          <span className={`${styles.note} ${c.met ? styles.met : ""}`}>
+            {c.note}
+          </span>
+        </div>
+        <h2 className={styles.cardTitle} id={`t-${o.id}`}>
+          {o.title}
+        </h2>
+      </div>
+      <div className={styles.progress}>
+        <span className={styles.figure}>
+          {c.logged} <span className={styles.of}>/ {c.of}</span>
+        </span>
+        <div
+          className={styles.bar}
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${o.title}, ${pct} percent`}
+        >
+          <div className={styles.barFill} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      {rows.length > 0 ? (
+        <Entries rows={rows} flash={flash} onEdit={onEdit} />
+      ) : (
+        <p className={styles.nothing}>Nothing logged yet today.</p>
+      )}
+      <button
+        type="button"
+        className={styles.ghost}
+        onClick={onLog}
+        aria-label={`Add entry to ${o.title}`}
+      >
+        <PlusIcon />
+        Add entry
+      </button>
+    </section>
+  );
+}
+
+function OtherCard({ o, date, flash, onLog, onEdit }: CardProps) {
+  const c = card(o, date);
+  const rows = entryRows(o);
+  return (
+    <section className={styles.muted} aria-labelledby={`t-${o.id}`}>
+      <div className={styles.mutedText}>
+        <h2 className={styles.mutedTitle} id={`t-${o.id}`}>
+          {o.title}
+        </h2>
+        <span className={styles.sub}>{c.note}</span>
+      </div>
+      {c.kind === "other" && c.canLog ? (
+        <button
+          type="button"
+          className={styles.secondary}
+          onClick={onLog}
+          aria-label={`Log time anyway to ${o.title}`}
+        >
+          Log anyway
+        </button>
+      ) : null}
+      {rows.length > 0 ? (
+        <div className={styles.mutedLog}>
+          <Entries rows={rows} flash={flash} onEdit={onEdit} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function Adherence({
+  objectives,
+  date,
+}: {
+  objectives: DayObjective[];
+  date: string;
+}) {
+  return (
+    <section className={styles.card}>
+      <div className={styles.railHead}>
+        <h2 className={styles.heading}>Adherence</h2>
+        <span className={styles.meta}>Plan to date</span>
+      </div>
+      <ul className={styles.adh}>
+        {objectives.map((o) => {
+          const r = railRow(o, date);
+          return (
+            <li key={o.id} className={styles.adhRow}>
+              <div className={styles.adhTop}>
+                <span className={`${styles.adhName} ${styles.cut}`}>
+                  {o.title}
+                </span>
+                <span className={styles.adhEnd}>
+                  {r.kind === "track" ? (
+                    <>
+                      <span className={`${styles.status} ${styles[r.tone]}`}>
+                        {r.pill}
+                      </span>
+                      <span className={styles.adhPct}>{r.pct}%</span>
+                    </>
+                  ) : (
+                    <span className={`${styles.status} ${styles.neutral}`}>
+                      {r.text}
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div
+                className={`${styles.bar} ${styles.barSm}`}
+                aria-hidden="true"
+              >
+                <div
+                  className={`${styles.barFill} ${r.kind === "track" ? styles[`fill_${r.tone}`] : ""}`}
+                  style={{ width: `${r.kind === "track" ? r.pct : 0}%` }}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** A new account: one card, and the way to New objective. */
+function EmptyToday() {
+  return (
+    <section className={`${styles.card} ${styles.emptyCard}`}>
+      <span className={styles.emptyIcon} aria-hidden="true">
+        <svg
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+        >
+          <circle cx="8" cy="8" r="6" />
+          <circle cx="8" cy="8" r="2.2" />
+        </svg>
+      </span>
+      <h2 className={styles.emptyTitle}>Add your first objective</h2>
+      <p className={styles.emptyText}>
+        An objective is something you&rsquo;re working toward and the time you
+        plan to give it. Add one and Today will show your plan and what
+        you&rsquo;ve logged against it.
+      </p>
+      <Link className={shell.primary} href="/objectives/new">
+        <PlusIcon />
+        Add objective
+      </Link>
+    </section>
+  );
+}

@@ -60,6 +60,8 @@ describe("Today computes its slot (real Postgres)", () => {
     });
     expect(objective?.slot && "id" in objective.slot).toBe(false);
     expect(objective?.next_planned_date).toBe("2026-09-17");
+    // The plan's end, so Today can tell a plan that has ended (G45).
+    expect(objective?.end_date).toBe("2026-10-11");
   });
 
   it("has no slot on an off day", async () => {

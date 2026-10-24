@@ -94,8 +94,11 @@ function toObjective(row: DayObjectiveRow, date: string): DayObjective {
   const slots = planSlots(segments, row.status_events);
   const daily = dailyOf(row);
   const toDate = figuresToDate(slots, daily, date);
-  // Segment 0 starts the objective; one with no plan degrades, like its schedule.
-  const first = [...row.segments].sort((a, b) => a.seq - b.seq)[0];
+  // Segment 0 starts the objective and the last one ends it (G45); one with
+  // no plan degrades, like its schedule.
+  const bySeq = [...row.segments].sort((a, b) => a.seq - b.seq);
+  const first = bySeq[0];
+  const last = bySeq[bySeq.length - 1];
 
   // Every entry here is for `date`, so one slot decides them all: an entry is
   // extra when no day slot covers its date (contract wording, ERD invariant 10).
@@ -109,6 +112,7 @@ function toObjective(row: DayObjectiveRow, date: string): DayObjective {
     id: row.id,
     title: row.title,
     start_date: first?.start_date ?? date,
+    end_date: last?.end_date ?? date,
     schedule: {
       mode: inForce?.schedule_mode ?? "fixed",
       minutes_per_planned_day: inForce?.minutes_per_planned_day ?? 0,

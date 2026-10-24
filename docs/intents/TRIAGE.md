@@ -158,14 +158,13 @@ One attribute in `aws_db_instance.main` is misaligned (`vpc_security_group_ids`)
 `terraform fmt -check` fails for the whole directory. Nothing checks it in CI, which is
 how it got in. Either fix the file, or add the check and fix it with it.
 
-### The form pieces are copied between Sign in and New objective · found in I-06
+### The sign-in screens keep their own form pieces · found in I-06, narrowed in I-08
 
 `(auth)/ui.tsx` has `Field`, `FieldError`, `described` and `Banner` for the sign-in
-screens; the New objective page has its own `FieldError`, `described`, banner and
-input styles. They agree today. The auth copies read the auth layout's own surfaces
-(`--input-bg`), so moving them in I-06 would have touched live screens for nothing the
-intent needed. The next screen with a form — a log dialog, a review — should start
-from one shared set rather than copy a third time.
+screens. Since I-08 the app's screens share one set, `src/app/(app)/form.tsx` (New
+objective and Log time). The auth copies read the auth layout's own surfaces
+(`--input-bg`), so they were left alone. They agree today; a change to how an error
+reads must be made in both places until they are joined.
 
 ### Flexible objectives are v2 · found in I-08
 
@@ -176,3 +175,22 @@ that reads flexible plans stays, tested. Bringing them back needs: the weekly ta
 (G40), their weeks on the Monday-to-Sunday week I-09 sets, a short first and last week,
 every flexible variant in the design ("Weeks met", "Days worked", "15h / 20h this
 week", "1 day left"), and the monthly-review entry above.
+
+### An account whose objectives are all paused sees "Add your first objective" · found in I-08
+
+Today's day read returns active objectives only, so an account whose objectives are
+all paused, completed or ended gets the new-account card, which invites it to add its
+*first* objective. Telling the two apart needs a second read or a count on the day
+(NFR-03). The design has no state for it yet: it needs words ("Nothing is running
+today…") and a way back to the paused objective, which arrives with Objectives.
+
+### More logged than planned, yet the ring is under 100 % · found in I-08
+
+Today's big total counts every minute logged, while the ring counts only today's
+planned time met, objective by objective, with time over one objective's plan never
+covering another's (`03-today.md`, G27). So a day can read "2h 55m logged" against
+"2h 45m planned" with the ring at 73 %, because one objective is over and another has
+nothing. Adherence works the same way: time over a slot's target is shown as over, not
+credited (`docs/domain/adherence.md`, rules 3 and 7). The rule is deliberate, but the
+page doesn't say it, and a user can read it as a bug. Rohit will look at how the page
+explains it: the summary line, a note on the ring, or showing over-plan time apart.

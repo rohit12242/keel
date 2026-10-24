@@ -4,8 +4,8 @@ import styles from "./shell.module.css";
 /**
  * A page's header (01-shell.md): the eyebrow and the title, the page's
  * primary action on the right, and on phone a smaller form of that action
- * beside the avatar that opens the account menu. Keyboard hints arrive with
- * the shortcuts.
+ * beside the avatar that opens the account menu. A desktop action that has
+ * a shortcut shows its key with `KeyHint`.
  */
 export function PageHeader({
   eyebrow,
@@ -30,5 +30,14 @@ export function PageHeader({
         <AccountMenu />
       </div>
     </header>
+  );
+}
+
+/** The key a primary action's shortcut is on, inside its button. */
+export function KeyHint({ k }: { k: string }) {
+  return (
+    <kbd className={styles.key} aria-hidden="true">
+      {k}
+    </kbd>
   );
 }

@@ -239,6 +239,8 @@ describe("assembleDay", () => {
       expect(o.schedule.planned_weekdays).toEqual([1, 3, 5]);
       expect(o.schedule.label).toBe("FIXED · MON, WED, FRI · 1h 30m PER DAY");
       expect(o.next_planned_date).toBeNull();
+      // The plan ends with the last segment, whatever the order given (G45).
+      expect(o.end_date).toBe("2026-10-25");
     }
   });
 
@@ -260,6 +262,7 @@ describe("assembleDay", () => {
     });
     expect(o.slot).toBeNull();
     expect(o.next_planned_date).toBeNull();
+    expect([o.start_date, o.end_date]).toEqual(["2026-09-16", "2026-09-16"]);
     expect(o.entries[0].extra).toBe(true);
   });
 
@@ -464,7 +467,11 @@ describe("assembleDay — what Today needs (G24–G28)", () => {
 
   it("says no band on the first day, and gives the start date either side of it", () => {
     const first = assembleDay("2026-09-14", [baseRow], null).objectives[0];
-    expect(first).toMatchObject({ track: null, start_date: "2026-09-14" });
+    expect(first).toMatchObject({
+      track: null,
+      start_date: "2026-09-14",
+      end_date: "2026-10-11",
+    });
     const later = {
       ...baseRow,
       segments: [{ ...MON_TO_FRI, start_date: "2026-09-21" }],

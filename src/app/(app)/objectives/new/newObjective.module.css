@@ -49,28 +49,10 @@
   gap: var(--space-8);
 }
 
-.labelRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-12);
-}
-
 .label {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-2);
-}
-
-.count {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-3);
-}
-
-.countFull {
-  color: var(--caution);
-  font-weight: 600;
 }
 
 .hint {
@@ -110,24 +92,6 @@
 .textarea:focus {
   outline: var(--border-focus) solid var(--accent);
   outline-offset: 1px;
-}
-
-/* An error: under the field, in --deviation with its icon. */
-.error {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-6);
-  font-size: 13px;
-  line-height: 1.4;
-  font-weight: 500;
-  color: var(--deviation);
-}
-
-.error svg {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  margin-top: 2px;
 }
 
 /* The field is marked too: its border turns --deviation. */
