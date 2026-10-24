@@ -159,6 +159,25 @@
   background: var(--surface-row);
 }
 
+/* Each row is a button that opens Edit entry. */
+button.entry {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.entry:hover {
+  background: var(--surface-muted);
+}
+
+button.entry:focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 1px;
+}
+
 .entryTime {
   font-family: var(--font-mono);
   font-size: 12px;

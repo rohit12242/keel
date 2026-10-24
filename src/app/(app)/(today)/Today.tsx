@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import type { Day, DayObjective } from "@/shared/contract";
+import type { Day, DayObjective, EffortEntry } from "@/shared/contract";
 import { PlusIcon } from "@/app/icons";
 import { useToast } from "@/app/toast";
 import { localDayOf } from "@/shared/time/localDay";
@@ -139,6 +139,76 @@ export function Today({
     refresh();
     return { done: true };
   }
+
+  /** Save an edit; Undo puts the entry's old values back. */
+  async function editEntry(
+    entry: EffortEntry,
+    body: EntryBody,
+  ): Promise<SaveOutcome> {
+    if (localDayOf(new Date(), zone) !== date) {
+      refresh();
+      return { done: false, message: dayTurned(longDate(date)) };
+    }
+    const res = await send(`/v1/effort-entries/${entry.id}`, "PATCH", {
+      occurred_at_local: body.occurred_at_local,
+      minutes: body.minutes,
+      note: body.note,
+    });
+    if (!res) return { done: false, message: SAVE_FAILED };
+    if (res.status !== 200) return refused(res);
+    setOpened(null);
+    show(TOAST.updated, {
+      undo: async () => {
+        const undone = await send(`/v1/effort-entries/${entry.id}`, "PATCH", {
+          ...(entry.occurred_at_local
+            ? { occurred_at_local: entry.occurred_at_local }
+            : {}),
+          minutes: entry.minutes,
+          note: entry.note,
+        });
+        if (undone?.status !== 200) return TOAST.undoFailed;
+        refresh();
+        return TOAST.updatedUndone;
+      },
+    });
+    refresh();
+    return { done: true };
+  }
+
+  /** Delete an entry; Undo logs it again as it was, under a new id. */
+  async function deleteEntry(entry: EffortEntry): Promise<SaveOutcome> {
+    const res = await send(`/v1/effort-entries/${entry.id}`, "DELETE");
+    if (!res) return { done: false, message: SAVE_FAILED };
+    if (res.status !== 204) return refused(res);
+    setOpened(null);
+    show(TOAST.deleted, {
+      undo: async () => {
+        const undone = await send(
+          `/v1/objectives/${entry.objective_id}/effort-entries`,
+          "POST",
+          {
+            local_date: entry.local_date,
+            tz: entry.tz,
+            occurred_at_local: entry.occurred_at_local,
+            minutes: entry.minutes,
+            note: entry.note,
+            link: entry.link,
+          },
+        );
+        if (undone?.status !== 201) return TOAST.undoFailed;
+        setFlash(((await undone.json()) as { id: string }).id);
+        refresh();
+        return TOAST.deletedUndone;
+      },
+    });
+    refresh();
+    return { done: true };
+  }
+
+  const edit = (o: DayObjective, id: string) => {
+    const entry = o.entries.find((e) => e.id === id);
+    if (entry) setOpened({ kind: "edit", entry });
+  };
   const shown = (o: DayObjective) => filter === "all" || filter === o.id;
   const planned = day.objectives.filter(
     (o) => card(o, date).kind === "planned",
@@ -203,6 +273,7 @@ export function Today({
                     date={date}
                     flash={flash}
                     onLog={() => logNew(o.id)}
+                    onEdit={(id) => edit(o, id)}
                   />
                 ))}
               </div>
@@ -216,6 +287,7 @@ export function Today({
                     date={date}
                     flash={flash}
                     onLog={() => logNew(o.id)}
+                    onEdit={(id) => edit(o, id)}
                   />
                 ))}
               </div>
@@ -232,7 +304,12 @@ export function Today({
         day={day}
         zone={zone}
         onClose={() => setOpened(null)}
-        onSave={logEntry}
+        onSave={(objectiveId, body) =>
+          opened?.kind === "edit"
+            ? editEntry(opened.entry, body)
+            : logEntry(objectiveId, body)
+        }
+        onDelete={deleteEntry}
       />
     </>
   );
@@ -341,17 +418,30 @@ function Filter({
   );
 }
 
-function Entries({ rows, flash }: { rows: EntryRow[]; flash: string | null }) {
+/** The day's entries; each row opens Edit entry. */
+function Entries({
+  rows,
+  flash,
+  onEdit,
+}: {
+  rows: EntryRow[];
+  flash: string | null;
+  onEdit: (id: string) => void;
+}) {
   return (
     <ul className={styles.entries}>
       {rows.map((r) => (
-        <li
-          key={r.id}
-          className={`${styles.entry} ${r.id === flash ? styles.flash : ""}`}
-        >
-          <span className={styles.entryTime}>{r.time}</span>
-          <span className={styles.entryNote}>{r.note}</span>
-          <span className={styles.entryMins}>{r.minutes}</span>
+        <li key={r.id}>
+          <button
+            type="button"
+            className={`${styles.entry} ${r.id === flash ? styles.flash : ""}`}
+            aria-label={`Edit entry: ${r.time}, ${r.minutes}, ${r.note}`}
+            onClick={() => onEdit(r.id)}
+          >
+            <span className={styles.entryTime}>{r.time}</span>
+            <span className={styles.entryNote}>{r.note}</span>
+            <span className={styles.entryMins}>{r.minutes}</span>
+          </button>
         </li>
       ))}
     </ul>
@@ -363,9 +453,10 @@ type CardProps = {
   date: string;
   flash: string | null;
   onLog: () => void;
+  onEdit: (id: string) => void;
 };
 
-function PlannedCard({ o, date, flash, onLog }: CardProps) {
+function PlannedCard({ o, date, flash, onLog, onEdit }: CardProps) {
   const c = card(o, date);
   if (c.kind !== "planned") return null;
   const pct = Math.round(c.progress * 100);
@@ -399,7 +490,7 @@ function PlannedCard({ o, date, flash, onLog }: CardProps) {
         </div>
       </div>
       {rows.length > 0 ? (
-        <Entries rows={rows} flash={flash} />
+        <Entries rows={rows} flash={flash} onEdit={onEdit} />
       ) : (
         <p className={styles.nothing}>Nothing logged yet today.</p>
       )}
@@ -416,7 +507,7 @@ function PlannedCard({ o, date, flash, onLog }: CardProps) {
   );
 }
 
-function OtherCard({ o, date, flash, onLog }: CardProps) {
+function OtherCard({ o, date, flash, onLog, onEdit }: CardProps) {
   const c = card(o, date);
   const rows = entryRows(o);
   return (
@@ -439,7 +530,7 @@ function OtherCard({ o, date, flash, onLog }: CardProps) {
       ) : null}
       {rows.length > 0 ? (
         <div className={styles.mutedLog}>
-          <Entries rows={rows} flash={flash} />
+          <Entries rows={rows} flash={flash} onEdit={onEdit} />
         </div>
       ) : null}
     </section>
