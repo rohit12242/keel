@@ -49,6 +49,7 @@ export type CreateObjectiveResult =
   | { ok: true; objective: Objective }
   | { ok: false; kind: "invalid"; errors: ProblemError[] }
   | { ok: false; kind: "mode_mismatch"; detail: string }
+  | { ok: false; kind: "fixed_only"; detail: string }
   | { ok: false; kind: "idea_unavailable"; detail: string };
 
 /**
@@ -252,7 +253,8 @@ export type ExtensionResult =
   | { ok: false; kind: "invalid"; errors: ProblemError[] }
   | { ok: false; kind: "not_found" }
   | { ok: false; kind: "conflict"; detail: string }
-  | { ok: false; kind: "not_in_future"; detail: string };
+  | { ok: false; kind: "not_in_future"; detail: string }
+  | { ok: false; kind: "fixed_only"; detail: string };
 
 /**
  * Extend the plan with a new segment, authorised by a continued plan-end

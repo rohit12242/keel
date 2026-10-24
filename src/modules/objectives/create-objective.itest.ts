@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPool, query, withTransaction, type Queryable } from "@/shared/db";
 import { insertObjective } from "./repo";
 import { createObjective } from "./service";
+import * as objectives from "@/app/v1/objectives/route";
 import { validateObjectiveWrite } from "./domain/validateObjectiveWrite";
 import { testUser, type TestUser } from "@/test/fixtures";
 
@@ -145,5 +146,33 @@ describe("createObjective (real Postgres)", () => {
       title,
     ]);
     expect(res.rowCount).toBe(0);
+  });
+
+  it("422s a flexible schedule and writes nothing: v1 plans fixed objectives only (I-09)", async () => {
+    const title = `itest: I-09 flexible ${Date.now()}`;
+    const res = await objectives.POST(
+      new Request("http://keel.test/v1/objectives", {
+        method: "POST",
+        headers: { cookie: user.cookie },
+        body: JSON.stringify({
+          ...BODY,
+          title,
+          schedule: {
+            mode: "flexible",
+            days_per_week: 3,
+            minutes_per_planned_day: 60,
+          },
+        }),
+      }),
+      undefined,
+    );
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({
+      type: expect.stringMatching(/\/fixed-only$/),
+    });
+    const rows = await query("SELECT 1 FROM objective WHERE title = $1", [
+      title,
+    ]);
+    expect(rows.rowCount).toBe(0);
   });
 });

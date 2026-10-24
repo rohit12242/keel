@@ -3,6 +3,7 @@ import { getPool } from "@/shared/db";
 import * as list from "@/app/v1/objectives/route";
 import {
   addStatusEvents,
+  testFlexibleObjective,
   testObjective,
   testUser,
   type TestUser,
@@ -39,14 +40,7 @@ describe("committed minutes per week (real Postgres)", () => {
         minutes_per_planned_day: 60,
       },
     });
-    await testObjective(me, {
-      ...common,
-      schedule: {
-        mode: "flexible",
-        days_per_week: 2,
-        minutes_per_planned_day: 30,
-      },
-    });
+    await testFlexibleObjective(me, { daysPerWeek: 2, minutes: 30 }, common);
     const paused = await testObjective(me, common);
     await addStatusEvents(paused.id, [[weekAgo, "paused"]]);
   });

@@ -11,6 +11,8 @@ import { generateSlots, parseIso, toIso } from "./generateSlots";
  *   named in `errors`.
  * - **mode mismatch (422)** — a well-formed schedule that contradicts its mode:
  *   weekdays given for a flexible schedule, or a day count for a fixed one.
+ * - **fixed only (422)** — a well-formed flexible schedule: v1 plans fixed
+ *   objectives only (I-09). Flexible is still parsed, for v2.
  *
  * Both are decided before any write, so a schema constraint never surfaces as
  * a 500. `tz` is validated and passed on but never stored: the objective
@@ -50,7 +52,12 @@ export type NewObjective = {
 export type ObjectiveWriteResult =
   | { ok: true; value: NewObjective }
   | { ok: false; kind: "invalid"; errors: ProblemError[] }
-  | { ok: false; kind: "mode_mismatch"; detail: string };
+  | { ok: false; kind: "mode_mismatch"; detail: string }
+  | { ok: false; kind: "fixed_only"; detail: string };
+
+/** Why a flexible schedule is refused, on a new objective and an extension. */
+export const FIXED_ONLY =
+  "v1 plans fixed objectives only; a flexible schedule is not accepted.";
 
 const DAY_MS = 86_400_000;
 
@@ -148,6 +155,9 @@ export function validateObjectiveWrite(input: unknown): ObjectiveWriteResult {
   const normalised = normaliseSchedule(body.schedule);
   const missed = missesEveryWeekday(normalised, startsOn, endDate);
   if (missed) return { ok: false, kind: "invalid", errors: [missed] };
+  if (normalised.mode === "flexible") {
+    return { ok: false, kind: "fixed_only", detail: FIXED_ONLY };
+  }
 
   return {
     ok: true,

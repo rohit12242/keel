@@ -5,6 +5,7 @@ import {
   validateExtensionWrite,
   type ExtensionWrite,
 } from "./validateExtension";
+import { FIXED_ONLY } from "./validateObjectiveWrite";
 
 const RID = "0b6f3c1e-7d1a-4c55-9a51-6f0c2a8e9b11";
 
@@ -64,6 +65,29 @@ describe("validateExtensionWrite", () => {
       "schedule",
     ]);
     expect(validateExtensionWrite(null).ok).toBe(false);
+  });
+
+  it("parses a flexible schedule, which extensionDecision then refuses (I-09)", () => {
+    expect(
+      validateExtensionWrite(
+        body({
+          schedule: {
+            mode: "flexible",
+            days_per_week: 3,
+            minutes_per_planned_day: 60,
+          },
+        }),
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        schedule: {
+          mode: "flexible",
+          days_per_week: 3,
+          minutes_per_planned_day: 60,
+        },
+      },
+    });
   });
 
   it("an extension stays at 365 days, though a new objective may run 366 (G42)", () => {
@@ -130,6 +154,25 @@ const write = (over: Partial<ExtensionWrite> = {}): ExtensionWrite => ({
 });
 
 describe("extensionDecision", () => {
+  it("refuses a flexible schedule: v1 plans fixed objectives only (I-09)", () => {
+    expect(
+      extensionDecision(
+        row(),
+        write({
+          schedule: {
+            mode: "flexible",
+            days_per_week: 3,
+            minutes_per_planned_day: 60,
+          },
+        }),
+        "2026-10-13",
+      ),
+    ).toEqual({
+      ok: false,
+      error: { kind: "fixed_only", detail: FIXED_ONLY },
+    });
+  });
+
   it("adds the next segment, starting the day after the plan ends", () => {
     expect(extensionDecision(row(), write(), "2026-10-13")).toEqual({
       ok: true,

@@ -51,7 +51,7 @@ export const GET = withSession(
  * POST /v1/objectives — declare an objective: the objective, segment 0 and its
  * created event in one transaction. `starts_on` comes from the body, never
  * from the server clock (NFR-12). 400 names each bad field; 422 is a schedule
- * that contradicts its mode.
+ * that contradicts its mode, or a flexible one (I-09).
  */
 export const POST = withSession(
   async (req: Request, _ctx: unknown, userId: string): Promise<Response> => {
@@ -85,6 +85,13 @@ export const POST = withSession(
               422,
               "The schedule contradicts its mode",
               problemType("schedule-mode-mismatch"),
+              result.detail,
+            );
+          case "fixed_only":
+            return problem(
+              422,
+              "v1 plans fixed objectives only",
+              problemType("fixed-only"),
               result.detail,
             );
           case "idea_unavailable":

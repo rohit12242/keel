@@ -130,6 +130,26 @@ describe("extending a plan (real Postgres)", () => {
     );
   });
 
+  it("422s a flexible schedule, and writes no segment: v1 plans fixed objectives only (I-09)", async () => {
+    const reviewId = await closePlan("continued");
+    const res = await extend(
+      body(reviewId, {
+        schedule: {
+          mode: "flexible",
+          days_per_week: 3,
+          minutes_per_planned_day: 60,
+        },
+      }),
+    );
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({
+      type: expect.stringMatching(/\/fixed-only$/),
+    });
+    // The same review still extends the plan with a fixed schedule: nothing
+    // was written by the refusal.
+    expect((await extend(body(reviewId))).status).toBe(201);
+  });
+
   it("400s a body that is not an extension", async () => {
     expect((await extend({ extend_by_days: 0 })).status).toBe(400);
   });
