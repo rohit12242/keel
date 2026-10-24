@@ -12,6 +12,34 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-dialog);
   max-width: calc(100vw - 32px);
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+/* Undo: text on the toast, underlined, a real button. */
+.undo {
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: var(--space-4) var(--space-6);
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-6));
+  border-radius: var(--radius-md);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.undo:focus-visible {
+  outline: var(--border-focus) solid var(--on-text);
+  outline-offset: 1px;
+}
+
+.undo:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 /* Above the tab bar on phone. */

@@ -19,6 +19,13 @@ import {
   type Field,
   type StartChoice,
 } from "@/modules/objectives/domain/newObjective";
+import {
+  AlertIcon,
+  CountedLabel,
+  describedBy,
+  errorIdOf,
+  FieldError as SharedFieldError,
+} from "../../form";
 import styles from "./newObjective.module.css";
 
 /**
@@ -66,42 +73,15 @@ const FOCUS: Record<Field, string> = {
 
 type Errors = Partial<Record<Field, string>>;
 
-const errorId = (f: Field) => `nf-${f}-error`;
+const errorId = (f: Field) => errorIdOf("nf", f);
 
 /** What a control needs to point at its error, and its hint. */
-const described = (field: Field, errors: Errors, ...more: string[]) => ({
-  "aria-invalid": errors[field] ? true : undefined,
-  "aria-describedby":
-    [errors[field] ? errorId(field) : null, ...more]
-      .filter(Boolean)
-      .join(" ") || undefined,
-});
+const described = (field: Field, errors: Errors, ...more: string[]) =>
+  describedBy(errors[field] ? errorId(field) : null, ...more);
 
-const AlertIcon = () => (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    aria-hidden="true"
-  >
-    <circle cx="8" cy="8" r="6.2" />
-    <path d="M8 4.8v3.8M8 11v.1" />
-  </svg>
+const FieldError = ({ field, errors }: { field: Field; errors: Errors }) => (
+  <SharedFieldError id={errorId(field)} message={errors[field]} />
 );
-
-/** A field's error, under it. The icon and the words carry it, not colour alone. */
-function FieldError({ field, errors }: { field: Field; errors: Errors }) {
-  const message = errors[field];
-  if (!message) return null;
-  return (
-    <p className={styles.error} id={errorId(field)}>
-      <AlertIcon />
-      <span>{message}</span>
-    </p>
-  );
-}
 
 /**
  * Buttons that act as one radio group: the chosen one is in the Tab order,
@@ -198,32 +178,6 @@ function Segments<T extends string>({
           {text}
         </button>
       ))}
-    </div>
-  );
-}
-
-/** A label with its character counter, which turns amber at the limit. */
-function CountedLabel({
-  htmlFor,
-  label,
-  length,
-  max,
-}: {
-  htmlFor: string;
-  label: string;
-  length: number;
-  max: number;
-}) {
-  return (
-    <div className={styles.labelRow}>
-      <label className={styles.label} htmlFor={htmlFor}>
-        {label}
-      </label>
-      <span
-        className={`${styles.count} ${length >= max ? styles.countFull : ""}`}
-      >
-        {length}/{max}
-      </span>
     </div>
   );
 }

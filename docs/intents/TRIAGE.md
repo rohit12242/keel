@@ -158,14 +158,13 @@ One attribute in `aws_db_instance.main` is misaligned (`vpc_security_group_ids`)
 `terraform fmt -check` fails for the whole directory. Nothing checks it in CI, which is
 how it got in. Either fix the file, or add the check and fix it with it.
 
-### The form pieces are copied between Sign in and New objective · found in I-06
+### The sign-in screens keep their own form pieces · found in I-06, narrowed in I-08
 
 `(auth)/ui.tsx` has `Field`, `FieldError`, `described` and `Banner` for the sign-in
-screens; the New objective page has its own `FieldError`, `described`, banner and
-input styles. They agree today. The auth copies read the auth layout's own surfaces
-(`--input-bg`), so moving them in I-06 would have touched live screens for nothing the
-intent needed. The next screen with a form — a log dialog, a review — should start
-from one shared set rather than copy a third time.
+screens. Since I-08 the app's screens share one set, `src/app/(app)/form.tsx` (New
+objective and Log time). The auth copies read the auth layout's own surfaces
+(`--input-bg`), so they were left alone. They agree today; a change to how an error
+reads must be made in both places until they are joined.
 
 ### Flexible objectives are v2 · found in I-08
 
