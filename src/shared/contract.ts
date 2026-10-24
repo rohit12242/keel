@@ -51,6 +51,8 @@ export type DayObjective = {
   title: string;
   /** Segment 0's start. */
   start_date: string;
+  /** The last segment's end: after it the plan has ended (G45). */
+  end_date: string;
   schedule: Schedule;
   slot: PlanSlot | null;
   next_planned_date?: string | null;
