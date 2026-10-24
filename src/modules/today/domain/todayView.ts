@@ -1,6 +1,7 @@
 import type { Day, DayObjective } from "@/shared/contract";
 import { parseIso } from "@/modules/objectives/domain/generateSlots";
 import { dayLabel } from "@/modules/objectives/domain/newObjective";
+import { spanLabel } from "@/modules/effort/domain/validateWrite";
 
 /**
  * Today's page rules (`docs/design/screens/03-today.md`), pure: the words and
@@ -129,7 +130,11 @@ export type Card =
   | {
       kind: "planned";
       note: string;
-      figure: string;
+      /** The note in the met colour, with its words. */
+      met: boolean;
+      /** "1h 40m", of "2h 00m". */
+      logged: string;
+      of: string;
       /** 0–1, for the bar. */
       progress: number;
     }
@@ -154,7 +159,9 @@ export function card(o: DayObjective, date: string): Card {
     return {
       kind: "planned",
       note,
-      figure: `${total(logged)} / ${total(target)}`,
+      met: logged >= target,
+      logged: total(logged),
+      of: total(target),
       progress: target > 0 ? Math.min(1, logged / target) : 1,
     };
   }
@@ -209,4 +216,31 @@ export function railRow(o: DayObjective, date: string): RailRow {
     case "behind":
       return { kind: "track", pill: "Behind", tone: "behind", pct };
   }
+}
+
+export type EntryRow = {
+  id: string;
+  /** "09:20–10:20", or "—" for an entry logged with no start (before G29). */
+  time: string;
+  note: string;
+  minutes: string;
+};
+
+/** A card's entries, oldest first by start time; one with no start goes first. */
+export function entryRows(o: DayObjective): EntryRow[] {
+  return [...o.entries]
+    .sort((a, b) =>
+      (a.occurred_at_local ?? "").localeCompare(b.occurred_at_local ?? ""),
+    )
+    .map((e) => ({
+      id: e.id,
+      time: e.occurred_at_local
+        ? spanLabel({
+            occurred_at_local: e.occurred_at_local,
+            minutes: e.minutes,
+          })
+        : "—",
+      note: e.note,
+      minutes: compact(e.minutes),
+    }));
 }

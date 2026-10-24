@@ -3,6 +3,7 @@ import type { Day, DayObjective } from "@/shared/contract";
 import {
   card,
   compact,
+  entryRows,
   loggable,
   longDate,
   railRow,
@@ -155,11 +156,14 @@ describe("card", () => {
     expect(card(objective({ logged_minutes: 100 }), DATE)).toEqual({
       kind: "planned",
       note: "20m to go",
-      figure: "1h 40m / 2h 00m",
+      met: false,
+      logged: "1h 40m",
+      of: "2h 00m",
       progress: 100 / 120,
     });
     expect(card(objective({ logged_minutes: 120 }), DATE)).toMatchObject({
       note: "Planned time met",
+      met: true,
       progress: 1,
     });
     expect(card(objective({ logged_minutes: 150 }), DATE)).toMatchObject({
@@ -296,5 +300,44 @@ describe("railRow", () => {
       kind: "label",
       text: "Not started",
     });
+  });
+});
+
+describe("entryRows", () => {
+  it("lists entries by start, with their span and compact minutes", () => {
+    const entry = (id: string, start: string | undefined, minutes: number) => ({
+      id,
+      objective_id: "o1",
+      local_date: DATE,
+      tz: "Asia/Kolkata",
+      minutes,
+      note: `note ${id}`,
+      link: null,
+      logged_at: "2026-09-05T10:00:00Z",
+      extra: false,
+      ...(start ? { occurred_at_local: start } : {}),
+    });
+    const rows = entryRows(
+      objective({
+        entries: [
+          entry("late", "14:00", 45),
+          entry("early", "09:20", 60),
+          entry("old", undefined, 30),
+        ],
+      }),
+    );
+    expect(rows).toEqual([
+      { id: "old", time: "—", note: "note old", minutes: "30m" },
+      { id: "early", time: "09:20–10:20", note: "note early", minutes: "1h" },
+      { id: "late", time: "14:00–14:45", note: "note late", minutes: "45m" },
+    ]);
+    // Whichever side of the comparison the start-less entry falls on.
+    expect(
+      entryRows(
+        objective({
+          entries: [entry("old", undefined, 30), entry("early", "09:20", 60)],
+        }),
+      ).map((r) => r.id),
+    ).toEqual(["old", "early"]);
   });
 });

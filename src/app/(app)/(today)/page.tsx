@@ -5,20 +5,16 @@ import { getConfig } from "@/config/env";
 import { zoneOf } from "@/modules/session/service";
 import { localDayOf } from "@/shared/time/localDay";
 import type { Day } from "@/shared/contract";
+import { longDate } from "@/modules/today/domain/todayView";
 import { PageHeader } from "../PageHeader";
 import { requireUser } from "../requireUser";
+import { Today } from "./Today";
 import styles from "./today.module.css";
 
 export const metadata: Metadata = { title: "Today · Keel" };
 
 // Server-rendered per request (D-04), fetched from the real endpoint.
 export const dynamic = "force-dynamic";
-
-function formatMinutes(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
-}
 
 type Fetched = { day: Day } | "signed_out" | "unreachable";
 
@@ -63,7 +59,7 @@ export default async function TodayPage({
     // Error state: the endpoint could not be read (e.g. the database is down).
     return (
       <>
-        <PageHeader eyebrow={day} title="Today" />
+        <PageHeader eyebrow={longDate(day)} title="Today" />
         <div className={styles.error} role="alert">
           <strong>Couldn&rsquo;t reach your log.</strong> The day for {day}{" "}
           could not be loaded. Nothing has been lost — try again in a moment.
@@ -72,72 +68,5 @@ export default async function TodayPage({
     );
   }
 
-  const data = fetched.day;
-  return (
-    <>
-      <PageHeader eyebrow={data.date} title="Today" />
-      {reset === "done" ? (
-        <p className={styles.notice} role="status">
-          Password changed. You&rsquo;re signed in.
-        </p>
-      ) : null}
-      <section className={styles.summary} aria-label="Totals">
-        <dl className={styles.totals}>
-          <div>
-            <dt>Today</dt>
-            <dd>{formatMinutes(data.totals.today_minutes)}</dd>
-          </div>
-          <div>
-            <dt>This week</dt>
-            <dd>{formatMinutes(data.totals.week_minutes)}</dd>
-          </div>
-          <div>
-            <dt>Extra (off-plan)</dt>
-            <dd>{formatMinutes(data.totals.extra_off_day_minutes)}</dd>
-          </div>
-        </dl>
-      </section>
-
-      {data.objectives.length === 0 ? (
-        <p className={styles.empty}>No active objectives.</p>
-      ) : (
-        <ul className={styles.objectives}>
-          {data.objectives.map((o) => (
-            <li key={o.id} className={styles.objective}>
-              <div className={styles.objectiveHead}>
-                <h2 className={styles.objectiveTitle}>{o.title}</h2>
-                <span className={styles.schedule}>{o.schedule.label}</span>
-              </div>
-              <p className={styles.plan}>
-                {o.slot
-                  ? `Planned today: ${formatMinutes(o.slot.target_minutes)}`
-                  : "Not scheduled today — anything logged counts as extra."}
-                {" · "}
-                {formatMinutes(o.logged_minutes)} logged
-              </p>
-
-              {o.entries.length > 0 && (
-                <ul className={styles.entries}>
-                  {o.entries.map((e) => (
-                    <li key={e.id} className={styles.entry}>
-                      <span className={styles.entryMinutes}>
-                        {formatMinutes(e.minutes)}
-                      </span>
-                      {e.occurred_at_local && (
-                        <span className={styles.entryTime}>
-                          {e.occurred_at_local}
-                        </span>
-                      )}
-                      <span className={styles.entryNote}>{e.note}</span>
-                      {e.extra && <span className={styles.badge}>extra</span>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
-  );
+  return <Today day={fetched.day} reset={reset === "done"} />;
 }
