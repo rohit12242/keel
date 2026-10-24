@@ -17,7 +17,7 @@ Desktop is two columns: the main stack (summary, filter, objective cards) and a 
 
 ## Filter
 
-"All" plus one option per objective, using each objective's short name (segmented control on desktop, pills on phone). It hides the other cards; it doesn't change the summary.
+"All" plus one option per objective, using each objective's name, cut to fit with an ellipsis and read in full by screen readers (segmented control on desktop, pills on phone). It hides the other cards; it doesn't change the summary.
 
 ## Objective cards
 
@@ -33,9 +33,11 @@ Desktop is two columns: the main stack (summary, filter, objective cards) and a 
 
 An objective that starts later shows here with its start day as "next on". Paused, completed and terminated objectives don't appear on Today.
 
+Time can be logged only against an objective whose plan covers today. One that hasn't started yet, or whose plan has ended, has no **Log anyway** and no chip in Log time.
+
 ## Rail
 
-1. **Adherence** card ("Plan to date"): one row per active objective with short name, a status pill (**On track** ≥ 80 %, **At risk** 60–79 %, **Behind** < 60 %) and the percentage, over a small bar in the matching colour. An objective that started today shows "Day 1" and no percentage; one that hasn't started shows "Not started".
+1. **Adherence** card ("Plan to date"): one row per active objective with its name (cut to fit, as in the filter), a status pill (**On track** ≥ 80 %, **At risk** 60–79 %, **Behind** < 60 %) and the percentage, over a small bar in the matching colour. An objective that started today shows "Day 1" and no percentage; one that hasn't started shows "Not started".
 2. **Log a deviation** (red tint) and **Park an idea** (muted), full width.
 3. **Last deviation** card: kind pill, what happened, "4 Sep · 45m · Research spiral", **Open in Deviations**. Hidden when there are none.
 
@@ -43,7 +45,7 @@ An objective that starts later shows here with its start day as "next on". Pause
 
 | Part | Behaviour |
 |---|---|
-| Objective | Chips, one per active objective. Preselected when opened from a card. |
+| Objective | Chips, one per objective whose plan covers today. Preselected when opened from a card. |
 | When | **Start** and **End** (hh:mm, 24-hour, 84 px mono boxes), a **Now** button that fills End with the current time (and Start one hour earlier if empty), and the duration on the right ("1h 00m"). Typing accepts `920`, `0920`, `9:20`, `9.20`, `21`. |
 | What did you do? | Textarea, 120 chars, required. |
 | Hint line | Fixed: "Leaves 20m on today's plan" or "Meets today's plan". Flexible: "Leaves 5h 00m for the week" or "Meets the weekly target". Not planned today: "Counts as extra, off-day time". |

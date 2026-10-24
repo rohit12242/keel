@@ -48,6 +48,8 @@ Checked against `docs/keel-api.yaml`, `docs/domain/*.md` and ADR-002 on 20 Oct 2
 | G40 | **A flexible weekly target**, any hours and minutes | The plan stores `minutes_per_planned_day`; a week's target is that times `days_per_week`, so 2h 05m across 3 days has no exact value. | Round the share per day up to the minute in the UI, and show the resulting week. *(Found in I-06.)* | No |
 | G41 | **Any target above zero** | `minutes_per_planned_day` is at least 15. | Keep 15; the UI says so. *(Found in I-06.)* | No |
 | G42 | **12 months** as "a year or less" | `runs_for_days` is at most 365; 12 months across a 29 February is 366 days. | Raise the limit to 366 for a new objective. *(Found in I-06.)* | No |
+| G43 | **An objective's short name** in Today's filter and rail, and in Log a deviation | An objective has a `title` only. | Use the title, cut to fit with an ellipsis. *(Found in I-08.)* | No |
+| G44 | **Log anyway** on every not-planned card, and a Log time chip per active objective | An entry on a date outside every plan segment is refused (`422`), so an objective that hasn't started, or whose plan has ended, can't take time. | Offer logging only where the plan covers today. *(Found in I-08.)* | No |
 
 ## Decided in I-03
 
@@ -110,6 +112,13 @@ The table above is the gap as the design found it. This is how each was closed
 | G40 | Kept: no backend change. The UI rounds the share per day up to the minute and shows the week it makes (`04-objectives.md`). |
 | G41 | Kept: 15 minutes a day. The UI checks it, in the words in `04-objectives.md`. |
 | G42 | `ObjectiveWrite.runs_for_days` goes up to 366. An extension keeps 365. |
+
+## Decided in I-08
+
+| # | Decision |
+|---|---|
+| G43 | Kept: no short name. The UI cuts the title to fit, and screen readers read it whole (`03-today.md`). |
+| G44 | Kept: the contract's rule. A card or chip offers logging only when the objective's plan covers today (`03-today.md`). |
 
 ## Names that differ (not gaps — map them in the UI)
 

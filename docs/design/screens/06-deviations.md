@@ -39,7 +39,7 @@ Fields in order:
 | Field | Details |
 |---|---|
 | **Which kind** | Two choice cards. **Chosen**: "I decided to go off, with a reason. Something was urgent or genuinely worth it." **Drifted**: "It happened to me. I noticed afterwards." |
-| **Pulled you away from** | Chips, one per active objective (short name). Sent as `objective_ids: [id]`. |
+| **Pulled you away from** | Chips, one per active objective (its name, cut to fit; G43). Sent as `objective_ids: [id]`. |
 | **What happened** | Textarea, 120, placeholder "One or two sentences, in your own words." |
 | **Your reasoning** *(Chosen only)* | Textarea, 280, hint "Recorded now, tested at review. You'll mark whether it held." |
 | **Pattern** *(Drifted only)* | A dropdown (listbox) of the user's patterns. Each option shows its name, description and a "3 before" count; **None of these** (a genuine one-off) last; then **+ Add a new pattern**. Hint "Pick the closest. Naming the pattern is how repeats become visible." |
