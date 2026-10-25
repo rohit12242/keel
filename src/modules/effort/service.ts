@@ -13,13 +13,13 @@ import {
 import { currentStatus } from "@/modules/objectives/domain/statusTimeline";
 import { toSegment } from "@/modules/objectives/domain/segmentRows";
 import { validateEffortEdit } from "./domain/validateEffortEdit";
-import { effortDayRefusal } from "./domain/effortDay";
+import { effortDayRefusal, futureRefusal } from "./domain/effortDay";
 import {
   effortMonth,
   parseMonth,
   type EffortMonth,
 } from "./domain/effortMonth";
-import { localDayOf } from "@/shared/time/localDay";
+import { localDayOf, localTimeOf } from "@/shared/time/localDay";
 import {
   deleteEffortEntry as deleteEntryRow,
   getEffortMonthFacts,
@@ -42,6 +42,7 @@ export type CreateEffortResult =
   | { ok: false; kind: "validation"; errors: ProblemError[] }
   | { ok: false; kind: "not_found" }
   | { ok: false; kind: "not_today" }
+  | { ok: false; kind: "in_future" }
   | { ok: false; kind: "not_active" }
   | { ok: false; kind: "outside_plan" }
   | { ok: false; kind: "overlap"; detail: string };
@@ -85,6 +86,10 @@ export async function createEffortEntry(
   if (effortDayRefusal(date, localDayOf(now, validated.value.tz))) {
     return { ok: false, kind: "not_today" };
   }
+  // ...and only once it has happened, on that zone's clock.
+  if (futureRefusal(validated.value, localTimeOf(now, validated.value.tz))) {
+    return { ok: false, kind: "in_future" };
+  }
 
   if (currentStatus(objective.status_events) !== "active") {
     return { ok: false, kind: "not_active" };
@@ -126,6 +131,7 @@ export type EditEffortResult =
   | { ok: false; kind: "validation"; errors: ProblemError[] }
   | { ok: false; kind: "not_found" }
   | { ok: false; kind: "not_today" }
+  | { ok: false; kind: "in_future" }
   | { ok: false; kind: "not_active" }
   | { ok: false; kind: "overlap"; detail: string };
 
@@ -160,6 +166,9 @@ export async function updateEffortEntry(
       validated.value.occurred_at_local ?? found.occurred_at_local,
     minutes: validated.value.minutes ?? found.minutes,
   };
+  if (futureRefusal(span, localTimeOf(now, found.tz))) {
+    return { ok: false, kind: "in_future" };
+  }
   const written = await withTransaction(async (tx) => {
     const day = await lockUserDay(tx, userId, found.local_date, entryId);
     const hit = overlapping(span, day);

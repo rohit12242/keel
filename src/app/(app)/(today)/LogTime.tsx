@@ -5,10 +5,13 @@ import type { Day, EffortEntry } from "@/shared/contract";
 import {
   buttonLabel,
   checkEntry,
+  clockIn,
   durationLabel,
+  fitTime,
   hint,
   NOTE_MAX,
   nowTimes,
+  parseTime,
   spanMinutes,
   type Draft,
   type EntryBody,
@@ -171,13 +174,24 @@ function LogTimeForm({
     }
   };
 
+  // A time box shows what it read, "920" as "09:20", once focus leaves it.
+  const tidy = (key: "start" | "end") => {
+    const t = parseTime(draft[key]);
+    if (t && t !== draft[key]) setDraft((d) => ({ ...d, [key]: t }));
+  };
+
   async function run(send: () => Promise<SaveOutcome>) {
     if (sending.current) return;
     sending.current = true;
     setBusy(true);
     setFailed(null);
     const outcome = await send();
-    if (outcome.done) return;
+    // Done, the dialog has closed; clear its hold, or the next one opens with
+    // × and Esc still refused. This form stays busy until it unmounts.
+    if (outcome.done) {
+      onBusy(false);
+      return;
+    }
     sending.current = false;
     setBusy(false);
     if (outcome.field) {
@@ -194,6 +208,7 @@ function LogTimeForm({
     const checked = checkEntry(draft, {
       date: day.date,
       zone,
+      now: clockIn(new Date(), zone),
       entries,
       editing: editing && {
         id: editing.id,
@@ -269,7 +284,8 @@ function LogTimeForm({
                 placeholder="09:20"
                 maxLength={5}
                 value={draft.start}
-                onChange={(e) => set("start", e.target.value)}
+                onChange={(e) => set("start", fitTime(e.target.value))}
+                onBlur={() => tidy("start")}
                 {...describedBy(errors.when ? errorId("when") : null)}
               />
             </label>
@@ -286,7 +302,8 @@ function LogTimeForm({
                 placeholder="10:20"
                 maxLength={5}
                 value={draft.end}
-                onChange={(e) => set("end", e.target.value)}
+                onChange={(e) => set("end", fitTime(e.target.value))}
+                onBlur={() => tidy("end")}
                 {...describedBy(errors.when ? errorId("when") : null)}
               />
             </label>

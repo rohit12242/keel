@@ -15,6 +15,14 @@ const notToday = () =>
     "local_date must be today in tz. Once a day is over, its effort is fixed.",
   );
 
+const inFuture = () =>
+  problem(
+    422,
+    "This entry ends after now",
+    problemType("entry-in-future"),
+    "Effort is logged once it has happened: the entry may not end after now in tz.",
+  );
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -83,6 +91,8 @@ export const POST = withSession(
               );
             case "not_today":
               return notToday();
+            case "in_future":
+              return inFuture();
             case "not_active":
               return problem(
                 422,

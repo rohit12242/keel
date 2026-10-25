@@ -17,3 +17,15 @@ export function localDayOf(instant: Date, timeZone: string): string {
     day: "2-digit",
   }).format(instant);
 }
+
+/** The wall clock an instant shows in a zone, "HH:MM", 24-hour. */
+export function localTimeOf(instant: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  return `${get("hour")}:${get("minute")}`;
+}

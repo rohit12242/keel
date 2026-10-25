@@ -143,6 +143,9 @@ Before reviewing a pull request, read `REVIEW.md` and follow it.
   revert it.
 - Creating a branch from `origin/main` leaves it tracking `main`; unset the upstream
   and push with `git push -u origin <branch>`.
+- Holding a flag in two components and clearing it in only one. Log time's
+  dialog kept `busy` after a successful save, so the next one opened with ×
+  and Esc refused. Clear every copy on each way out.
 - Reading a file at runtime that `.dockerignore` excludes (all of `docs/` is). The
   local build reads it from the repository and passes; the deployed image does not
   have it and the route 500s. Re-include the file in `.dockerignore`, and check a
