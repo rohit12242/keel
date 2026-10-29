@@ -122,6 +122,12 @@ The table above is the gap as the design found it. This is how each was closed
 | G44 | Kept: the contract's rule. A card or chip offers logging only when the objective's plan covers today (`03-today.md`). |
 | G45 | `end_date` on `DayObjective`: the last segment's end. Today shows "Plan ended {date} · final review due" after it, and "No planned day left · plan ends {date}" when no planned day is left before it (`03-today.md`). |
 
+## Decided in I-10
+
+| # | Decision |
+|---|---|
+| G11 | Kept: no backend change. Keel opens onboarding instead of Today for an account with no objective in any status (`GET /objectives?status=all`), unless a cookie says that account skipped it in this browser. A skip does not follow the user to another browser (`02-auth-and-onboarding.md`). |
+
 ## Names that differ (not gaps — map them in the UI)
 
 | Design says | Contract value |

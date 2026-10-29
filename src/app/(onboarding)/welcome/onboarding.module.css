@@ -1,0 +1,554 @@
+/*
+ * Onboarding (02-auth-and-onboarding.md), from the prototype's `.onb`
+ * family: a top bar with progress, then one step at a time. Full screen,
+ * outside the app's frame.
+ */
+.onb {
+  /* No tab bar here: New objective's footer sits on the bottom edge. */
+  --size-tabbar: 0px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.onb :focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The title takes focus when a step changes; it isn't a control. */
+.h1:focus {
+  outline: none;
+}
+
+/* ---------- Top bar ---------- */
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+  padding: 24px max(40px, env(safe-area-inset-right, 0px)) 8px
+    max(40px, env(safe-area-inset-left, 0px));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+}
+
+.brand svg {
+  width: 20px;
+  height: 20px;
+}
+
+.wordmark {
+  font-family: var(--font-brand);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.steps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.dot {
+  width: 28px;
+  height: var(--size-bar-sm);
+  border-radius: var(--radius-full);
+  background: var(--line);
+}
+
+.dot.on {
+  background: var(--accent);
+}
+
+.stepN {
+  margin-left: var(--space-6);
+}
+
+/* ---------- A step ---------- */
+.wrap {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+}
+
+.wide {
+  max-width: 1120px;
+}
+
+.mid {
+  max-width: 820px;
+}
+
+.eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.h1 {
+  margin: 6px 0 10px;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.lead {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+/* ---------- Step 1 ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.cardSmall {
+  display: flex;
+  gap: var(--space-14);
+  padding: var(--space-20);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+}
+
+.cardSmall b {
+  display: block;
+  margin-bottom: var(--space-4);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cardSmall p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.ic {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-content: center;
+  border-radius: var(--radius-lg);
+}
+
+.ic svg {
+  width: 20px;
+  height: 20px;
+}
+
+.obj {
+  color: var(--accent-text);
+  background: var(--accent-tint);
+}
+
+.eff {
+  color: var(--effort);
+  background: var(--effort-tint);
+}
+
+.dev {
+  color: var(--deviation);
+  background: var(--deviation-tint);
+}
+
+.park {
+  color: var(--text-2);
+  background: var(--surface-muted);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: 1px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chosen {
+  color: var(--caution);
+  background: var(--caution-tint);
+}
+
+.drift {
+  color: var(--deviation);
+  background: var(--deviation-tint);
+}
+
+.loop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-14);
+  padding: 16px 20px;
+  border-radius: var(--radius-xl);
+  background: var(--accent-tint);
+}
+
+.loop .ic {
+  background: var(--surface);
+}
+
+.loop p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* ---------- The footer ---------- */
+.foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.footEnd {
+  justify-content: flex-start;
+}
+
+.skip {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: none;
+  border: 0;
+  padding: 12px 4px;
+  cursor: pointer;
+}
+
+.skip:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-10);
+  min-height: 48px;
+  margin-left: auto;
+  padding: 11px var(--space-16);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--on-accent);
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+
+.go:hover {
+  filter: brightness(1.06);
+}
+
+.footEnd .go {
+  margin-left: 0;
+}
+
+.go svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- Step 2 ---------- */
+.cols {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-20);
+}
+
+.form {
+  flex: 999 1 560px;
+  min-width: 0;
+}
+
+.tips {
+  position: sticky;
+  top: 24px;
+  flex: 1 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.tip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-16);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+}
+
+.tip b {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tip p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.ex {
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.bad {
+  color: var(--deviation);
+  background: var(--deviation-tint);
+}
+
+.good {
+  color: var(--effort);
+  background: var(--effort-tint);
+}
+
+/* On phone the tips are hidden; the criteria's hint carries the examples. */
+.phoneExamples {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ---------- Step 3 ---------- */
+.ok {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-content: center;
+  border-radius: 50%;
+  color: var(--effort);
+  background: var(--effort-tint);
+}
+
+.ok svg {
+  width: 24px;
+  height: 24px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding: var(--space-24);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-3);
+}
+
+.name {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.meta {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-8);
+  margin: var(--space-6) 0 0;
+}
+
+.tiles div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  min-width: 0;
+}
+
+.tiles dt {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.tiles dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-14);
+  padding: 12px 0;
+}
+
+.row + .row {
+  border-top: var(--border-hairline) solid var(--line);
+}
+
+.row b {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.row span span {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  border: var(--border-hairline) solid var(--line-control);
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 860px) {
+  .top {
+    padding: 18px 16px 4px;
+  }
+
+  .stepN {
+    font-size: 12px;
+  }
+
+  .dot {
+    width: 22px;
+    height: 5px;
+  }
+
+  .wrap {
+    padding: 12px 16px 140px;
+    gap: var(--space-16);
+  }
+
+  .h1 {
+    font-size: 28px;
+  }
+
+  .lead {
+    font-size: 15px;
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cardSmall {
+    padding: var(--space-14);
+    border-radius: var(--radius-panel);
+  }
+
+  .cardSmall p {
+    font-size: 13px;
+  }
+
+  .ic {
+    width: 36px;
+    height: 36px;
+  }
+
+  .tips {
+    display: none;
+  }
+
+  .phoneExamples {
+    display: flex;
+  }
+
+  .card {
+    padding: var(--space-18);
+    border-radius: var(--radius-2xl);
+  }
+
+  /* The primary button pinned to the bottom, full width, Skip under it. */
+  .foot {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg);
+    border-top: var(--border-hairline) solid var(--line);
+  }
+
+  .go {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .row {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .row .kbd {
+    display: none;
+  }
+}

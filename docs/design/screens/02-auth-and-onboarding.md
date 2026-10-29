@@ -48,7 +48,7 @@ Fakes stand in for Cognito, written in the **Prototype** panel: a password under
 
 ## Onboarding
 
-Shown once, right after the new account's email is confirmed (G11). Full screen, no sidebar or tab bar. A top bar with the wordmark on the left and progress on the right: three 28 × 6 px bars (filled `--accent` up to the current step) and "Step n of 3".
+Shown once, right after the new account's email is confirmed (G11). The rule *(I-10)*: Keel opens onboarding instead of Today for an account with no objective at all, in any status, unless that account has skipped it in this browser. So leaving part-way resumes at step 1 next time, and a skip is remembered per browser: another browser shows step 1 again until the account skips there or has an objective. Full screen, no sidebar or tab bar. A top bar with the wordmark on the left and progress on the right: three 28 × 6 px bars (filled `--accent` up to the current step) and "Step n of 3".
 
 ### Step 1 — How Keel works
 

@@ -145,13 +145,6 @@ because the story's plan ends on a Sunday. Options: date the event the day after
 `period_end`, or have `planSlots` treat a final status as in force from the next
 day. Either is a domain rule change (`docs/domain/` and the ERD), with tests.
 
-### A confirmed account lands on Today, not onboarding · found in I-04
-
-The design starts onboarding right after a new account's email is confirmed (G11). I-04
-has no onboarding, so confirming signs in and loads `/`, the same as Sign in. The
-onboarding intent has to tell a first sign-in from any other — the exchange knows
-(`signInDecision` is `create`), the browser does not — and route it there.
-
 ### `infra/rds.tf` is not `terraform fmt`-clean · found in I-04
 
 One attribute in `aws_db_instance.main` is misaligned (`vpc_security_group_ids`), so

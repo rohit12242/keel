@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { onboardingOpens } from "@/app/onboarding";
 import { getConfig } from "@/config/env";
 import { zoneOf } from "@/modules/session/service";
 import { localDayOf } from "@/shared/time/localDay";
@@ -66,6 +67,12 @@ export default async function TodayPage({
         </div>
       </>
     );
+  }
+
+  // Nothing on Today: a new account is onboarded instead (G11, I-10). Only
+  // an empty day pays for the second read (NFR-03).
+  if (fetched.day.objectives.length === 0 && (await onboardingOpens(user))) {
+    redirect("/welcome");
   }
 
   return <Today day={fetched.day} zone={zone} reset={reset === "done"} />;
