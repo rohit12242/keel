@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { BackIcon } from "@/app/icons";
 import { useBrowserDay } from "@/app/browserDay";
 import { useToast } from "@/app/toast";
+import type { Objective } from "@/shared/contract";
 import {
   checkDraft,
   createdMessage,
@@ -33,6 +34,9 @@ import styles from "./newObjective.module.css";
  * is, Schedule, Plan with its preview, and the sticky footer. The rules —
  * the Start dates, the preview, the checks — are in
  * `modules/objectives/domain/newObjective.ts`; this draws them.
+ *
+ * Onboarding's step 2 is this form (I-10), so it takes options. With none,
+ * it is New objective: its own draft, Cancel, and Today after Create.
  */
 
 const WEEKDAYS: [number, string][] = [
@@ -182,9 +186,26 @@ function Segments<T extends string>({
   );
 }
 
-export function NewObjectiveForm() {
+export type FormOptions = {
+  /** A draft the caller holds, so it outlives the form (Back, then Next). */
+  held?: [Draft, React.Dispatch<React.SetStateAction<Draft>>];
+  /** After a 201, in place of the toast and Today. */
+  onCreated?: (objective: Objective, today: string) => void;
+  /** The control left of Create, in place of Cancel. */
+  back?: React.ReactNode;
+  /** Under the success criteria's hint. */
+  criteriaExtra?: React.ReactNode;
+};
+
+export function NewObjectiveForm({
+  held,
+  onCreated,
+  back,
+  criteriaExtra,
+}: FormOptions = {}) {
   const day = useBrowserDay();
-  const [draft, setDraft] = useState<Draft>(DEFAULT_DRAFT);
+  const own = useState<Draft>(DEFAULT_DRAFT);
+  const [draft, setDraft] = held ?? own;
   const [errors, setErrors] = useState<Errors>({});
   const [shaking, setShaking] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -245,8 +266,9 @@ export function NewObjectiveForm() {
     setBusy(true);
     setFailed(false);
     let status = 0;
+    let res: Response | null = null;
     try {
-      const res = await fetch("/v1/objectives", {
+      res = await fetch("/v1/objectives", {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
@@ -257,7 +279,15 @@ export function NewObjectiveForm() {
       // Not reached: the same as any other failure.
     }
     if (status === 201) {
-      // The page is left, so `sending` stays set: nothing more is sent.
+      // The form is left, so `sending` stays set: nothing more is sent.
+      const created = onCreated
+        ? ((await res?.json().catch(() => null)) as Objective | null)
+        : null;
+      if (onCreated && created) {
+        onCreated(created, today);
+        return;
+      }
+      // Created, whatever the body said: Today shows it.
       show(createdMessage(checked.body.starts_on, today));
       router.push("/");
       return;
@@ -340,6 +370,7 @@ export function NewObjectiveForm() {
             You&rsquo;ll check this at the final review, so make it something
             you can see happen.
           </span>
+          {criteriaExtra}
           <FieldError field="criteria" errors={errors} />
         </div>
       </section>
@@ -526,9 +557,11 @@ export function NewObjectiveForm() {
           extend at the final review.
         </span>
         <span className={styles.buttons}>
-          <Link className={styles.muted} href="/objectives">
-            Cancel
-          </Link>
+          {back ?? (
+            <Link className={styles.muted} href="/objectives">
+              Cancel
+            </Link>
+          )}
           <button
             className={styles.button}
             type="submit"
@@ -559,3 +592,9 @@ export function BackToObjectives() {
     </Link>
   );
 }
+
+/** The parts a caller's options are drawn with: the muted button, a hint. */
+export const formParts = {
+  muted: styles.muted,
+  hint: styles.hint,
+};
