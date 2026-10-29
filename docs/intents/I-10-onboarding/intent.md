@@ -1,6 +1,6 @@
 # I-10 — Onboarding
 
-**Author:** Rohit · **Status:** Accepted · **Raised:** 2026-10-29 · **Accepted:** 2026-10-29
+**Author:** Rohit · **Status:** Accepted · **Raised:** 2026-10-29 · **Accepted:** 2026-10-29, revised and re-accepted the same day
 
 ## Intent description
 
@@ -16,14 +16,15 @@ each day.
 Right after confirming their email, a new user is shown how Keel works, creates their
 first objective with the same form as New objective, and sees what it asks of them
 before going to Today. They can skip at the first step and land on Today's empty card.
-Onboarding is shown once, to a new account only.
+Onboarding is shown to an account until it creates an objective, or skips it in that
+browser.
 
 ## How we know it worked
 
 On the deployed service, a new account goes from confirming its email through the
 three steps to Today, where its first objective is planned as set. A second new
-account skips and lands on the empty card. Signing in again, on either account, never
-shows onboarding.
+account skips and lands on the empty card. Signing in again in the same browser, on
+either account, never shows onboarding.
 
 ## Out of scope
 
