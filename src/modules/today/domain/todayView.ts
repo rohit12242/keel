@@ -1,4 +1,9 @@
-import type { Day, DayObjective } from "@/shared/contract";
+import type {
+  Day,
+  DayObjective,
+  EffortEntry,
+  ObjectiveSummary,
+} from "@/shared/contract";
 import { parseIso } from "@/modules/objectives/domain/generateSlots";
 import { dayLabel } from "@/modules/objectives/domain/newObjective";
 import { spanLabel } from "@/modules/effort/domain/validateWrite";
@@ -189,13 +194,27 @@ export function card(o: DayObjective, date: string): Card {
   };
 }
 
+export type TrackWords = {
+  pill: "On track" | "At risk" | "Behind";
+  tone: "ok" | "risk" | "behind";
+};
+
+/** A track in words and tone, the same wherever a band is shown. */
+export function trackWords(
+  track: NonNullable<ObjectiveSummary["track"]>,
+): TrackWords {
+  switch (track) {
+    case "on_track":
+      return { pill: "On track", tone: "ok" };
+    case "at_risk":
+      return { pill: "At risk", tone: "risk" };
+    case "behind":
+      return { pill: "Behind", tone: "behind" };
+  }
+}
+
 export type RailRow =
-  | {
-      kind: "track";
-      pill: "On track" | "At risk" | "Behind";
-      tone: "ok" | "risk" | "behind";
-      pct: number;
-    }
+  | ({ kind: "track"; pct: number } & TrackWords)
   | { kind: "label"; text: string };
 
 const DAY_MS = 86_400_000;
@@ -207,15 +226,7 @@ export function railRow(o: DayObjective, date: string): RailRow {
     const n = (parseIso(date) - parseIso(o.start_date)) / DAY_MS + 1;
     return { kind: "label", text: `Day ${n}` };
   }
-  const pct = o.adherence_to_date;
-  switch (o.track) {
-    case "on_track":
-      return { kind: "track", pill: "On track", tone: "ok", pct };
-    case "at_risk":
-      return { kind: "track", pill: "At risk", tone: "risk", pct };
-    case "behind":
-      return { kind: "track", pill: "Behind", tone: "behind", pct };
-  }
+  return { kind: "track", pct: o.adherence_to_date, ...trackWords(o.track) };
 }
 
 export type EntryRow = {
@@ -228,7 +239,12 @@ export type EntryRow = {
 
 /** A card's entries, oldest first by start time; one with no start goes first. */
 export function entryRows(o: DayObjective): EntryRow[] {
-  return [...o.entries]
+  return rowsOf(o.entries);
+}
+
+/** Entries as rows, the same order and words wherever they are listed. */
+export function rowsOf(entries: readonly EffortEntry[]): EntryRow[] {
+  return [...entries]
     .sort((a, b) =>
       (a.occurred_at_local ?? "").localeCompare(b.occurred_at_local ?? ""),
     )

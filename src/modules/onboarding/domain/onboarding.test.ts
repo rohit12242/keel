@@ -211,6 +211,18 @@ describe("firstObjective", () => {
     expect(long.tiles[1].value).toBe("2h 05m");
   });
 
+  it("reads a whole-hour target compactly, as the objective's page does", () => {
+    const hour = firstObjective(
+      {
+        ...created,
+        schedule: { ...created.schedule, minutes_per_planned_day: 120 },
+      },
+      "2026-09-05",
+    );
+    expect(hour.plan).toContain("· 2h a day ·");
+    expect(hour.tiles[1].value).toBe("2h 00m");
+  });
+
   it("shows the year of a plan that ends in another", () => {
     expect(
       firstObjective(
