@@ -41,6 +41,258 @@
   background: var(--surface-muted);
 }
 
+/* ---------- List and detail ---------- */
+.wrap {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-20);
+}
+
+.detailCol {
+  min-width: 0;
+}
+
+.listHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin-bottom: var(--space-16);
+}
+
+.list {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+/* The filter: a segmented control with counts; pills on phone. */
+.filters {
+  display: flex;
+  align-self: flex-start;
+  max-width: 100%;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 7px var(--space-12);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.filter:hover {
+  color: var(--text);
+}
+
+.filter[aria-current="page"] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-thumb);
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.none {
+  margin: var(--space-14) var(--space-4);
+  font-size: 14px;
+  color: var(--text-3);
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+  color: inherit;
+  text-decoration: none;
+}
+
+.row:hover {
+  border-color: var(--line-control);
+}
+
+/* Selected: the accent border and a 1 px ring (01-shell.md). */
+.row[aria-current="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.filter:focus-visible,
+.row:focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.rowTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.rowTop b {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.rowSub {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.prog {
+  display: block;
+  height: var(--size-bar-sm);
+  border-radius: var(--radius-full);
+  background: var(--track);
+  overflow: hidden;
+}
+
+.prog i {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+/* "1 review due": white with an accent outline. */
+.due {
+  color: var(--accent-text);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* The chevron is for phone only. */
+.chev {
+  display: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-3);
+}
+
+/* A newly created row flashes once (01-shell.md). */
+@media (prefers-reduced-motion: no-preference) {
+  .flash {
+    animation: flash 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes flash {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px);
+    background: var(--accent-tint);
+  }
+  40% {
+    opacity: 1;
+    transform: none;
+    background: var(--accent-tint);
+  }
+}
+
+/* ---------- No objectives at all ---------- */
+.emptyCard {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-14);
+  padding: var(--space-32);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.emptyCard h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.emptyCard p {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.emptyIcon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-content: center;
+  border-radius: var(--radius-full);
+  color: var(--accent-text);
+  background: var(--accent-tint);
+}
+
+.emptyIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.steps li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  font-size: 14px;
+}
+
+.steps span {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
 /* ---------- The detail card ---------- */
 .detail {
   min-width: 0;
@@ -695,6 +947,48 @@
 
 /* ---------- Phone ---------- */
 @media (max-width: 860px) {
+  /* One or the other: the list at /objectives, the detail at its own
+     address, with the header and the filters hidden. */
+  .wrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .showList .detailCol,
+  .showDetail .listHead,
+  .showDetail .list {
+    display: none;
+  }
+
+  .filters {
+    align-self: stretch;
+    padding: 0;
+    gap: var(--space-6);
+    background: none;
+  }
+
+  .filter {
+    min-height: 40px;
+    padding: 8px var(--space-14);
+    border-radius: var(--radius-full);
+    background: var(--surface);
+    border: var(--border-hairline) solid var(--line);
+  }
+
+  .filter[aria-current="page"] {
+    color: var(--accent-text);
+    background: var(--accent-tint);
+    border-color: var(--accent);
+    box-shadow: none;
+  }
+
+  .chev {
+    display: block;
+  }
+
+  .emptyCard {
+    padding: var(--space-24);
+  }
+
   .detail {
     padding: 0;
     background: transparent;

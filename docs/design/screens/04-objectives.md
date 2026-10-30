@@ -42,10 +42,10 @@ In order:
    - **Completed** (green tint): "Completed Sun 23 Aug at the final review" and **Open final review**.
 3. **So far** (or **The whole plan** once ended), with "Sun 23 Aug – Sat 5 Sep · 14 of 30 days" on the right.
    - **Ring:** adherence %, coloured by status. There's no ring arc at 0 %.
-   - **Logged effort:** "20h 40m", hint "of 24h 00m planned", plus "· +30m over" when any day went over.
+   - **Logged effort:** "20h 40m", hint "of 24h 00m planned". *(I-11: no "+ over" part; time over target shows in By week and the week dialog.)*
    - **Targets met:** "8 of 12 planned days". Flexible objectives show **Weeks met** "1 of 2 full weeks at target", or "—" / "no full week yet".
    - **Deviation time:** "6h 15m", hint "2 deviations".
-   - **Extra, off days:** "1h 30m", hint "1 off day". Flexible objectives show **Days worked** instead.
+   - **Unplanned day effort:** "1h 30m", time only: every minute on a day the plan doesn't cover — an off day, a paused day, a day after the end. *(I-11: was "Extra, off days" with a count of days; the API counts the minutes, not the days.)* Flexible objectives show **Days worked** instead.
    - Before the first day has passed, these are replaced by: "It started today. Numbers appear once the first day has passed."
 4. **Why it matters** (text) and **Success criteria · what would prove it worked** (green-tint block).
 5. **Notes** (append-only; see `01-shell.md`).
@@ -63,7 +63,7 @@ In order:
   - Flexible objectives show "flexible · about 4h a day" instead of a target.
   - Under it, the day's entries: "09:20 – 10:20 · note · 1h".
   - None yet: "Nothing logged yet."
-- **By week**: "Open a week to see each day". Table columns: Week (a link, "Week 2 · Mon 31 Aug – Sun 6 Sep" + "so far") · Planned (Target for flexible) · Logged · Days met (Days worked) · **Over plan** ("+30m" / "0m") · Extra, off days ("—" for flexible).
+- **By week**: "Open a week to see each day". Table columns: Week (a link, "Week 2 · Mon 31 Aug – Sun 6 Sep" + "so far") · Planned (Target for flexible) · Logged · Days met (Days worked) · **Over plan** ("+30m" / "0m") · Unplanned day effort ("—" for flexible).
 - **Week dialog** (640 px): title "Week 2 · Mon 31 Aug – Sun 6 Sep", sub "Planned 12h 00m · logged 10h 25m · 3 of 6 met · +30m over plan".
   - Day chips: All days, Sun 30 … Sat 5.
   - One block per day: "Sat 5 Sep · planned 2h", total, tag, and the entries. "Nothing logged." when empty.

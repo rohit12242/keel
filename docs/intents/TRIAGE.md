@@ -17,6 +17,22 @@ future intent would be *wrong* without the entry.
 
 ## Open
 
+### Today's summary still says "Extra, off days" · found in I-11
+
+I-11 renamed the Objectives figure to **Unplanned day effort**, time only (Rohit):
+the minutes on days the plan doesn't cover, which include paused days and days after
+the end, not only off days. Today's summary keeps "Extra, off days" for the same
+measure over the week (`totals.extra_off_day_minutes`). The two screens should use
+one name; changing Today's is its own small intent, with `03-today.md`.
+
+### Today and onboarding read the API their own way · found in I-11
+
+I-11 added `src/app/(app)/readApi.ts`, one reader for a server page's `/v1` reads
+with the request's cookie. Today's `fetchDay` and onboarding's objectives count
+(`src/app/onboarding.ts`) still each carry their own copy of the same fetch. Moving
+them onto `readApi` changes two working pages, so it waits for a change that touches
+them anyway.
+
 ### Route validators are copied, not shared · found in I-01
 
 `shared/http.ts` gained `isUuid` in I-01, and the objectives routes use it. Two older
