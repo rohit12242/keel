@@ -6,6 +6,7 @@ import {
   type Draft,
 } from "@/modules/objectives/domain/newObjective";
 import { parseIso } from "@/modules/objectives/domain/generateSlots";
+import { planLine } from "@/modules/objectives/domain/objectiveView";
 
 /**
  * Onboarding's rules (`docs/design/screens/02-auth-and-onboarding.md`),
@@ -90,21 +91,8 @@ export function skipCookie(
 }
 
 const DAY_MS = 86_400_000;
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 /** 1 = Monday … 7 = Sunday. */
 const isoWeekday = (date: string) => new Date(parseIso(date)).getUTCDay() || 7;
-
-/** "Every day", "Mon–Fri" for a run of three or more, else "Mon, Wed, Fri". */
-function daysLabel(weekdays: readonly number[]): string {
-  const sorted = [...weekdays].sort((a, b) => a - b);
-  if (sorted.length === 7) return "Every day";
-  const run = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
-  if (run && sorted.length >= 3) {
-    return `${DAYS[sorted[0] - 1]}–${DAYS[sorted[sorted.length - 1] - 1]}`;
-  }
-  return sorted.map((d) => DAYS[d - 1]).join(", ");
-}
 
 /** What step 3 reads from the created objective. */
 export type Created = Pick<
@@ -128,15 +116,8 @@ export function firstObjective(o: Created, today: string): FirstObjective {
   const perDay = duration(o.schedule.minutes_per_planned_day);
   const startsToday = o.start_date === today;
   const days = (parseIso(o.end_date) - parseIso(o.start_date)) / DAY_MS + 1;
-  const plan = [
-    "Fixed",
-    daysLabel(weekdays),
-    `${perDay} a day`,
-    ...(o.review_cadence ? [`${o.review_cadence} reviews`] : []),
-    `${dayLabel(o.start_date, today)} – ${dayLabel(o.end_date, today)}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // The same line as the objective's own page (I-11).
+  const plan = planLine(o, today);
   return {
     starts: startsToday ? "today" : dayLabel(o.start_date, today),
     plan,

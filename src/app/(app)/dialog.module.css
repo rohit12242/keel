@@ -14,6 +14,11 @@
   overflow: auto;
 }
 
+/* The week dialogs are 640 px (01-shell.md). */
+.wide {
+  width: min(640px, calc(100vw - 32px));
+}
+
 /* A backdrop may not inherit the page's tokens; the light scrim stands in. */
 .dialog::backdrop {
   background: var(--scrim, rgba(16, 17, 20, 0.32));

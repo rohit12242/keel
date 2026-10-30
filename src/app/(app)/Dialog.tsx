@@ -12,19 +12,21 @@ import styles from "./dialog.module.css";
  * (a body, then a footer with the keyboard hint or a danger action on the
  * left and the buttons on the right). Focus goes to the content's element
  * marked `data-autofocus`. `busy` holds it open while a request is in
- * flight.
+ * flight. `wide` is the week dialogs' 640 px.
  */
 export function Dialog({
   open,
   title,
   onClose,
   busy = false,
+  wide = false,
   children,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   busy?: boolean;
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -44,7 +46,7 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className={styles.dialog}
+      className={`${styles.dialog} ${wide ? styles.wide : ""}`}
       aria-labelledby={titleId}
       // Esc: the dialog closes through the page's state, never on its own.
       onCancel={(e) => {

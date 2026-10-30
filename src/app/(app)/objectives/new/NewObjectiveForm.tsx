@@ -36,7 +36,8 @@ import styles from "./newObjective.module.css";
  * `modules/objectives/domain/newObjective.ts`; this draws them.
  *
  * Onboarding's step 2 is this form (I-10), so it takes options. With none,
- * it is New objective: its own draft, Cancel, and Today after Create.
+ * it is New objective: its own draft, Cancel, and the objective after
+ * Create.
  */
 
 const WEEKDAYS: [number, string][] = [
@@ -280,16 +281,17 @@ export function NewObjectiveForm({
     }
     if (status === 201) {
       // The form is left, so `sending` stays set: nothing more is sent.
-      const created = onCreated
-        ? ((await res?.json().catch(() => null)) as Objective | null)
-        : null;
+      const created = (await res?.json().catch(() => null)) as Objective | null;
       if (onCreated && created) {
         onCreated(created, today);
         return;
       }
-      // Created, whatever the body said: Today shows it.
+      // It opens selected under Active, its row flashing once (I-11). Without
+      // a body to name it, the list still shows it.
       show(createdMessage(checked.body.starts_on, today));
-      router.push("/");
+      router.push(
+        created ? `/objectives/${created.id}?created=1` : "/objectives",
+      );
       return;
     }
     if (status === 401) {
