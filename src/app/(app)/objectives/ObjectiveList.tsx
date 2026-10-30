@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ObjectiveSummary } from "@/shared/contract";
 import {
   emptyLine,
@@ -63,6 +63,8 @@ export function ObjectiveList({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  // Kept here, so the flash runs to its end after the address forgets it.
+  const [flashing] = useState(flash ? selected : null);
 
   useEffect(() => {
     if (flash) router.replace(pathname, { scroll: false });
@@ -81,7 +83,7 @@ export function ObjectiveList({
               <li key={o.id}>
                 <Link
                   className={`${styles.row} ${
-                    flash && o.id === selected ? styles.flash : ""
+                    o.id === flashing ? styles.flash : ""
                   }`}
                   href={`/objectives/${o.id}`}
                   aria-current={o.id === selected ? "true" : undefined}
