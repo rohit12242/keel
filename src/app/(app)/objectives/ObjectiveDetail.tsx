@@ -15,6 +15,7 @@ import {
   type Pill as PillValue,
   type Tone,
 } from "@/modules/objectives/domain/objectiveView";
+import { EffortTab } from "./EffortTab";
 import styles from "./objectives.module.css";
 
 /**
@@ -37,10 +38,11 @@ export function Pill({ pill }: { pill: PillValue }) {
   );
 }
 
-type TabId = "overview";
+type TabId = "overview" | "effort";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
+  { id: "effort", label: "Effort" },
 ];
 
 export function ObjectiveDetail({
@@ -115,7 +117,11 @@ export function ObjectiveDetail({
         id="od-panel"
         aria-labelledby={`od-tab-${tab}`}
       >
-        <Overview o={o} today={today} />
+        {tab === "overview" ? (
+          <Overview o={o} today={today} />
+        ) : (
+          <EffortTab o={o} today={today} />
+        )}
       </div>
     </article>
   );
