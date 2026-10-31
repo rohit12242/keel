@@ -51,6 +51,7 @@ Checked against `docs/keel-api.yaml`, `docs/domain/*.md` and ADR-002 on 20 Oct 2
 | G43 | **An objective's short name** in Today's filter and rail, and in Log a deviation | An objective has a `title` only. | Use the title, cut to fit with an ellipsis. *(Found in I-08.)* | No |
 | G44 | **Log anyway** on every not-planned card, and a Log time chip per active objective | An entry on a date outside every plan segment is refused (`422`), so an objective that hasn't started, or whose plan has ended, can't take time. | Offer logging only where the plan covers today. *(Found in I-08.)* | No |
 | G45 | **An objective whose plan has ended** on Today, before its final review | The design says nothing, and `DayObjective` has no end date, so Today can't tell a plan that has ended from one with no planned day left. | Return the plan's end date, and show "Plan ended · final review due". *(Found in I-08.)* | Yes, for that card |
+| G46 | **Pulled you away from**: one objective | A deviation names one or several (`objective_ids`), a rule confirmed in I-02. | Keep the API's several; the dialog picks one. *(Found in I-12.)* | No |
 
 ## Decided in I-03
 
@@ -127,6 +128,13 @@ The table above is the gap as the design found it. This is how each was closed
 | # | Decision |
 |---|---|
 | G11 | Kept: no backend change. Keel opens onboarding instead of Today for an account with no objective in any status (`GET /objectives?status=all`), unless a cookie says that account skipped it in this browser. A skip does not follow the user to another browser (`02-auth-and-onboarding.md`). |
+
+## Decided in I-12
+
+| # | Decision |
+|---|---|
+| G35 | Still kept: no seed patterns. The dialog's placeholders give an example instead (`06-deviations.md`). |
+| G46 | The dialog names one objective (Rohit, 2026-10-31). The API keeps `objective_ids` for several, so a deviation recorded with more still reads, and its screens list every objective it names. |
 
 ## Names that differ (not gaps — map them in the UI)
 

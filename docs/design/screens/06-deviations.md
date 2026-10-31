@@ -39,7 +39,7 @@ Fields in order:
 | Field | Details |
 |---|---|
 | **Which kind** | Two choice cards. **Chosen**: "I decided to go off, with a reason. Something was urgent or genuinely worth it." **Drifted**: "It happened to me. I noticed afterwards." |
-| **Pulled you away from** | Chips, one per active objective (its name, cut to fit; G43). Sent as `objective_ids: [id]`. |
+| **Pulled you away from** | Chips, one per objective that could take time on the day picked under **When** (its name, cut to fit; G43, G44). One is picked; sent as `objective_ids: [id]` (G46). With none for that day: "No objective was running that day." |
 | **What happened** | Textarea, 120, placeholder "One or two sentences, in your own words." |
 | **Your reasoning** *(Chosen only)* | Textarea, 280, hint "Recorded now, tested at review. You'll mark whether it held." |
 | **Pattern** *(Drifted only)* | A dropdown (listbox) of the user's patterns. Each option shows its name, description and a "3 before" count; **None of these** (a genuine one-off) last; then **+ Add a new pattern**. Hint "Pick the closest. Naming the pattern is how repeats become visible." |
@@ -67,4 +67,4 @@ After recording:
 - Select the new deviation; its row flashes.
 - Toast "Deviation recorded."
 
-Seed patterns for a new account: New path looks better · Planning instead of doing · Research spiral · None of these. Each comes with a one-line description.
+A new account has no patterns (G35): its list holds only **None of these** and **+ Add a new pattern**. **Name it** suggests an example in its placeholder: "e.g. Research spiral"; **What it looks like** "e.g. Reading one more source instead of starting."
