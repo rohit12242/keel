@@ -74,6 +74,8 @@ export type DeviationRow = {
   pattern_name: string | null;
   verdict: "worth_it" | "not_worth_it" | null;
   verdict_review_id: string | null;
+  /** Whether the review that gave the verdict is saved (G47). Not shown. */
+  verdict_saved: boolean;
   /** Its place among the user's deviations naming the pattern; null without one. */
   pattern_nth: number | null;
   /** What the review windows need, per objective it names. Not shown. */
@@ -85,7 +87,9 @@ export type DeviationRow = {
 
 /**
  * The columns of a deviation `d`, its pattern `p` joined, as DeviationRow.
- * `pattern_nth` counts by date, then as recorded — "3rd time" (G32). The
+ * `pattern_nth` counts by date, then as recorded — "3rd time" (G32).
+ * `verdict_saved` says whether the verdict may be read outside its review
+ * (G47). The
  * objectives' cadence and segments feed `review_due_on`, which is computed
  * from the review windows, never stored (G33).
  */
@@ -96,6 +100,10 @@ export const DEVIATION_COLUMNS = `
   to_char(d.local_date, 'YYYY-MM-DD') AS local_date,
   d.tz, d.kind, d.what_happened, d.reasoning, d.did_instead, d.minutes,
   d.pattern_id, p.name AS pattern_name, d.verdict, d.verdict_review_id,
+  EXISTS (
+    SELECT 1 FROM review vr
+    WHERE vr.id = d.verdict_review_id AND vr.status = 'saved'
+  ) AS verdict_saved,
   CASE WHEN d.pattern_id IS NULL THEN NULL ELSE (
     SELECT count(*)::int FROM deviation d2
     WHERE d2.user_id = d.user_id AND d2.pattern_id = d.pattern_id

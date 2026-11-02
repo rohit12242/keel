@@ -11,6 +11,10 @@ import {
   type IdeaRow,
   type ParkedIdea,
 } from "@/modules/parking/domain/parking";
+import {
+  seenVerdict,
+  type RecordedDeviation,
+} from "@/modules/deviations/domain/verdictView";
 import { dueWindows, periodKey, type LabelledWindow } from "./reviewWindows";
 
 /**
@@ -81,8 +85,11 @@ export type ReviewFacts = {
   slots: readonly PlannedSlot[];
   daily: DailyMinutes;
   reviews: readonly ReviewRow[];
-  /** Deviations naming the objective, any date. */
-  deviations: readonly Deviation[];
+  /**
+   * Deviations naming the objective, any date, with verdicts as stored: the
+   * save rule needs them all. A review shows them through `seenVerdict`.
+   */
+  deviations: readonly RecordedDeviation[];
   /** The owner's ideas, any date. */
   ideas: readonly IdeaRow[];
 };
@@ -209,7 +216,10 @@ export function assembleReview(review: ReviewRow, facts: ReviewFacts): Review {
         planned: covered.has(date),
       }),
     ),
-    deviations: facts.deviations.filter((d) => inPeriod(d.local_date, review)),
+    // G47: a verdict shows here if this review gave it, or its review is saved.
+    deviations: facts.deviations
+      .filter((d) => inPeriod(d.local_date, review))
+      .map((d) => seenVerdict(d, review.id)),
     parked_ideas: facts.ideas
       .filter((i) => inPeriod(i.caught_on, review))
       .map((i) => ideaAsOf(i, review.period_end)),

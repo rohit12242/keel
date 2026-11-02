@@ -2,6 +2,13 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { getPool, query } from "@/shared/db";
 import type { Deviation } from "@/shared/contract";
 import * as route from "@/app/v1/reviews/[reviewId]/deviation-verdicts/[deviationId]/route";
+import { listDeviations } from "@/modules/deviations/service";
+import { getDay } from "@/modules/today/service";
+import {
+  discardReview,
+  getReview,
+  saveReview,
+} from "@/modules/reviews/service";
 import {
   testDeviation,
   testReview,
@@ -107,5 +114,63 @@ describe("deviation verdicts (real Postgres)", () => {
     expect(
       (await put(d.id, { verdict: "worth_it" }, theirReview.id)).status,
     ).toBe(404);
+  });
+
+  describe("where a verdict reads (G47)", () => {
+    const outside = async (id: string) => {
+      const list = await listDeviations(
+        me.id,
+        "2026-09-14",
+        "2026-09-20",
+        null,
+      );
+      if (!list.ok) throw new Error("list");
+      const day = await getDay(me.id, "2026-09-20");
+      return {
+        list: list.deviations.find((d) => d.id === id)?.verdict,
+        today: day.last_deviation?.verdict,
+      };
+    };
+    const inside = async (reviewId: string, id: string) =>
+      (await getReview(me.id, reviewId, new Date()))?.deviations.find(
+        (d) => d.id === id,
+      )?.verdict;
+
+    it("reads a draft's verdict only in that draft, and everywhere once saved", async () => {
+      const d = await testDeviation(me, [review.objective_id]);
+      await put(d.id, { verdict: "worth_it" });
+      expect(await outside(d.id)).toEqual({ list: null, today: null });
+      expect(await inside(review.id, d.id)).toBe("worth_it");
+
+      const saved = await saveReview(me.id, review.id, new Date());
+      expect(saved.ok).toBe(true);
+      expect(await outside(d.id)).toEqual({
+        list: "worth_it",
+        today: "worth_it",
+      });
+      expect(await inside(review.id, d.id)).toBe("worth_it");
+    });
+
+    it("clears a draft's verdict when the draft is discarded", async () => {
+      const d = await testDeviation(me, [review.objective_id]);
+      await put(d.id, { verdict: "not_worth_it" });
+      expect((await discardReview(me.id, review.id)).ok).toBe(true);
+      expect(await outside(d.id)).toEqual({ list: null, today: null });
+      const again = await testReview(me, review.objective_id);
+      expect(await inside(again.id, d.id)).toBeNull();
+    });
+
+    it("still 409s a verdict another draft gave, though that draft's verdict is hidden", async () => {
+      const other = await testReview(me);
+      const d = await testDeviation(me, [
+        review.objective_id,
+        other.objective_id,
+      ]);
+      expect((await put(d.id, { verdict: "worth_it" }, other.id)).status).toBe(
+        200,
+      );
+      expect(await inside(review.id, d.id)).toBeNull();
+      expect((await put(d.id, { verdict: "not_worth_it" })).status).toBe(409);
+    });
   });
 });
