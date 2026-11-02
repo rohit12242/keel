@@ -149,4 +149,6 @@ export const JUDGED_ELSEWHERE =
 export const LOCK_NOTE =
   "Kept exactly as written. A saved review can't be edited or deleted.";
 export const RECOMPUTED = "Recomputed from the record";
+export const START_FAILED = "Couldn't open the review. Try again.";
+export const REVIEWS_FAILED = "Couldn't load reviews. Try again.";
 export const DAYS_FAILED = "Couldn't load these days. Try again.";

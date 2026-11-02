@@ -11,7 +11,8 @@ import { requireUser } from "../requireUser";
 import { ObjectivesHeader } from "./ObjectivesHeader";
 import { Screen, Unreachable } from "./Screen";
 import { readDeviations } from "./deviations";
-import { todayFor } from "./today";
+import { readReviews } from "./reviews";
+import { dayAndZone } from "./today";
 
 export const metadata: Metadata = { title: "Objectives · Keel" };
 
@@ -30,7 +31,7 @@ export default async function ObjectivesPage({
   const user = await requireUser();
   const { status } = await searchParams;
   const filter: Filter = FILTERS.find((f) => f.id === status)?.id ?? "active";
-  const today = await todayFor(user);
+  const { today, tz } = await dayAndZone(user);
   // One read gives every filter its count.
   const list = await readApi<{ objectives: ObjectiveSummary[] }>(
     "/objectives?status=all",
@@ -47,13 +48,18 @@ export default async function ObjectivesPage({
 
   const objectives = list.value.objectives;
   const first = inFilter(objectives, filter)[0];
-  const [detail, deviations] = first
+  const [detail, deviations, reviews] = first
     ? await Promise.all([
         readApi<Objective>(`/objectives/${first.id}`),
         readDeviations(first),
+        readReviews(first.id),
       ])
-    : [null, null];
-  if (detail === "signed_out" || deviations === "signed_out") {
+    : [null, null, null];
+  if (
+    detail === "signed_out" ||
+    deviations === "signed_out" ||
+    reviews === "signed_out"
+  ) {
     redirect("/sign-in");
   }
 
@@ -64,7 +70,9 @@ export default async function ObjectivesPage({
       filter={filter}
       detail={detail}
       deviations={deviations}
+      reviews={reviews}
       today={today}
+      tz={tz}
     />
   );
 }

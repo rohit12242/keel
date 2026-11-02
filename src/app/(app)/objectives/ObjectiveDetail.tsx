@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { BackIcon } from "@/app/icons";
-import type { DeviationList, Objective } from "@/shared/contract";
+import type { DeviationList, Objective, ReviewList } from "@/shared/contract";
 import { deviationTile } from "@/modules/deviations/domain/deviationView";
+import { tabCount } from "@/modules/reviews/domain/reviewView";
 import { dayLabel } from "@/modules/objectives/domain/newObjective";
 import {
   banner,
@@ -18,6 +19,8 @@ import {
 } from "@/modules/objectives/domain/objectiveView";
 import { DeviationsTab } from "./DeviationsTab";
 import { EffortTab } from "./EffortTab";
+import { DueBanner, ReviewsTab } from "./ReviewsTab";
+import type { TabId } from "./tabs";
 import list from "../listDetail.module.css";
 import styles from "./objectives.module.css";
 
@@ -41,22 +44,28 @@ export function Pill({ pill }: { pill: PillValue }) {
   );
 }
 
-type TabId = "overview" | "effort" | "deviations";
-
 export function ObjectiveDetail({
   objective: o,
   deviations,
+  reviews,
   today,
+  tz,
   backHref,
+  initialTab = "overview",
 }: {
   objective: Objective;
   /** Its deviations and their cost; null when they couldn't be read. */
   deviations: DeviationList | null;
+  /** Its reviews and what is due; null when they couldn't be read. */
+  reviews: ReviewList | null;
   today: string;
+  /** The user's zone, for "last edited 5 Sep, 18:40". */
+  tz: string;
   /** Where **‹ Objectives** goes on phone. */
   backHref: string;
+  initialTab?: TabId;
 }) {
-  const [tab, setTab] = useState<TabId>("overview");
+  const [tab, setTab] = useState<TabId>(initialTab);
   const count = deviations
     ? deviations.cost.chosen.count + deviations.cost.drifted.count
     : null;
@@ -65,6 +74,12 @@ export function ObjectiveDetail({
     { id: "overview", label: "Overview" },
     { id: "effort", label: "Effort" },
     { id: "deviations", label: "Deviations", count },
+    // "Reviews 3": saved reviews only, when they were read.
+    {
+      id: "reviews",
+      label: "Reviews",
+      count: reviews ? tabCount(reviews.reviews) : null,
+    },
   ];
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -131,11 +146,18 @@ export function ObjectiveDetail({
         aria-labelledby={`od-tab-${tab}`}
       >
         {tab === "overview" ? (
-          <Overview o={o} deviations={deviations} today={today} />
+          <Overview
+            o={o}
+            deviations={deviations}
+            reviews={reviews}
+            today={today}
+          />
         ) : tab === "effort" ? (
           <EffortTab o={o} today={today} />
-        ) : (
+        ) : tab === "deviations" ? (
           <DeviationsTab o={o} deviations={deviations} today={today} />
+        ) : (
+          <ReviewsTab o={o} reviews={reviews} tz={tz} today={today} />
         )}
       </div>
     </article>
@@ -145,10 +167,12 @@ export function ObjectiveDetail({
 function Overview({
   o,
   deviations,
+  reviews,
   today,
 }: {
   o: Objective;
   deviations: DeviationList | null;
+  reviews: ReviewList | null;
   today: string;
 }) {
   const b = banner(o, today);
@@ -160,6 +184,7 @@ function Overview({
   const notes = [...o.notes].reverse();
   return (
     <>
+      <DueBanner o={o} reviews={reviews} today={today} />
       {b ? (
         <div className={`${styles.banner} ${TONE[b.tone]}`}>
           <b>{b.title}</b>
