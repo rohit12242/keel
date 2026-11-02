@@ -146,6 +146,9 @@ Before reviewing a pull request, read `REVIEW.md` and follow it.
 - Holding a flag in two components and clearing it in only one. Log time's
   dialog kept `busy` after a successful save, so the next one opened with ×
   and Esc refused. Clear every copy on each way out.
+- Calling a function, or reading a constant, from a `"use client"` module in a
+  server component. The server gets a client reference, not the value, and the page
+  throws at runtime though typecheck passes. Keep shared values in a plain module.
 - Reading a file at runtime that `.dockerignore` excludes (all of `docs/` is). The
   local build reads it from the repository and passes; the deployed image does not
   have it and the route 500s. Re-include the file in `.dockerignore`, and check a
