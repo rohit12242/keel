@@ -106,6 +106,22 @@ export type Deviation = {
   review_due_on: string | null;
 };
 
+export type CostTally = { count: number; minutes: number };
+
+/** `GET /deviations`: newest first, with the cost by kind computed. */
+export type DeviationList = {
+  deviations: Deviation[];
+  cost: { chosen: CostTally; drifted: CostTally };
+};
+
+/** A named pattern; `occurrences` is computed, the "3 before" count. */
+export type DeviationPattern = {
+  id: string;
+  name: string;
+  description: string | null;
+  occurrences: number;
+};
+
 /** Every field computed at read time; none stored, none writable (NFR-09). */
 export type Figures = {
   adherence_pct: number;

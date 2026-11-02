@@ -128,8 +128,10 @@ export function summary(day: Day): Summary {
 }
 
 /** Whether the objective's plan covers the date, so time can be logged (G44). */
-export const loggable = (o: DayObjective, date: string): boolean =>
-  o.start_date <= date && date <= o.end_date;
+export const loggable = (
+  o: Pick<DayObjective, "start_date" | "end_date">,
+  date: string,
+): boolean => o.start_date <= date && date <= o.end_date;
 
 export type Card =
   | {
