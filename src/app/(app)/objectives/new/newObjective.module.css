@@ -88,10 +88,13 @@
   color: var(--text-3);
 }
 
+/* The border itself turns accent, as Log time's and sign-in's do: no ring
+   standing off the box. */
 .input:focus,
 .textarea:focus {
-  outline: var(--border-focus) solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 /* The field is marked too: its border turns --deviation. */
