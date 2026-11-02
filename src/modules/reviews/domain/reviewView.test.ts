@@ -8,6 +8,9 @@ import type {
 } from "@/shared/contract";
 import {
   adherenceTone,
+  cardTitles,
+  changeSetIn,
+  nothingToCheck,
   BAR_MAX,
   checkedIn,
   chosenCard,
@@ -160,6 +163,32 @@ describe("the words every place shares", () => {
       "It held",
       "It didn't hold",
     ]);
+  });
+});
+
+describe("the cards' words", () => {
+  it("titles the cards as asked, and as answered", () => {
+    expect(cardTitles("weekly", false)).toEqual({
+      numbers: "The week in numbers",
+      change: "Did last week's change work?",
+      chosen: "Chosen deviations",
+      reflect: "Reflect",
+    });
+    expect(cardTitles("monthly", true)).toMatchObject({
+      numbers: "The month in numbers",
+      change: "Last month's change",
+    });
+  });
+
+  it("says which review set the change, even when it couldn't be read", () => {
+    expect(changeSetIn({ kind: "weekly", label: "Week 1" }, false)).toBe(
+      "The change you set in the week 1 review",
+    );
+    expect(changeSetIn(null, true)).toBe("Set in your last review");
+    expect(nothingToCheck(false)).toBe(
+      "First review of this objective, so there is no earlier change to check.",
+    );
+    expect(nothingToCheck(true)).toContain("there was no earlier change");
   });
 });
 
@@ -647,7 +676,7 @@ describe("the review page", () => {
     expect(c.none).toBe("No Chosen deviations this week.");
     expect(c.blocks.map((b) => [b.id, b.locked, b.verdict])).toEqual([
       ["early", null, null],
-      ["judged", "It didn't hold", null],
+      ["judged", "not_worth_it", null],
       ["odd", null, null],
       ["late", null, "worth_it"],
     ]);

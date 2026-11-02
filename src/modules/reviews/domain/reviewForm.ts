@@ -143,8 +143,7 @@ export const NOT_AUTOSAVED =
 export const VERDICT_FAILED = "Couldn't save that. Try again.";
 export const JUDGED_ELSEWHERE =
   "An earlier review already judged this deviation.";
-export const NOTHING_TO_CHECK =
-  "First review of this objective, so there is no earlier change to check.";
 export const LOCK_NOTE =
   "Kept exactly as written. A saved review can't be edited or deleted.";
 export const RECOMPUTED = "Recomputed from the record";
+export const DAYS_FAILED = "Couldn't load these days. Try again.";

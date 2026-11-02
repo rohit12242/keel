@@ -125,6 +125,35 @@ export const VERDICT: Record<Verdict, string> = {
 };
 export const VERDICT_ORDER: readonly Verdict[] = ["worth_it", "not_worth_it"];
 
+/** The four cards' titles, as asked (a draft) or as answered (saved). */
+export function cardTitles(
+  kind: ReviewKind,
+  saved: boolean,
+): { numbers: string; change: string; chosen: string; reflect: string } {
+  const unit = unitOf(kind);
+  return {
+    numbers: `The ${unit} in numbers`,
+    change: saved ? `Last ${unit}'s change` : `Did last ${unit}'s change work?`,
+    chosen: "Chosen deviations",
+    reflect: "Reflect",
+  };
+}
+
+/** Under the quoted change: which review set it. */
+export function changeSetIn(
+  previous: { kind: ReviewKind; label: string } | null,
+  saved: boolean,
+): string {
+  const where = previous
+    ? `the ${inSentence(previous)} review`
+    : "your last review";
+  return saved ? `Set in ${where}` : `The change you set in ${where}`;
+}
+
+/** Card 2 with no change to check: asked, or answered. */
+export const nothingToCheck = (saved: boolean): string =>
+  `First review of this objective, so there ${saved ? "was" : "is"} no earlier change to check.`;
+
 // ---------- The Reviews tab and the banner ----------
 
 export type DueAction =
@@ -576,7 +605,7 @@ export type ChosenBlock = {
   what: string;
   reasoning: string;
   /** Judged by another review: its verdict, which this one can't change. */
-  locked: string | null;
+  locked: Verdict | null;
   /** The verdict this review gave, as stored. */
   verdict: Verdict | null;
 };
@@ -605,7 +634,7 @@ export function chosenCard(
           when: `${dayLabel(d.local_date, today)} · ${duration(d.minutes)}`,
           what: d.what_happened,
           reasoning: d.reasoning ?? "",
-          locked: elsewhere && d.verdict ? VERDICT[d.verdict] : null,
+          locked: elsewhere ? d.verdict : null,
           verdict: elsewhere ? null : d.verdict,
         };
       }),

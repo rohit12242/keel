@@ -1,0 +1,430 @@
+/*
+ * The weekly or monthly review and the saved review (05-reviews.md), from
+ * the prototype's `.ob-` review family. The cards, fields, chips and sticky
+ * bar are New objective's (`new/newObjective.module.css`); these are the
+ * review's own parts. Colours only from the tokens.
+ */
+
+.top {
+  max-width: 860px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-8) var(--space-16);
+  margin-top: calc(-1 * var(--space-8));
+}
+
+.sub {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-12);
+}
+
+.cardHead h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.num {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- The tiles ---------- */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+.tile {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+}
+
+.tile strong {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tile_ok strong {
+  color: var(--effort);
+}
+.tile_risk strong {
+  color: var(--caution);
+}
+.tile_behind strong,
+.tile_deviation strong {
+  color: var(--deviation);
+}
+
+/* ---------- The day bars ---------- */
+.bars {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: var(--space-6);
+  align-items: end;
+  height: 116px;
+  padding-top: var(--space-4);
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  height: 100%;
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.bar {
+  width: min(60%, 36px);
+  border-radius: 4px 4px 0 0;
+}
+
+.bar_met {
+  background: var(--effort);
+}
+.bar_short {
+  background: color-mix(in srgb, var(--caution) 60%, transparent);
+}
+.bar_missed {
+  background: var(--deviation);
+}
+.bar_extra {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--effort);
+}
+
+.value_missed {
+  color: var(--deviation);
+}
+.value_off {
+  color: var(--text-3);
+}
+
+/* The daily target: dashed, BAR_TARGET px above the base. */
+.line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  border-top: 1px dashed var(--text-3);
+  pointer-events: none;
+}
+
+.line span {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  background: var(--surface);
+  padding-left: var(--space-4);
+}
+
+.labels {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: var(--space-6);
+  border-top: var(--border-hairline) solid var(--line);
+  padding-top: var(--space-6);
+}
+
+.labels span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  text-align: center;
+}
+
+.labels b {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.labels small {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.word_ok {
+  color: var(--effort);
+}
+.word_risk {
+  color: var(--caution);
+}
+.word_behind {
+  color: var(--deviation);
+}
+.word_neutral {
+  color: var(--text-3);
+}
+
+/* ---------- A month's weeks ---------- */
+.weeks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.wrow {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+  font-size: 13px;
+}
+
+.track {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.fill_ok {
+  background: var(--effort);
+}
+.fill_risk {
+  background: color-mix(in srgb, var(--caution) 60%, transparent);
+}
+.fill_neutral {
+  background: var(--text-3);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+/* ---------- Change, deviations, reflect ---------- */
+.quote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--surface-muted);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.quote small {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.done {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.chosen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  border: var(--border-hairline) solid var(--line);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.what {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.reason {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 12px 14px;
+  border-radius: var(--radius-panel);
+  background: var(--caution-tint);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.reason span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--caution);
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.answer p {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.answer .next {
+  background: var(--accent-tint);
+  border: var(--border-hairline) solid var(--accent);
+}
+
+.lock {
+  max-width: 860px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.lock svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* ---------- Previous and next ---------- */
+.nav {
+  max-width: 860px;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.navb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--radius-lg);
+  border: var(--border-hairline) solid var(--line-control);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.navb svg {
+  width: 14px;
+  height: 14px;
+}
+
+.navb[aria-disabled="true"] {
+  color: var(--text-3);
+  font-weight: 500;
+  background: transparent;
+  border-style: dashed;
+}
+
+.navb:focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.failed {
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 860px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bars,
+  .labels {
+    gap: var(--space-2);
+  }
+
+  .labels b,
+  .labels small,
+  .value {
+    font-size: 10px;
+  }
+
+  .wrow {
+    grid-template-columns: 110px minmax(0, 1fr) auto;
+    gap: var(--space-8);
+  }
+}
