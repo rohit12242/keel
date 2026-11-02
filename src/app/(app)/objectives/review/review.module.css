@@ -406,6 +406,41 @@
   color: var(--text-2);
 }
 
+/* ---------- The sticky bar and Discard ---------- */
+.discard {
+  min-height: 44px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--deviation);
+  background: none;
+  border: 0;
+  padding: 0 var(--space-4);
+  cursor: pointer;
+}
+
+.discard:focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.discardConfirm {
+  background: var(--deviation);
+}
+
+.note {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--caution);
+}
+
+.locked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
 /* ---------- Phone ---------- */
 @media (max-width: 860px) {
   .tiles {

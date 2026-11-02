@@ -132,12 +132,15 @@ export const savedToast = (title: string, moreDue: number): string =>
 
 export const BAR_NOTE = "A saved review can't be changed.";
 export const DRAFT_SAVED = "Draft saved. Continue it from Reviews.";
-export const DISCARD_ASK =
-  "Discard this draft? Its answers are deleted, and the review stays due.";
+export const DISCARD_TITLE = "Discard this draft?";
+export const DISCARD_BODY =
+  "Its answers are deleted, and the review stays due.";
 export const DISCARDED = "Draft discarded. The review is still due.";
 export const NOT_SAVED =
   "Couldn't save the review. Your answers are kept as a draft. Try again.";
-export const NOT_DISCARDED = "Couldn't discard the draft. Try again.";
+export const NOT_DISCARDED =
+  "Couldn't discard the draft. Nothing was deleted. Try again.";
+export const JUDGED_ELSEWHERE_LOCKED = "Judged at another review.";
 export const NOT_AUTOSAVED =
   "Couldn't save the draft just now. Your answers are still here.";
 export const VERDICT_FAILED = "Couldn't save that. Try again.";

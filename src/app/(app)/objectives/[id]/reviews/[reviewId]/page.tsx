@@ -10,6 +10,7 @@ import { reviewHead } from "@/modules/reviews/domain/reviewView";
 import { PageHeader } from "../../../../PageHeader";
 import { readApi, type Read } from "../../../../readApi";
 import { requireUser } from "../../../../requireUser";
+import { ReviewForm } from "../../../review/ReviewForm";
 import { ReviewHead } from "../../../review/ReviewHead";
 import { SavedReview } from "../../../review/SavedReview";
 import { Unreachable } from "../../../Screen";
@@ -74,7 +75,11 @@ export default async function ReviewPage({
     ? { href: `/objectives/${id}?tab=reviews`, label: `${o.title} · Reviews` }
     : { href: `/objectives/${id}`, label: o.title };
 
-  if (review.kind === "plan_end" || !saved) {
+  const previousReview = previous ? valueOf(previous) : null;
+  const days = valueOf(grid)?.days ?? null;
+
+  // The final review opens with its own intent (Rohit, 2026-11-02).
+  if (review.kind === "plan_end") {
     return (
       <>
         <ReviewHead head={head} back={back} />
@@ -83,13 +88,35 @@ export default async function ReviewPage({
     );
   }
 
+  if (!saved) {
+    const others = reviews.due.filter(
+      (d) =>
+        d.period_start !== review.period_start ||
+        d.period_end !== review.period_end,
+    );
+    return (
+      <ReviewForm
+        key={review.id}
+        review={review}
+        previous={previousReview}
+        grid={days}
+        head={head}
+        back={back}
+        objectiveId={id}
+        moreDue={others.length}
+        tz={tz}
+        today={today}
+      />
+    );
+  }
+
   return (
     <>
       <ReviewHead head={head} back={back} />
       <SavedReview
         review={review}
-        previous={previous ? valueOf(previous) : null}
-        grid={valueOf(grid)?.days ?? null}
+        previous={previousReview}
+        grid={days}
         list={reviews.reviews}
         due={reviews.due}
         today={today}
