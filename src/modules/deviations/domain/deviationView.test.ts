@@ -226,6 +226,9 @@ describe("detail", () => {
       nth: null,
       description: null,
     });
+    expect(detail(d, names, patterns, TODAY).verdict).toBe(
+      "Not reviewed yet. It comes up at the 21 Sep review.",
+    );
   });
 
   it("shows the verdict once a review has given one", () => {

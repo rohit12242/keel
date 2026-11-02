@@ -1,0 +1,351 @@
+/*
+ * Deviations (06-deviations.md), from the prototype's `.dv-` family: the
+ * week box, the rows' and the detail's own parts, the empty week. The list
+ * and detail around them is `listDetail.module.css`. Colours only from the
+ * tokens.
+ */
+
+/* ---------- Kind pills: the word always, never a colour alone ---------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.chosen {
+  color: var(--caution);
+  background: var(--caution-tint);
+}
+
+.drifted {
+  color: var(--deviation);
+  background: var(--deviation-tint);
+}
+
+/* ---------- The bar: filter and week box ---------- */
+.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+}
+
+.week {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: 8px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+}
+
+.weekLabel {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.weekAll {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.wk {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.m {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wkChosen {
+  color: var(--caution);
+}
+
+.wkDrifted {
+  color: var(--deviation);
+}
+
+.sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+}
+
+/* ---------- A row ---------- */
+.rowTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.date {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What happened: bold, two lines at most. */
+.rowText {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dur {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- The detail ---------- */
+.detailHead {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-10);
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.fact {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+}
+
+.fact strong {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.fact .big {
+  font-family: var(--font-mono);
+  font-size: 18px;
+}
+
+.blk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.lbl {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.reason {
+  padding: 14px 16px;
+  border-radius: var(--radius-panel);
+  background: var(--caution-tint);
+}
+
+.reason .lbl {
+  color: var(--caution);
+}
+
+.pattern {
+  padding: 14px 16px;
+  border-radius: var(--radius-panel);
+  background: var(--deviation-tint);
+}
+
+.pattern .lbl {
+  color: var(--deviation);
+}
+
+.pattern .p {
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.ptop {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-12);
+}
+
+.ptop strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.times {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--deviation);
+  white-space: nowrap;
+}
+
+.foot {
+  padding-top: 18px;
+  border-top: var(--border-hairline) solid var(--line);
+}
+
+.foot .p {
+  font-size: 14px;
+}
+
+.fine {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+/* ---------- An empty week ---------- */
+.emptyCard {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-14);
+  padding: var(--space-32);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.emptyCard h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.emptyCard p {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.emptyIcon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-content: center;
+  border-radius: var(--radius-full);
+  color: var(--deviation);
+  background: var(--deviation-tint);
+}
+
+.emptyIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.kinds {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.kinds li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-10);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.error {
+  padding: 14px 16px;
+  border-radius: var(--radius-panel);
+  border: var(--border-hairline) solid var(--line-control);
+  background: var(--surface);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 860px) {
+  .thisWeek {
+    display: none;
+  }
+
+  /* The week box becomes a 2 × 2 grid. */
+  .week {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: baseline;
+    gap: var(--space-6) var(--space-12);
+    width: 100%;
+  }
+
+  .sep {
+    display: none;
+  }
+
+  /* The third tile, When, is hidden. */
+  .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fact:nth-child(3) {
+    display: none;
+  }
+
+  .emptyCard {
+    padding: var(--space-24);
+  }
+}

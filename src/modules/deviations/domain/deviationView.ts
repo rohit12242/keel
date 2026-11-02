@@ -179,8 +179,12 @@ function verdictLine(d: Deviation): string {
   if (d.verdict === "not_worth_it") return "Not worth it, at review.";
   if (d.review_due_on === null) return "Not reviewed yet.";
   const at = shortDay(d.review_due_on);
-  return d.kind === "chosen"
-    ? `Not reviewed yet. At the ${at} review you'll mark whether the reasoning held.`
+  if (d.kind === "chosen") {
+    return `Not reviewed yet. At the ${at} review you'll mark whether the reasoning held.`;
+  }
+  // A one-off has no pattern to count toward.
+  return d.pattern_id === null
+    ? `Not reviewed yet. It comes up at the ${at} review.`
     : `Not reviewed yet. It counts toward the pattern at the ${at} review.`;
 }
 
