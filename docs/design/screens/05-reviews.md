@@ -8,13 +8,14 @@ Data: `GET /objectives/{id}/reviews`, `POST /objectives/{id}/reviews` (start or 
 - **Oldest first.** When several are due, only the oldest can be opened; the others wait with "Opens after Week 1".
 - A paused objective's reviews wait until it resumes.
 - A review can be saved as a **draft** and continued later. A **saved** review is fixed for good: it can't be edited or deleted.
-- Every number in a saved review is "as it was when saved".
+- Every number in a saved review is recomputed from the record when it is read (G21). An entry can change only on its own day, so a closed period's numbers hold.
+- A **draft** can be discarded *(I-13)*: its answers and the verdicts it gave are deleted, and the review is owed again.
 
 ## Reviews tab (on an objective)
 
 - **Due**, hint "Reviews open oldest first". One card per due review:
   - Label ("Week 2 review" / "Final review"), "Draft saved" pill if any.
-  - The period ("Sun 30 Aug – Sat 5 Sep", or "The whole plan · ended Fri 4 Sep") and "· last edited 5 Sep, 18:40".
+  - The period ("Mon 31 Aug – Sun 6 Sep", or "The whole plan · ended Fri 4 Sep") and "· last edited 5 Sep, 18:40".
   - **Start review** / **Continue draft** on the first card; the others are muted.
 - Nothing due and nothing saved yet: "No reviews yet. The first one is due Sun 30 Aug."
 - **Saved n**, hint "Newest first · kept exactly as written". A header row (Review · Adherence · Saved), then one row per review:
@@ -32,13 +33,14 @@ Back link to the objective. Title "Week 2 review" (or "Month 1 review"), sub "Mo
 Four numbered cards:
 
 1. **The week in numbers**, hint "Week 1 for comparison".
+   - The comparison is the previous **saved** review of this objective, named in the hint; with none, the tiles have no hint *(I-13)*.
    - Five tiles, each with last period's value as a hint ("90% in week 1"):
      - **Adherence**, coloured by status.
      - **Logged** "10h 25m", hint "of 12h 00m planned · +30m over".
      - **Targets met** "3 of 6" (flexible: Weeks met).
      - **Deviation time**.
      - **Extra, off days** (flexible: Days worked).
-   - Then **day bars**, one column per day of the period (monthly periods show one row per week instead):
+   - Then **day bars**, one column per day of the period (monthly periods show one row per week instead: each Monday-to-Sunday week, clipped to the month, with its logged and planned time):
      - The value sits on top of each bar ("2h", "45m", "1h 40m", "0m"). A dashed line marks the daily target, labelled "2h" (flexible: "4h a day").
      - Bar styles: met = solid `--effort`; short = `--caution` at 60 %; missed = a 3 px red stub with a red "0m"; extra on an off day = white with a 2 px `--effort` outline; off day with nothing = "—".
      - Bars over target rise above the line (capped in height).
@@ -54,7 +56,7 @@ Four numbered cards:
    - None: "No Chosen deviations this week." with "Nothing to judge".
 4. **Reflect**: **What worked**, **What got in the way**, **What changes next week** (placeholder "One change you can try.", hint "One change. You'll check it at the next review."). 280 each with counters (G7).
 
-**Sticky bar:** "A saved review can't be changed." with **Save draft** and **Save review**.
+**Sticky bar:** "A saved review can't be changed." with **Save draft** and **Save review**. Once a draft exists, **Discard draft** sits on the left as a text button *(I-13)*. It asks first — "Discard this draft? Its answers are deleted, and the review stays due." with **Cancel** and a red **Discard** — then goes back to the Reviews tab with the toast "Draft discarded. The review is still due."
 
 Validation, all at once, scrolling to the first error:
 - "Say how last change went."
@@ -112,11 +114,11 @@ The schedule changes **only** here. Weekly reviews never change it.
 
 ## Saved review (full page, read only)
 
-- Back link "‹ {objective} · Reviews". Title "Week 1 review", sub "Sun 23 – Sat 29 Aug · Python and DSA for AI roles · Fixed · Mon–Sat · 2h a day", and a pill "Saved Sun 30 Aug, 19:10".
+- Back link "‹ {objective} · Reviews". Title "Week 1 review", sub "Mon 24 – Sun 30 Aug · Python and DSA for AI roles · Fixed · Mon–Sat · 2h a day", and a pill "Saved Sun 30 Aug, 19:10".
 - A grey lock note: "Kept exactly as written. A saved review can't be edited or deleted."
 - **Previous / next** buttons for neighbouring saved reviews. Disabled ones explain why: "No earlier review", "Week 2 · still a draft", "Week 3 · not saved yet".
 - Cards mirror the review:
-  - **The week in numbers**: "As they were when saved", the same tiles and bars.
+  - **The week in numbers**: "Recomputed from the record" (G21), the same tiles and bars.
   - **Last week's change**: the quote and a pill with the answer, or "Nothing to check".
   - **Chosen deviations**: each with an "It held" / "It didn't hold" pill.
   - **Reflect**: the answers on `--surface-muted`. The next change is highlighted in an accent-tint block with "Checked in the week 2 review" or "To check in the week 2 review".
