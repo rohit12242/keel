@@ -1,0 +1,361 @@
+/*
+ * Log a deviation (06-deviations.md): the fields inside the shared dialog,
+ * from the prototype's `.dv-` dialog parts. The chips and boxes read as Log
+ * time's do.
+ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  padding: 0;
+}
+
+.opt {
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.banner {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--deviation);
+  background: var(--deviation-tint);
+  border-radius: var(--radius-md);
+  padding: var(--space-10) var(--space-12);
+}
+
+/* Native radios, hidden, so the arrow keys move the choice. */
+.radio {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+/* ---------- Which kind: two choice cards ---------- */
+.kinds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+.kind {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius-panel);
+  border: var(--border-hairline) solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.kind b {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.kind span {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.kind:has(.radio:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  background: var(--accent-tint);
+}
+
+.kind:has(.radio:focus-visible) {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Chips: objectives and days ---------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line-control);
+  border-radius: var(--radius-full);
+  padding: 6px var(--space-12);
+  cursor: pointer;
+}
+
+.chipText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip:has(.radio:checked) {
+  color: var(--accent-text);
+  background: var(--accent-tint);
+  border: var(--border-selected) solid var(--accent);
+  font-weight: 600;
+  padding: 5.5px 11.5px;
+}
+
+.chip:has(.radio:focus-visible) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.day {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.day:has(.radio:checked) {
+  padding-inline: 0;
+}
+
+.day:has(.radio:disabled) {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Boxes ---------- */
+.input,
+.textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line-control);
+  border-radius: var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+}
+
+.input {
+  min-height: 44px;
+}
+
+.textarea {
+  min-height: 64px;
+  resize: none;
+  line-height: 1.5;
+}
+
+.minutes {
+  max-width: 160px;
+  font-family: var(--font-mono);
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.hasError .input,
+.hasError .textarea,
+.hasError .select {
+  border-color: var(--deviation);
+  box-shadow: inset 0 0 0 1px var(--deviation);
+}
+
+.hasError .chip,
+.hasError .kind {
+  box-shadow: inset 0 0 0 1px var(--deviation);
+}
+
+.newPattern {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: 14px;
+  border-radius: var(--radius-panel);
+  background: var(--surface-muted);
+}
+
+/* ---------- Pattern: the dropdown ---------- */
+.selectWrap {
+  position: relative;
+}
+
+.select {
+  width: 100%;
+  min-height: 46px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line-control);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.select svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--text-2);
+}
+
+.select[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.select[aria-expanded="true"],
+.select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.select:disabled {
+  cursor: default;
+}
+
+.placeholder {
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 5;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-dialog);
+}
+
+.menu[hidden] {
+  display: none;
+}
+
+.option,
+.addOption {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 9px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.option b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.option small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+
+.option[aria-selected="true"] {
+  background: var(--accent-tint);
+}
+
+.addOption {
+  margin-top: 4px;
+  border-top: var(--border-hairline) solid var(--line);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  padding-top: 13px;
+}
+
+.addOption b {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+/* The option the keys are on; the selected one keeps its tint beneath. */
+.active {
+  background: var(--surface-muted);
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: -2px;
+}
+
+.before {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--deviation);
+  background: var(--deviation-tint);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .input,
+  .textarea {
+    font-size: 16px;
+  }
+
+  .chip {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .kinds {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

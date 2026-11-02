@@ -1,4 +1,5 @@
 import { DeviationsIcon, PlusIcon } from "@/app/icons";
+import { LogDeviationButton } from "../LogDeviation";
 import { KeyHint, PageHeader } from "../PageHeader";
 import shell from "../shell.module.css";
 import { KindPill } from "./KindPill";
@@ -6,7 +7,8 @@ import styles from "./deviations.module.css";
 
 /**
  * The Deviations header (06-deviations.md): "This week · 31 Aug – 6 Sep"
- * ("This week ·" hidden on phone) and **+ Log a deviation** `D`.
+ * ("This week ·" hidden on phone) and **+ Log a deviation** `D`, which
+ * open the dialog of the `LogDeviationProvider` around the page.
  */
 export function DeviationsHeader({ range }: { range: string | null }) {
   return (
@@ -21,20 +23,19 @@ export function DeviationsHeader({ range }: { range: string | null }) {
       }
       title="Deviations"
       action={
-        <button type="button" className={shell.primary} aria-keyshortcuts="D">
+        <LogDeviationButton className={shell.primary} aria-keyshortcuts="D">
           <PlusIcon />
           Log a deviation
           <KeyHint k="D" />
-        </button>
+        </LogDeviationButton>
       }
       phoneAction={
-        <button
-          type="button"
+        <LogDeviationButton
           className={`${shell.primary} ${shell.primarySmall}`}
         >
           <PlusIcon />
           Log a deviation
-        </button>
+        </LogDeviationButton>
       }
     />
   );
@@ -62,10 +63,10 @@ export function EmptyWeek() {
           It happened to you, and you noticed afterwards.
         </li>
       </ul>
-      <button type="button" className={shell.primary}>
+      <LogDeviationButton className={shell.primary}>
         <PlusIcon />
         Log a deviation
-      </button>
+      </LogDeviationButton>
     </section>
   );
 }

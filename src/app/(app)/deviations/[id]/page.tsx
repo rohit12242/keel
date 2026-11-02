@@ -5,7 +5,8 @@ import {
   type KindFilter,
 } from "@/modules/deviations/domain/deviationView";
 import { requireUser } from "../../requireUser";
-import { todayFor } from "../../objectives/today";
+import { zoneOf } from "@/modules/session/service";
+import { localDayOf } from "@/shared/time/localDay";
 import { readWeek } from "../read";
 import { Screen, Unreachable } from "../Screen";
 
@@ -30,7 +31,10 @@ export default async function DeviationPage({
   const user = await requireUser();
   const { id } = await params;
   const { kind, recorded } = await searchParams;
-  const today = await todayFor(user);
+  // Today in the user's zone, as the API counts it (I-07).
+  const zone = await zoneOf(user.id);
+  if (!zone) redirect("/sign-in");
+  const today = localDayOf(new Date(), zone);
   const read = await readWeek(today);
   if (read === "signed_out") redirect("/sign-in");
   if (read === "unreachable") return <Unreachable />;
@@ -50,6 +54,7 @@ export default async function DeviationPage({
       selected={open.id}
       flash={recorded === "1"}
       today={today}
+      zone={zone}
     />
   );
 }

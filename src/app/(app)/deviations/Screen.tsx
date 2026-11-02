@@ -12,6 +12,7 @@ import type { WeekRead } from "./read";
 import { DeviationDetail } from "./DeviationDetail";
 import { DeviationList } from "./DeviationList";
 import { DeviationsHeader, EmptyWeek } from "./DeviationsHeader";
+import { LogDeviationProvider } from "../LogDeviation";
 import layout from "../listDetail.module.css";
 import styles from "./deviations.module.css";
 
@@ -32,6 +33,7 @@ export function Screen({
   selected,
   flash = false,
   today,
+  zone,
 }: {
   show: "list" | "detail";
   read: Exclude<WeekRead, string>;
@@ -39,18 +41,58 @@ export function Screen({
   selected: string | null;
   flash?: boolean;
   today: string;
+  zone: string;
 }) {
-  const { week, list, objectives, patterns } = read;
-  const names = new Map(objectives.map((o) => [o.id, o.title]));
+  const { week, list, objectives } = read;
   const header = <DeviationsHeader range={week.range} />;
-  if (list.deviations.length === 0) {
-    return (
-      <>
-        {header}
-        <EmptyWeek />
-      </>
-    );
-  }
+  // The dialog offers what Today's would: active objectives, by their dates.
+  const pullable = objectives.map((o) => ({
+    id: o.id,
+    title: o.title,
+    start_date: o.start_date,
+    end_date: o.end_date,
+    status: o.status,
+  }));
+  return (
+    <LogDeviationProvider objectives={pullable} today={today} zone={zone}>
+      {list.deviations.length === 0 ? (
+        <>
+          {header}
+          <EmptyWeek />
+        </>
+      ) : (
+        <Week
+          show={show}
+          read={read}
+          filter={filter}
+          selected={selected}
+          flash={flash}
+          today={today}
+          header={header}
+        />
+      )}
+    </LogDeviationProvider>
+  );
+}
+
+function Week({
+  show,
+  read: { list, objectives, patterns },
+  filter,
+  selected,
+  flash,
+  today,
+  header,
+}: {
+  show: "list" | "detail";
+  read: Exclude<WeekRead, string>;
+  filter: KindFilter;
+  selected: string | null;
+  flash: boolean;
+  today: string;
+  header: React.ReactNode;
+}) {
+  const names = new Map(objectives.map((o) => [o.id, o.title]));
   const open = list.deviations.find((d) => d.id === selected) ?? null;
   return (
     <div className={show === "detail" ? layout.showDetail : layout.showList}>
