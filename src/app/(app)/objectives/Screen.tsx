@@ -1,4 +1,8 @@
-import type { Objective, ObjectiveSummary } from "@/shared/contract";
+import type {
+  DeviationList,
+  Objective,
+  ObjectiveSummary,
+} from "@/shared/contract";
 import type { Filter } from "@/modules/objectives/domain/objectiveView";
 import type { Read } from "../readApi";
 import { ObjectiveDetail } from "./ObjectiveDetail";
@@ -17,6 +21,7 @@ export function Screen({
   objectives,
   filter,
   detail,
+  deviations,
   flash = false,
   today,
 }: {
@@ -25,6 +30,8 @@ export function Screen({
   filter: Filter;
   /** The open objective, or null when the filter has none. */
   detail: Read<Objective> | null;
+  /** The open objective's deviations, or null when none is open. */
+  deviations: Read<DeviationList> | null;
   flash?: boolean;
   today: string;
 }) {
@@ -56,6 +63,11 @@ export function Screen({
             <ObjectiveDetail
               key={open.id}
               objective={open}
+              deviations={
+                deviations && typeof deviations === "object"
+                  ? deviations.value
+                  : null
+              }
               today={today}
               backHref={`/objectives?status=${filter}`}
             />

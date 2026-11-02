@@ -5,6 +5,7 @@ import { readApi } from "../../readApi";
 import { requireUser } from "../../requireUser";
 import { ObjectivesHeader } from "../ObjectivesHeader";
 import { Screen, Unreachable } from "../Screen";
+import { readDeviations } from "../deviations";
 import { todayFor } from "../today";
 
 export const metadata: Metadata = { title: "Objectives · Keel" };
@@ -45,12 +46,17 @@ export default async function ObjectivePage({
     );
   }
 
+  // After the objective's read: the range is its plan.
+  const deviations = await readDeviations(detail.value);
+  if (deviations === "signed_out") redirect("/sign-in");
+
   return (
     <Screen
       show="detail"
       objectives={list.value.objectives}
       filter={detail.value.status}
       detail={detail}
+      deviations={deviations}
       flash={created === "1"}
       today={today}
     />

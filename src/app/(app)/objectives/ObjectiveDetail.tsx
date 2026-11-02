@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { BackIcon } from "@/app/icons";
-import type { Objective } from "@/shared/contract";
+import type { DeviationList, Objective } from "@/shared/contract";
+import { deviationTile } from "@/modules/deviations/domain/deviationView";
 import { dayLabel } from "@/modules/objectives/domain/newObjective";
 import {
   banner,
@@ -15,6 +16,7 @@ import {
   type Pill as PillValue,
   type Tone,
 } from "@/modules/objectives/domain/objectiveView";
+import { DeviationsTab } from "./DeviationsTab";
 import { EffortTab } from "./EffortTab";
 import list from "../listDetail.module.css";
 import styles from "./objectives.module.css";
@@ -39,24 +41,31 @@ export function Pill({ pill }: { pill: PillValue }) {
   );
 }
 
-type TabId = "overview" | "effort";
-
-const TABS: { id: TabId; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "effort", label: "Effort" },
-];
+type TabId = "overview" | "effort" | "deviations";
 
 export function ObjectiveDetail({
   objective: o,
+  deviations,
   today,
   backHref,
 }: {
   objective: Objective;
+  /** Its deviations and their cost; null when they couldn't be read. */
+  deviations: DeviationList | null;
   today: string;
   /** Where **‹ Objectives** goes on phone. */
   backHref: string;
 }) {
   const [tab, setTab] = useState<TabId>("overview");
+  const count = deviations
+    ? deviations.cost.chosen.count + deviations.cost.drifted.count
+    : null;
+  // "Deviations 2": the label carries the count, when it was read and isn't 0.
+  const TABS: { id: TabId; label: string; count?: number | null }[] = [
+    { id: "overview", label: "Overview" },
+    { id: "effort", label: "Effort" },
+    { id: "deviations", label: "Deviations", count },
+  ];
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Arrow keys move between tabs (01-shell.md); the chosen one takes focus.
@@ -108,6 +117,9 @@ export function ObjectiveDetail({
             }}
           >
             {t.label}
+            {t.count ? (
+              <span className={styles.tabCount}>{t.count}</span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -119,18 +131,32 @@ export function ObjectiveDetail({
         aria-labelledby={`od-tab-${tab}`}
       >
         {tab === "overview" ? (
-          <Overview o={o} today={today} />
-        ) : (
+          <Overview o={o} deviations={deviations} today={today} />
+        ) : tab === "effort" ? (
           <EffortTab o={o} today={today} />
+        ) : (
+          <DeviationsTab o={o} deviations={deviations} today={today} />
         )}
       </div>
     </article>
   );
 }
 
-function Overview({ o, today }: { o: Objective; today: string }) {
+function Overview({
+  o,
+  deviations,
+  today,
+}: {
+  o: Objective;
+  deviations: DeviationList | null;
+  today: string;
+}) {
   const b = banner(o, today);
-  const s = soFar(o, today);
+  const s = soFar(
+    o,
+    today,
+    deviations ? deviationTile(deviations.cost) : undefined,
+  );
   const notes = [...o.notes].reverse();
   return (
     <>
