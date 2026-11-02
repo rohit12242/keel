@@ -247,6 +247,76 @@ export type ScheduleGrid = {
   days: ScheduleDay[];
 };
 
+export type ReviewKind = "weekly" | "monthly" | "plan_end";
+
+/** An answer to "Did last week's change work?" (G6). */
+export type ImprovementAnswer = "yes" | "partly" | "no" | "not_tried";
+
+/** A review in the Reviews tab's list; every figure computed at read time. */
+export type ReviewSummary = {
+  id: string;
+  kind: ReviewKind;
+  label: string;
+  period_start: string;
+  period_end: string;
+  status: "draft" | "saved";
+  saved_at: string | null;
+  /** When the draft was last written — the "Draft saved" time (G10). */
+  last_saved_at: string | null;
+  outcome: "continued" | "completed" | "paused" | "ended" | null;
+  review_summary: string | null;
+  /** The change this review set, shown under each saved row (G20). */
+  what_changes_next: string | null;
+  adherence_pct: number | null;
+};
+
+/** What a draft accepts (`PATCH /reviews/{id}`). */
+export type ReviewWrite = {
+  improvement_answer?: ImprovementAnswer | null;
+  improvement_answer_note?: string | null;
+  what_worked?: string | null;
+  what_got_in_the_way?: string | null;
+  what_changes_next?: string | null;
+  review_summary?: string | null;
+  criteria_assessment?: string | null;
+  criteria_verdict?: "met" | "partly_met" | "not_met" | null;
+  outcome?: ReviewSummary["outcome"];
+};
+
+/** One review, its figures recomputed now (G21). */
+export type Review = ReviewSummary & {
+  objective_id: string;
+  due_on: string;
+  improvement_answer: ImprovementAnswer | null;
+  improvement_answer_note: string | null;
+  what_worked: string | null;
+  what_got_in_the_way: string | null;
+  criteria_assessment: string | null;
+  criteria_verdict: "met" | "partly_met" | "not_met" | null;
+  previous_review_id: string | null;
+  /** The previous saved review's change, quoted back. */
+  previous_what_changes_next: string | null;
+  figures: Figures;
+  minutes_per_day: { date: string; minutes: number; planned: boolean }[];
+  /** Those naming the objective, dated in the period; a draft's verdicts as given. */
+  deviations: Deviation[];
+  /** Ideas caught in the period. No screen shows them (TRIAGE, I-03). */
+  parked_ideas: unknown[];
+};
+
+/** A window that is due — closed, not saved, with a planned day (G19). */
+export type DueReview = {
+  label: string;
+  kind: ReviewKind;
+  period_start: string;
+  period_end: string;
+  /** The draft started for this window, or null. */
+  review_id: string | null;
+};
+
+/** `GET /objectives/{id}/reviews`: every review in period order, and what is due, oldest first. */
+export type ReviewList = { reviews: ReviewSummary[]; due: DueReview[] };
+
 /** Who is signed in (`GET /v1/session`); `name` already falls back to the email. */
 export type SessionUser = { id: string; email: string; name: string };
 

@@ -17,6 +17,19 @@ future intent would be *wrong* without the entry.
 
 ## Open
 
+### A shared deviation can be judged by an unsaved draft of another objective · found in I-13
+
+A Chosen deviation can name two objectives. A draft review of one can judge it. Since
+G47 that verdict doesn't show outside the draft, so the other objective's review
+offers It held / It didn't hold, and a click gets the 409 "An earlier review already
+judged this deviation". On screen that review can't be saved until the first draft
+is saved or discarded. The API can save it, because `saveDecision` counts the stored
+verdict. If the first draft is then discarded, its verdict goes with it, and the
+saved review has a Chosen deviation nobody judged and nobody now can. Only the API
+can make a deviation name two objectives today (G46). The fix is a rule change:
+either a verdict belongs to the deviation per objective, or a draft's verdict
+doesn't block another review.
+
 ### A deviation has no recorded date · found in I-12
 
 The design's deviation detail opens with "Recorded 2 Sep", but `Deviation` carries only
@@ -138,6 +151,9 @@ days-worked line appear on no screen. Removing it is a contract change: the rout
 `effort/domain/effortMonth.ts` and its test, and `effort-month.itest.ts`.
 
 ### No screen discards a review draft · found in I-03
+
+**Built in I-13** (2026-11-02): **Discard draft** in the review's sticky bar, with a
+confirm, as `05-reviews.md` now designs it. The endpoint stays.
 
 `DELETE /reviews/{id}` is built and tested, but `docs/design/screens/05-reviews.md`
 has no Discard action: a draft is only saved and continued. Either the design gains

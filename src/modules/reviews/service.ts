@@ -11,7 +11,7 @@ import {
   currentStatus,
   type ObjectiveStatus,
 } from "@/modules/objectives/domain/statusTimeline";
-import { present } from "@/modules/deviations/service";
+import { present, recorded } from "@/modules/deviations/service";
 import { localDayOf } from "@/shared/time/localDay";
 import {
   assembleReview,
@@ -61,7 +61,7 @@ export function contextOf(raw: ObjectiveReviewFacts, now: Date): Context {
         raw.daily_minutes.map((d) => [d.local_date, d.minutes]),
       ),
       reviews: raw.reviews,
-      deviations: raw.deviations.map(present),
+      deviations: raw.deviations.map((d) => recorded(d)),
       ideas: raw.ideas,
     },
   };
@@ -306,15 +306,16 @@ export async function setVerdict(
     if (!review) return { ok: false, kind: "not_found", what: "review" };
     const row = await lockDeviation(tx, userId, deviationId);
     if (!row) return { ok: false, kind: "not_found", what: "deviation" };
-    const decision = verdictDecision(review, present(row), verdict);
+    const decision = verdictDecision(review, recorded(row), verdict);
     switch (decision.kind) {
       case "unchanged":
-        return { ok: true, deviation: present(row) };
+        return { ok: true, deviation: present(row, reviewId) };
       case "write":
         return {
           ok: true,
           deviation: present(
             await setDeviationVerdict(tx, deviationId, verdict, reviewId),
+            reviewId,
           ),
         };
       case "not_judgeable":

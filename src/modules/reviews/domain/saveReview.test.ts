@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Deviation } from "@/shared/contract";
+import type { RecordedDeviation } from "@/modules/deviations/domain/verdictView";
 import type { ReviewFacts, ReviewRow } from "./assembleReview";
 import { saveDecision } from "./saveReview";
 
@@ -24,7 +24,7 @@ const review = (over: Partial<ReviewRow> = {}): ReviewRow => ({
   last_saved_at: null,
   ...over,
 });
-const deviation = (over: Partial<Deviation>): Deviation => ({
+const deviation = (over: Partial<RecordedDeviation>): RecordedDeviation => ({
   id: "d",
   objective_ids: ["o"],
   local_date: "2026-09-16",
@@ -39,6 +39,7 @@ const deviation = (over: Partial<Deviation>): Deviation => ({
   verdict_review_id: null,
   pattern_nth: null,
   review_due_on: null,
+  verdict_saved: false,
   ...over,
 });
 const facts = (over: Partial<ReviewFacts> = {}): ReviewFacts => ({

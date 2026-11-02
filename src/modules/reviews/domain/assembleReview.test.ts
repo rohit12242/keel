@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Deviation } from "@/shared/contract";
+import type { RecordedDeviation } from "@/modules/deviations/domain/verdictView";
 import { planSlots } from "@/modules/objectives/domain/planSlots";
 import type { SegmentForSlots } from "@/modules/objectives/domain/generateSlots";
 import type { IdeaRow } from "@/modules/parking/domain/parking";
@@ -53,7 +53,10 @@ const review = (over: Partial<ReviewRow> = {}): ReviewRow => ({
   ...over,
 });
 
-const deviation = (local_date: string): Deviation => ({
+const deviation = (
+  local_date: string,
+  over: Partial<RecordedDeviation> = {},
+): RecordedDeviation => ({
   id: `d-${local_date}`,
   objective_ids: ["o"],
   local_date,
@@ -68,6 +71,8 @@ const deviation = (local_date: string): Deviation => ({
   verdict_review_id: null,
   pattern_nth: null,
   review_due_on: null,
+  verdict_saved: false,
+  ...over,
 });
 
 const idea = (caught_on: string, over: Partial<IdeaRow> = {}): IdeaRow => ({
@@ -213,6 +218,34 @@ describe("assembleReview", () => {
     expect(r.minutes_per_day).toHaveLength(7);
     expect(r.deviations.map((d) => d.local_date)).toEqual(["2026-09-15"]);
     expect(r.parked_ideas.map((i) => i.caught_on)).toEqual(["2026-09-16"]);
+  });
+
+  it("shows its own draft's verdicts and saved ones, and hides another draft's (G47)", () => {
+    const judged = (id: string, verdict_review_id: string, saved: boolean) =>
+      deviation("2026-09-16", {
+        id,
+        verdict: "worth_it",
+        verdict_review_id,
+        verdict_saved: saved,
+      });
+    const r = assembleReview(
+      review(),
+      facts({
+        deviations: [
+          judged("own", "r2", false),
+          judged("saved", "rx", true),
+          judged("other", "rx", false),
+        ],
+      }),
+    );
+    expect(
+      r.deviations.map((d) => [d.id, d.verdict, d.verdict_review_id]),
+    ).toEqual([
+      ["own", "worth_it", "r2"],
+      ["saved", "worth_it", "rx"],
+      ["other", null, null],
+    ]);
+    expect(r.deviations.some((d) => "verdict_saved" in d)).toBe(false);
   });
 
   it("has nothing to quote for the first review of the plan", () => {

@@ -10,6 +10,7 @@ import {
   type CostTally,
 } from "./domain/deviationWrite";
 import { parseDeviationQuery } from "./domain/deviationQuery";
+import { seenVerdict, type RecordedDeviation } from "./domain/verdictView";
 import {
   getDeviationFacts,
   insertDeviation,
@@ -45,11 +46,13 @@ export async function createDeviationPattern(
 }
 
 /**
- * The contract's Deviation: `did_instead` is left out when there was none,
- * and `reasoning` when there is none — a drifted deviation's. The review that
- * will judge it is computed here from the windows of the objectives it names.
+ * A deviation as stored, in the contract's shape: `did_instead` is left out
+ * when there was none, and `reasoning` when there is none — a drifted
+ * deviation's. The review that will judge it is computed here from the
+ * windows of the objectives it names. Its verdict is as stored, for the
+ * write rules; what is shown goes through `present`.
  */
-export function present(row: DeviationRow): Deviation {
+export function recorded(row: DeviationRow): RecordedDeviation {
   const { did_instead, reasoning, review_objectives, ...rest } = row;
   return {
     ...rest,
@@ -64,6 +67,15 @@ export function present(row: DeviationRow): Deviation {
     ...(did_instead === null ? {} : { did_instead }),
   };
 }
+
+/**
+ * The contract's Deviation, as seen from `inReview` or from outside every
+ * review (null): a draft's verdict shows only inside that draft (G47).
+ */
+export const present = (
+  row: DeviationRow,
+  inReview: string | null = null,
+): Deviation => seenVerdict(recorded(row), inReview);
 
 export type CreateDeviationResult =
   | { ok: true; deviation: Deviation }
@@ -129,5 +141,9 @@ export async function listDeviations(
     q.value.to,
     q.value.objectiveId,
   );
-  return { ok: true, deviations: rows.map(present), cost: costByKind(rows) };
+  return {
+    ok: true,
+    deviations: rows.map((r) => present(r)),
+    cost: costByKind(rows),
+  };
 }

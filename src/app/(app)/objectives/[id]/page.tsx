@@ -4,9 +4,11 @@ import type { Objective, ObjectiveSummary } from "@/shared/contract";
 import { readApi } from "../../readApi";
 import { requireUser } from "../../requireUser";
 import { ObjectivesHeader } from "../ObjectivesHeader";
+import { tabOf } from "../tabs";
+import { readReviews } from "../reviews";
 import { Screen, Unreachable } from "../Screen";
 import { readDeviations } from "../deviations";
-import { todayFor } from "../today";
+import { dayAndZone } from "../today";
 
 export const metadata: Metadata = { title: "Objectives · Keel" };
 
@@ -16,25 +18,28 @@ export const dynamic = "force-dynamic";
 /**
  * One objective at its own address (04-objectives.md, *Detail*), selected
  * in the list under its own status. `?created=1` flashes its row once,
- * after New objective.
+ * after New objective. `?tab=reviews` opens that tab, after a review is
+ * saved or discarded.
  */
 export default async function ObjectivePage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; tab?: string }>;
 }) {
   const user = await requireUser();
   const { id } = await params;
-  const { created } = await searchParams;
-  const today = await todayFor(user);
-  const [detail, list] = await Promise.all([
+  const { created, tab } = await searchParams;
+  const { today, tz } = await dayAndZone(user);
+  const [detail, list, reviews] = await Promise.all([
     readApi<Objective>(`/objectives/${encodeURIComponent(id)}`),
     readApi<{ objectives: ObjectiveSummary[] }>("/objectives?status=all"),
+    readReviews(id),
   ]);
 
   if (detail === "signed_out" || list === "signed_out") redirect("/sign-in");
+  if (reviews === "signed_out") redirect("/sign-in");
   // Unknown, or someone else's (NFR-10): back to the list.
   if (detail === "not_found") redirect("/objectives");
   if (typeof detail !== "object" || typeof list !== "object") {
@@ -57,8 +62,11 @@ export default async function ObjectivePage({
       filter={detail.value.status}
       detail={detail}
       deviations={deviations}
+      reviews={reviews}
       flash={created === "1"}
       today={today}
+      tz={tz}
+      tab={tabOf(tab)}
     />
   );
 }

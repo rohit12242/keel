@@ -2,10 +2,12 @@ import type {
   DeviationList,
   Objective,
   ObjectiveSummary,
+  ReviewList,
 } from "@/shared/contract";
 import type { Filter } from "@/modules/objectives/domain/objectiveView";
 import type { Read } from "../readApi";
 import { ObjectiveDetail } from "./ObjectiveDetail";
+import type { TabId } from "./tabs";
 import { Filters, NoObjectives, ObjectiveList } from "./ObjectiveList";
 import { ObjectivesHeader } from "./ObjectivesHeader";
 import list from "../listDetail.module.css";
@@ -22,8 +24,11 @@ export function Screen({
   filter,
   detail,
   deviations,
+  reviews,
   flash = false,
   today,
+  tz,
+  tab,
 }: {
   show: "list" | "detail";
   objectives: ObjectiveSummary[];
@@ -32,8 +37,13 @@ export function Screen({
   detail: Read<Objective> | null;
   /** The open objective's deviations, or null when none is open. */
   deviations: Read<DeviationList> | null;
+  /** The open objective's reviews, or null when none is open. */
+  reviews: Read<ReviewList> | null;
   flash?: boolean;
   today: string;
+  tz: string;
+  /** The tab the open objective shows first (`?tab=`). */
+  tab?: TabId;
 }) {
   if (objectives.length === 0) {
     return (
@@ -68,7 +78,12 @@ export function Screen({
                   ? deviations.value
                   : null
               }
+              reviews={
+                reviews && typeof reviews === "object" ? reviews.value : null
+              }
               today={today}
+              tz={tz}
+              initialTab={tab}
               backHref={`/objectives?status=${filter}`}
             />
           ) : detail ? (

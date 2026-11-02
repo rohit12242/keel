@@ -791,6 +791,9 @@ paths:
     delete:
       tags: [Reviews]
       summary: Discard the draft
+      description: |
+        Deletes the draft and clears every deviation verdict it gave. The window is
+        owed again. A saved review is never deleted.
       operationId: discardReview
       parameters: [{ $ref: '#/components/parameters/reviewId' }]
       responses:
@@ -1828,7 +1831,10 @@ components:
             verdict:
               type: [string, 'null']
               enum: [worth_it, not_worth_it, null]
-              description: Chosen deviations only, set by a review.
+              description: |
+                Chosen deviations only, set by a review. Outside that review, a
+                verdict reads only once the review is **saved**; a draft's verdicts
+                show only in the draft itself, and discarding it clears them (I-13).
             verdict_review_id: { type: [string, 'null'], format: uuid }
 
     CostTally:
