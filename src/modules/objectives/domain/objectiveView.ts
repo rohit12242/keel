@@ -290,9 +290,15 @@ export type SoFar =
 
 /**
  * So far, or The whole plan once it has ended: the figures to date, or the
- * whole run's. Before the first day has passed, a line instead.
+ * whole run's. Before the first day has passed, a line instead. `deviation`
+ * is Deviation time, from the objective's deviations; left out when they
+ * couldn't be read, rather than shown as none (I-12).
  */
-export function soFar(o: ObjectiveSummary, today: string): SoFar {
+export function soFar(
+  o: ObjectiveSummary,
+  today: string,
+  deviation?: Tile,
+): SoFar {
   if (
     o.start_date >= today &&
     o.status !== "completed" &&
@@ -335,6 +341,7 @@ export function soFar(o: ObjectiveSummary, today: string): SoFar {
         value: `${f.target_met_days ?? 0} of ${f.planned_days ?? 0}`,
         hint: "planned days",
       },
+      ...(deviation ? [deviation] : []),
       // Time only: the API counts the minutes, not the days (Rohit, I-11).
       {
         label: "Unplanned day effort",

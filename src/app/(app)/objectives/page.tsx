@@ -10,6 +10,7 @@ import { readApi } from "../readApi";
 import { requireUser } from "../requireUser";
 import { ObjectivesHeader } from "./ObjectivesHeader";
 import { Screen, Unreachable } from "./Screen";
+import { readDeviations } from "./deviations";
 import { todayFor } from "./today";
 
 export const metadata: Metadata = { title: "Objectives · Keel" };
@@ -46,10 +47,15 @@ export default async function ObjectivesPage({
 
   const objectives = list.value.objectives;
   const first = inFilter(objectives, filter)[0];
-  const detail = first
-    ? await readApi<Objective>(`/objectives/${first.id}`)
-    : null;
-  if (detail === "signed_out") redirect("/sign-in");
+  const [detail, deviations] = first
+    ? await Promise.all([
+        readApi<Objective>(`/objectives/${first.id}`),
+        readDeviations(first),
+      ])
+    : [null, null];
+  if (detail === "signed_out" || deviations === "signed_out") {
+    redirect("/sign-in");
+  }
 
   return (
     <Screen
@@ -57,6 +63,7 @@ export default async function ObjectivesPage({
       objectives={objectives}
       filter={filter}
       detail={detail}
+      deviations={deviations}
       today={today}
     />
   );

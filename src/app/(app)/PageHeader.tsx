@@ -13,7 +13,7 @@ export function PageHeader({
   action,
   phoneAction,
 }: {
-  eyebrow?: string;
+  eyebrow?: React.ReactNode;
   title: string;
   action?: React.ReactNode;
   phoneAction?: React.ReactNode;

@@ -282,6 +282,21 @@ describe("soFar", () => {
     });
   });
 
+  it("puts Deviation time before Unplanned day effort, when given", () => {
+    const tile = {
+      label: "Deviation time",
+      value: "6h 15m",
+      hint: "2 deviations",
+    };
+    const s = soFar(objective(), TODAY, tile);
+    expect(s.kind === "figures" && s.tiles.map((t) => t.label)).toEqual([
+      "Logged effort",
+      "Targets met",
+      "Deviation time",
+      "Unplanned day effort",
+    ]);
+  });
+
   it("the whole plan once ended: the whole run's figures", () => {
     const ended = soFar(
       objective({ start_date: "2026-08-10", end_date: "2026-09-04" }),

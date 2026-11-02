@@ -1,17 +1,50 @@
 import type { Metadata } from "next";
-import { PageHeader } from "../PageHeader";
+import { redirect } from "next/navigation";
+import {
+  FILTERS,
+  inFilter,
+  type KindFilter,
+} from "@/modules/deviations/domain/deviationView";
 import { requireUser } from "../requireUser";
-import styles from "../shell.module.css";
+import { zoneOf } from "@/modules/session/service";
+import { localDayOf } from "@/shared/time/localDay";
+import { readWeek } from "./read";
+import { Screen, Unreachable } from "./Screen";
 
 export const metadata: Metadata = { title: "Deviations · Keel" };
 
-/** The frame's place for Deviations. The screen itself is its own intent. */
-export default async function DeviationsPage() {
-  await requireUser();
+// Server-rendered per request (D-04), from the real endpoints.
+export const dynamic = "force-dynamic";
+
+/**
+ * Deviations (06-deviations.md): this week only, Monday to Sunday in the
+ * user's zone, filtered by `?kind=`. On desktop the filter's newest is open
+ * beside the list.
+ */
+export default async function DeviationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string }>;
+}) {
+  const user = await requireUser();
+  const { kind } = await searchParams;
+  const filter: KindFilter = FILTERS.find((f) => f.id === kind)?.id ?? "all";
+  // Today in the user's zone, as the API counts it (I-07).
+  const zone = await zoneOf(user.id);
+  if (!zone) redirect("/sign-in");
+  const today = localDayOf(new Date(), zone);
+  const read = await readWeek(today);
+  if (read === "signed_out") redirect("/sign-in");
+  if (read === "unreachable") return <Unreachable />;
+
   return (
-    <>
-      <PageHeader title="Deviations" />
-      <p className={styles.notBuilt}>This screen isn&rsquo;t built yet.</p>
-    </>
+    <Screen
+      show="list"
+      read={read}
+      filter={filter}
+      selected={inFilter(read.list.deviations, filter)[0]?.id ?? null}
+      today={today}
+      zone={zone}
+    />
   );
 }

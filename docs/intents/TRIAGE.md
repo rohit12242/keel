@@ -17,6 +17,28 @@ future intent would be *wrong* without the entry.
 
 ## Open
 
+### A deviation has no recorded date · found in I-12
+
+The design's deviation detail opens with "Recorded 2 Sep", but `Deviation` carries only
+`local_date`, the day it happened. A deviation can be recorded on a later day of the
+same week, so the two differ. I-12 shows the kind pill alone in the head and keeps the
+day in **When**. Showing "Recorded" needs the recorded day on `Deviation` (the column,
+`recorded_at`, exists), and a contract change with it.
+
+### Back to Today shows the page as it was · found in I-12
+
+Recording a deviation from Today goes to the Deviations page. Back then shows Today as
+the router cached it, so **Last deviation** is the one before. Opening Today from the
+navigation reads it again and shows the new one. Every page behaves this way after a
+write elsewhere, e.g. Log time and Back. Fixing it means deciding how the app refreshes
+a page brought back by Back, once, rather than page by page.
+
+### `D` on the Parking lot · found in I-12
+
+`01-shell.md` gives `D` to the Parking lot as well. I-12 builds Log a deviation on
+Today and Deviations only; the Parking lot screen isn't built. When it is, it puts
+`LogDeviationProvider` around its page, as Deviations does.
+
 ### Today's summary still says "Extra, off days" · found in I-11
 
 I-11 renamed the Objectives figure to **Unplanned day effort**, time only (Rohit):

@@ -1,9 +1,14 @@
-import type { Objective, ObjectiveSummary } from "@/shared/contract";
+import type {
+  DeviationList,
+  Objective,
+  ObjectiveSummary,
+} from "@/shared/contract";
 import type { Filter } from "@/modules/objectives/domain/objectiveView";
 import type { Read } from "../readApi";
 import { ObjectiveDetail } from "./ObjectiveDetail";
 import { Filters, NoObjectives, ObjectiveList } from "./ObjectiveList";
 import { ObjectivesHeader } from "./ObjectivesHeader";
+import list from "../listDetail.module.css";
 import styles from "./objectives.module.css";
 
 /**
@@ -16,6 +21,7 @@ export function Screen({
   objectives,
   filter,
   detail,
+  deviations,
   flash = false,
   today,
 }: {
@@ -24,6 +30,8 @@ export function Screen({
   filter: Filter;
   /** The open objective, or null when the filter has none. */
   detail: Read<Objective> | null;
+  /** The open objective's deviations, or null when none is open. */
+  deviations: Read<DeviationList> | null;
   flash?: boolean;
   today: string;
 }) {
@@ -37,12 +45,12 @@ export function Screen({
   }
   const open = detail && typeof detail === "object" ? detail.value : null;
   return (
-    <div className={show === "detail" ? styles.showDetail : styles.showList}>
-      <div className={styles.listHead}>
+    <div className={show === "detail" ? list.showDetail : list.showList}>
+      <div className={list.listHead}>
         <ObjectivesHeader />
         <Filters objectives={objectives} filter={filter} />
       </div>
-      <div className={styles.wrap}>
+      <div className={list.wrap}>
         <ObjectiveList
           objectives={objectives}
           filter={filter}
@@ -50,11 +58,16 @@ export function Screen({
           flash={flash}
           today={today}
         />
-        <div className={styles.detailCol}>
+        <div className={list.detailCol}>
           {open ? (
             <ObjectiveDetail
               key={open.id}
               objective={open}
+              deviations={
+                deviations && typeof deviations === "object"
+                  ? deviations.value
+                  : null
+              }
               today={today}
               backHref={`/objectives?status=${filter}`}
             />
