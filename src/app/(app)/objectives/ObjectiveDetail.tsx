@@ -16,6 +16,7 @@ import {
   type Tone,
 } from "@/modules/objectives/domain/objectiveView";
 import { EffortTab } from "./EffortTab";
+import list from "../listDetail.module.css";
 import styles from "./objectives.module.css";
 
 /**
@@ -66,8 +67,8 @@ export function ObjectiveDetail({
   };
 
   return (
-    <article className={styles.detail} aria-labelledby="od-title">
-      <Link className={styles.back} href={backHref}>
+    <article className={list.detail} aria-labelledby="od-title">
+      <Link className={list.back} href={backHref}>
         <BackIcon />
         Objectives
       </Link>

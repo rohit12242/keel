@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import type { ObjectiveSummary } from "@/shared/contract";
 import {
   emptyLine,
@@ -14,7 +12,9 @@ import {
 } from "@/modules/objectives/domain/objectiveView";
 import { ObjectivesIcon, PlusIcon } from "@/app/icons";
 import { Pill } from "./ObjectiveDetail";
+import list from "../listDetail.module.css";
 import shell from "../shell.module.css";
+import { useFlashOnce } from "../useFlashOnce";
 import styles from "./objectives.module.css";
 
 /** The four filters with their counts, above the list and the detail. */
@@ -26,16 +26,16 @@ export function Filters({
   filter: Filter;
 }) {
   return (
-    <nav className={styles.filters} aria-label="Filter objectives">
+    <nav className={list.filters} aria-label="Filter objectives">
       {filters(objectives).map((f) => (
         <Link
           key={f.id}
-          className={styles.filter}
+          className={list.filter}
           href={`/objectives?status=${f.id}`}
           aria-current={f.id === filter ? "page" : undefined}
         >
           {f.label}
-          <span className={styles.count}>{f.count}</span>
+          <span className={list.count}>{f.count}</span>
         </Link>
       ))}
     </nav>
@@ -61,29 +61,21 @@ export function ObjectiveList({
   flash: boolean;
   today: string;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  // Kept here, so the flash runs to its end after the address forgets it.
-  const [flashing] = useState(flash ? selected : null);
-
-  useEffect(() => {
-    if (flash) router.replace(pathname, { scroll: false });
-  }, [flash, pathname, router]);
-
+  const flashing = useFlashOnce(flash, selected);
   const shown = inFilter(objectives, filter);
   return (
-    <div className={styles.list}>
+    <div className={list.list}>
       {shown.length === 0 ? (
-        <p className={styles.none}>{emptyLine(filter)}</p>
+        <p className={list.none}>{emptyLine(filter)}</p>
       ) : (
-        <ul className={styles.rows}>
+        <ul className={list.rows}>
           {shown.map((o) => {
             const r = row(o, today);
             return (
               <li key={o.id}>
                 <Link
-                  className={`${styles.row} ${
-                    o.id === flashing ? styles.flash : ""
+                  className={`${list.row} ${
+                    o.id === flashing ? list.flash : ""
                   }`}
                   href={`/objectives/${o.id}`}
                   aria-current={o.id === selected ? "true" : undefined}
@@ -121,7 +113,7 @@ export function ObjectiveList({
 function Chevron() {
   return (
     <svg
-      className={styles.chev}
+      className={list.chev}
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
