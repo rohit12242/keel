@@ -3,8 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import type { Day, DayObjective, EffortEntry } from "@/shared/contract";
-import { PlusIcon } from "@/app/icons";
+import type {
+  Day,
+  DayObjective,
+  Deviation,
+  EffortEntry,
+} from "@/shared/contract";
+import { DeviationsIcon, PlusIcon } from "@/app/icons";
 import { useToast } from "@/app/toast";
 import { localDayOf } from "@/shared/time/localDay";
 import {
@@ -23,6 +28,9 @@ import {
   summary,
   type EntryRow,
 } from "@/modules/today/domain/todayView";
+import { lastCard } from "@/modules/deviations/domain/deviationView";
+import { KindPill } from "../deviations/KindPill";
+import { LogDeviationButton, LogDeviationProvider } from "../LogDeviation";
 import { KeyHint, PageHeader } from "../PageHeader";
 import { useShortcut } from "../shortcuts";
 import { LogTime, type Opened, type SaveOutcome } from "./LogTime";
@@ -220,7 +228,13 @@ export function Today({
   const others = day.objectives.filter((o) => card(o, date).kind === "other");
 
   return (
-    <>
+    // Log a deviation, from the rail and with D, when Today has objectives.
+    <LogDeviationProvider
+      objectives={day.objectives}
+      today={date}
+      zone={zone}
+      shortcut={day.objectives.length > 0}
+    >
       <PageHeader
         eyebrow={longDate(date)}
         title="Today"
@@ -299,6 +313,13 @@ export function Today({
           </div>
           <aside className={styles.rail} aria-label="Plan to date">
             <Adherence objectives={day.objectives} date={date} />
+            <LogDeviationButton className={styles.logDeviation}>
+              <DeviationsIcon />
+              Log a deviation
+            </LogDeviationButton>
+            {day.last_deviation ? (
+              <LastDeviation d={day.last_deviation} date={date} />
+            ) : null}
           </aside>
         </div>
       )}
@@ -315,7 +336,7 @@ export function Today({
         }
         onDelete={deleteEntry}
       />
-    </>
+    </LogDeviationProvider>
   );
 }
 
@@ -591,6 +612,28 @@ function Adherence({
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+/** The newest deviation, with **Open in Deviations** when it's this week's. */
+function LastDeviation({ d, date }: { d: Deviation; date: string }) {
+  const c = lastCard(d, date);
+  return (
+    <section className={styles.card} aria-labelledby="last-deviation">
+      <div className={styles.railHead}>
+        <h2 className={styles.heading} id="last-deviation">
+          Last deviation
+        </h2>
+        <KindPill kind={c.kind} />
+      </div>
+      <p className={styles.lastText}>{c.text}</p>
+      <span className={styles.lastMeta}>{c.line}</span>
+      {c.openable ? (
+        <Link className={styles.lastLink} href={`/deviations/${c.id}`}>
+          Open in Deviations
+        </Link>
+      ) : null}
     </section>
   );
 }
