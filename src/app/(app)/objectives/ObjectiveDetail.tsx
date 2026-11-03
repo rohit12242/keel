@@ -19,6 +19,7 @@ import {
 import { footer } from "@/modules/objectives/domain/statusActions";
 import { DeviationsTab } from "./DeviationsTab";
 import { EffortTab } from "./EffortTab";
+import { Notes } from "./Notes";
 import { DueBanner, ExtensionOwed, ReviewsTab } from "./ReviewsTab";
 import type { TabId } from "./tabs";
 import list from "../listDetail.module.css";
@@ -151,6 +152,7 @@ export function ObjectiveDetail({
             deviations={deviations}
             reviews={reviews}
             today={today}
+            tz={tz}
           />
         ) : tab === "effort" ? (
           <EffortTab o={o} today={today} />
@@ -169,11 +171,13 @@ function Overview({
   deviations,
   reviews,
   today,
+  tz,
 }: {
   o: Objective;
   deviations: DeviationList | null;
   reviews: ReviewList | null;
   today: string;
+  tz: string;
 }) {
   const b = banner(o, today);
   const s = soFar(
@@ -181,7 +185,6 @@ function Overview({
     today,
     deviations ? deviationTile(deviations.cost) : undefined,
   );
-  const notes = [...o.notes].reverse();
   return (
     <>
       <DueBanner o={o} reviews={reviews} today={today} />
@@ -232,21 +235,7 @@ function Overview({
         <p className={styles.p}>{o.success_criteria}</p>
       </div>
 
-      <div className={styles.blk}>
-        <span className={styles.lbl}>Notes</span>
-        {notes.length > 0 ? (
-          notes.map((n) => (
-            <div key={n.id} className={styles.note}>
-              <span className={styles.date}>
-                {dayLabel(n.written_on, today)}
-              </span>
-              <p className={styles.p}>{n.text}</p>
-            </div>
-          ))
-        ) : (
-          <p className={styles.empty}>No notes yet.</p>
-        )}
-      </div>
+      <Notes objectiveId={o.id} notes={o.notes} today={today} tz={tz} />
 
       <section className={styles.sec} aria-labelledby="od-history">
         <div className={styles.secHead}>

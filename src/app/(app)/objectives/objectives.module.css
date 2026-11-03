@@ -293,6 +293,83 @@
 .note .p {
   font-size: 14px;
   line-height: 1.5;
+  white-space: pre-line;
+}
+
+/* ---------- Adding a note, and the footer's actions (I-15) ---------- */
+.addNote {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: var(--space-6) 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+.noteBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line-control);
+  border-radius: var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.noteFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8) var(--space-12);
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.countFull {
+  color: var(--caution);
+  font-weight: 600;
+}
+
+.failed {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--deviation);
+  background: var(--deviation-tint);
+  border-radius: var(--radius-md);
+  padding: var(--space-10) var(--space-12);
+}
+
+.addNote:focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
 }
 
 .fine {
