@@ -17,6 +17,15 @@ future intent would be *wrong* without the entry.
 
 ## Open
 
+### The review-windows property test runs close to its timeout · found in I-15
+
+"always tiles the segment, ends on calendar boundaries, and joins every short period"
+(`reviewWindows.test.ts`) takes about 1 s alone, but 2.6–3.2 s inside `npm run test:tz`,
+against vitest's 5 s default. With the machine busy (`next dev` compiling), it timed out
+once under `Pacific/Kiritimati`, and passed on the rerun. Either make it do less work
+(fewer start dates, or one cadence per case) or give it its own timeout, with the reason
+written next to it.
+
 ### A status change can be dated in the future · found in I-15
 
 `POST /objectives/{id}/status-changes` stores `occurred_on` as sent and checks only
