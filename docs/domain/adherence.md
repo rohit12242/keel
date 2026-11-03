@@ -58,7 +58,8 @@ Each slot is a **day** (fixed schedule) or a **week** (flexible schedule) with a
 in minutes, and it carries the days inside it the objective was active on.
 
 1. **Target** = the sum of every slot's target minutes. Paused stretches have no slots,
-   so they ask for nothing. A new objective has a real target before anything is
+   so they ask for nothing, and neither do a segment's days before its `plans_from` —
+   the days between a plan's end and a late extension (I-14). A new objective has a real target before anything is
    logged.
 2. **Logged** = every minute logged, on any day.
 3. **Credited** = for each slot, the minutes logged on its active days, **capped at the
@@ -67,7 +68,8 @@ in minutes, and it carries the days inside it the objective was active on.
 4. **Adherence** = credited ÷ target, as a whole percentage, rounded. With no target at
    all (every planned day paused), adherence is 0, not a division by zero.
 5. **Extra, off days** = minutes logged on a day **no slot covers**: an off day of a
-   fixed schedule, a paused day, a day after the plan ended. They count in *logged*
+   fixed schedule, a paused day, a day after the plan ended, a day of an extension
+   before its `plans_from` (I-14). They count in *logged*
    and here, and **never in adherence**.
 6. **Planned days**
    - a day slot is one planned day; a week slot is its `target_days`.

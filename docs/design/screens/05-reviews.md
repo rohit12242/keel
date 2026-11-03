@@ -86,8 +86,9 @@ Title "Final review", sub "Mon 10 Aug – Fri 4 Sep · the whole plan · Portfol
 4. **Reflect**: What worked, What got in the way.
 5. **What next**: two choice cards, **Complete it** ("It moves to Completed with this review.") and **Extend it** ("A later end date. Set the schedule for the extra time."). Choosing Extend reveals:
    - **Extend by:** number + Weeks | Months, with "Sat 5 – Fri 25 Sep · new end Fri 25 Sep".
+     - Saved after the plan's end, the extension plans from today: the dates shown start today, and the days since the plan ended plan nothing, like paused days (I-14). The line then reads "Plans from Mon 14 Sep · new end Sun 4 Oct".
    - **Schedule for the extension**, "Filled in from the current plan · change what should change":
-     - Fixed weekdays | Flexible, days a week.
+     - Fixed weekdays | Flexible, days a week. **v1 shows Fixed only** (I-09): no toggle.
      - Weekday checkboxes with "Changed from Mon–Sat · 5 planned days a week", or Days a week.
      - **Target each planned day** / **Target each week** (h, m) with "was 2h 00m a day".
      - **Review every** Week | Month, "Then a final review at the new end".
@@ -101,7 +102,7 @@ Validation:
 - "Write what shows it."
 - "Pick Complete or Extend."
 - "Enter how long to extend."
-- "Keep an extension under six months."
+- "Keep an extension to six months or less." (26 weeks or 6 months)
 - "Pick at least one day."
 - "Set a target above zero."
 - "Write why the extra time is worth it."
@@ -111,6 +112,8 @@ Validation:
 - **Extend:** a new plan segment starts the day after the old end, using the new schedule and cadence. History gets "Extended at the final review, now planned till Fri 25 Sep. Fixed · Mon, Tue, Thu, Fri · 1h 30m a day · weekly reviews." The objective returns to Today. Toast "Review saved. Extended to Fri 25 Sep."
 
 The schedule changes **only** here. Weekly reviews never change it.
+
+If the review is saved with Extend but the extension then fails, the review stays saved. The saved final review, and the objective's Overview, show "The extension wasn't made." with **Make the extension**, which opens the same Extend fields, filled in with what was entered while the page still holds it, otherwise from the current plan *(I-14)*.
 
 ## Saved review (full page, read only)
 

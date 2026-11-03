@@ -76,7 +76,9 @@ Given a segment with `start_date` **S** and `end_date` **E** (inclusive, S ≤ E
 4. **A segment shorter than one window** yields a single `plan_end` window `[S, E]`
    and nothing numbered.
 
-Pauses do **not** enter this function — see below.
+Pauses do **not** enter this function — see below. Nor does a segment's `plans_from`:
+a late extension's windows tile from its `start_date`, and a window holding only days
+before `plans_from` has no planned day, so it is never due (I-14).
 
 ### Pauses shift nothing; they empty windows
 

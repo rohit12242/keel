@@ -177,6 +177,37 @@ owner), so it lands with E-06's hardening. The same argument will apply to
 A rule in the second list is tested as a pure function, because that is the only
 place it exists.
 
+### Amendment (I-14): a segment can start planning after it starts
+
+*Rohit, 2026-11-03.* A final review can be saved days after the plan ended. The
+extension it makes must start the day after the old end — invariant 4 — so the days
+already past fell inside it as planned days that can never be logged, read as
+missed, and shortened "extend by two weeks" (G48).
+
+`plan_segment` gains **`plans_from`**: the first day the segment plans, a stored
+fact like `start_date`. It is `start_date` for every segment except an extension
+made after the plan had ended, where it is the day the extension was made, in the
+user's zone. The slot rule becomes
+`generateSlots(segment, statusEvents)` with the segment's `plans_from` among its
+inputs: **no slot before `plans_from`**, exactly as no slot falls in a paused
+stretch. Everything downstream — figures, extra minutes, review windows and which
+are due — already handles a stretch with no slots, so nothing else changes rule.
+
+The boundaries hold:
+
+- `start_date ≤ plans_from ≤ end_date` is a row `CHECK`, not a trigger. The
+  contiguity trigger is unchanged and still the only trigger.
+- `plans_from` is written once, when the segment is created, and never derived from
+  anything else. It is not a cache.
+
+**Considered and not chosen**
+
+- *A gap between segments.* It breaks invariant 4 and the trigger that guards it,
+  and every read that relies on contiguity.
+- *A pause and resume written for the gap.* It reuses pause suppression, but the
+  status history would show a pause the user never made, and the reason for it
+  would have to be invented.
+
 ## The cost, accepted deliberately
 
 **With nothing frozen, fixing a bug in `generateSlots` changes what the past

@@ -594,9 +594,16 @@ paths:
         before it, which is why a schedule belongs to a segment rather than to
         the objective.
 
+        The new segment starts the day after the plan's end, so segments stay
+        contiguous, and plans from the later of that day and today in the user's
+        zone (`plans_from`). A final review saved days after the plan ended does
+        not turn those days into missed ones (I-14). It ends `extend_by_days`
+        days after it starts to plan: `plans_from + extend_by_days − 1`.
+
         Two rules the contract enforces rather than the UI: the extension must be
         authorised by a saved plan-end review that has not already extended, and
-        the resulting end date must be strictly in the future.
+        the resulting end date must be strictly in the future. Until it is
+        created, the same request can be retried with that review.
       operationId: createExtension
       parameters: [{ $ref: '#/components/parameters/objectiveId' }]
       requestBody:
@@ -611,7 +618,11 @@ paths:
                   type: string
                   format: uuid
                   description: The saved plan-end review authorising this extension.
-                extend_by_days: { type: integer, minimum: 1, maximum: 365 }
+                extend_by_days:
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+                  description: Days the extension plans, counted from its `plans_from`. The UI keeps it to six months (26 weeks) or less.
                 reason:
                   type: string
                   minLength: 1
@@ -1321,13 +1332,20 @@ components:
 
     PlanSegment:
       type: object
-      required: [id, seq, schedule, start_date, end_date, reason]
+      required: [id, seq, schedule, start_date, end_date, plans_from, reason]
       properties:
         id: { type: string, format: uuid }
         seq: { type: integer, description: '0 is the original plan.' }
         schedule: { $ref: '#/components/schemas/Schedule' }
         start_date: { type: string, format: date }
         end_date: { type: string, format: date }
+        plans_from:
+          type: string
+          format: date
+          description: |
+            The first day this segment plans. `start_date`, except for an extension
+            made after the plan had ended: the day it was made. Days before it plan
+            nothing, like paused days (`docs/erd.md`, I-14).
         reason: { type: string }
         created_by_review_id: { type: [string, 'null'], format: uuid }
 
