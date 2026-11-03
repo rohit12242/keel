@@ -438,7 +438,27 @@ describe("the review page", () => {
       minutes_per_planned_day: 120,
       label: "",
     },
+    start_date: "2026-08-10",
   };
+
+  it("heads a final review over the whole plan", () => {
+    expect(
+      reviewHead(
+        review({
+          kind: "plan_end",
+          label: "End of plan",
+          period_start: "2026-08-31",
+          period_end: "2026-09-04",
+        }),
+        o,
+        TZ,
+        TODAY,
+      ),
+    ).toMatchObject({
+      title: "Final review",
+      sub: "Mon 10 Aug – Fri 4 Sep · the whole plan · Python and DSA",
+    });
+  });
 
   it("heads a draft not yet written, a written one, and a saved one", () => {
     expect(reviewHead(review(), o, TZ, TODAY)).toEqual({

@@ -78,8 +78,8 @@ export default async function ReviewPage({
   const previousReview = previous ? valueOf(previous) : null;
   const days = valueOf(grid)?.days ?? null;
 
-  // The final review opens with its own intent (Rohit, 2026-11-02).
-  if (review.kind === "plan_end") {
+  // The final review's form comes with I-14 step 8; its saved page is built.
+  if (review.kind === "plan_end" && !saved) {
     return (
       <>
         <ReviewHead head={head} back={back} />
@@ -119,6 +119,7 @@ export default async function ReviewPage({
         grid={days}
         list={reviews.reviews}
         due={reviews.due}
+        objective={o}
         today={today}
       />
     </>

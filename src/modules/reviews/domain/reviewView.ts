@@ -361,15 +361,18 @@ export type Head = {
 /** The page's title, its sub-line and its pill. */
 export function reviewHead(
   r: Review,
-  o: { title: string; schedule: Schedule },
+  o: { title: string; schedule: Schedule; start_date: string },
   tz: string,
   today: string,
 ): Head {
   const saved = r.status === "saved";
+  // A final review covers the whole plan (G22), from the objective's start.
+  const final = r.kind === "plan_end";
   return {
     title: titleOf(r),
     sub: [
-      periodRange(r.period_start, r.period_end, today),
+      periodRange(final ? o.start_date : r.period_start, r.period_end, today),
+      ...(final ? ["the whole plan"] : []),
       o.title,
       ...(saved ? [scheduleLine(o.schedule)] : []),
     ].join(" · "),

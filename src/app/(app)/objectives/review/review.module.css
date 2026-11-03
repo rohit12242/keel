@@ -241,6 +241,25 @@
 .fill_neutral {
   background: var(--text-3);
 }
+/* "Chosen deviations in the last week", inside card 2 of the final review. */
+.sub3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-top: var(--space-8);
+}
+
+.fill_behind {
+  background: var(--deviation);
+}
+
+/* A plan week's row: a short label, the bar, the percentage. */
+.prow {
+  grid-template-columns: 90px minmax(0, 1fr) 48px;
+}
+.prow .mono {
+  text-align: right;
+}
 
 .mono {
   font-family: var(--font-mono);
