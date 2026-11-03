@@ -15,6 +15,8 @@ const MON_TO_FRI = {
   minutes_per_planned_day: 120,
   start_date: "2026-09-14",
   end_date: "2026-10-11",
+  plans_from: "2026-09-14",
+  review_cadence: "weekly" as const,
 };
 
 const baseRow: DayObjectiveRow = {
@@ -228,6 +230,8 @@ describe("assembleDay", () => {
       minutes_per_planned_day: 90,
       start_date: "2026-10-12",
       end_date: "2026-10-25",
+      plans_from: "2026-10-12",
+      review_cadence: "weekly" as const,
     };
     for (const segments of [
       [SEG_1, MON_TO_FRI],

@@ -17,6 +17,10 @@ export type PlanSegmentRow = {
   minutes_per_planned_day: number;
   start_date: string;
   end_date: string;
+  /** The first day the segment plans: start_date, or later for a late extension (I-14). */
+  plans_from: string;
+  /** The cadence this segment's review windows are cut by (I-14). */
+  review_cadence: "weekly" | "monthly";
 };
 
 export function toSegment(row: PlanSegmentRow): SegmentForSlots {

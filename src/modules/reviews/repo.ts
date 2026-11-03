@@ -63,6 +63,8 @@ export async function getReviewFacts(
            'minutes_per_planned_day', s.minutes_per_planned_day,
            'start_date', to_char(s.start_date, 'YYYY-MM-DD'),
            'end_date', to_char(s.end_date, 'YYYY-MM-DD'),
+           'plans_from', to_char(s.plans_from, 'YYYY-MM-DD'),
+           'review_cadence', s.review_cadence,
            'reason', s.reason,
            'created_by_review_id', s.created_by_review_id
          ) ORDER BY s.seq)

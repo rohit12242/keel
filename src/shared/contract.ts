@@ -182,6 +182,9 @@ export type PlanSegment = {
   schedule: Schedule;
   start_date: string;
   end_date: string;
+  /** The first day it plans (G48, I-14). */
+  plans_from: string;
+  review_cadence: "weekly" | "monthly";
   reason: string;
   created_by_review_id?: string | null;
 };

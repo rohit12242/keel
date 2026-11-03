@@ -20,6 +20,8 @@ const SEG_0: ObjectiveSegmentRow = {
   minutes_per_planned_day: 60,
   start_date: "2026-11-02", // Monday
   end_date: "2026-11-15",
+  plans_from: "2026-11-02",
+  review_cadence: "weekly",
   reason: "Why this, now.",
   created_by_review_id: null,
 };
@@ -340,6 +342,8 @@ describe("assembleObjective — with an extension", () => {
     minutes_per_planned_day: 90,
     start_date: "2026-11-16",
     end_date: "2026-11-29",
+    plans_from: "2026-11-16",
+    review_cadence: "weekly",
     reason: "Extending rather than restarting.",
     created_by_review_id: "review-1",
   };
@@ -389,6 +393,8 @@ describe("assembleObjective — with an extension", () => {
         },
         start_date: "2026-11-02",
         end_date: "2026-11-15",
+        plans_from: "2026-11-02",
+        review_cadence: "weekly",
         reason: "Why this, now.",
         created_by_review_id: null,
       },
@@ -403,6 +409,8 @@ describe("assembleObjective — with an extension", () => {
         },
         start_date: "2026-11-16",
         end_date: "2026-11-29",
+        plans_from: "2026-11-16",
+        review_cadence: "weekly",
         reason: "Extending rather than restarting.",
         created_by_review_id: "review-1",
       },

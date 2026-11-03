@@ -14,6 +14,8 @@ const FIXED: PlanSegmentRow = {
   minutes_per_planned_day: 120,
   start_date: "2026-09-14",
   end_date: "2026-10-11",
+  plans_from: "2026-09-14",
+  review_cadence: "weekly",
 };
 
 describe("toSegment", () => {

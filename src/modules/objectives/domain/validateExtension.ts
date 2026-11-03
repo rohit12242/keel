@@ -86,6 +86,8 @@ export type NewSegment = {
   seq: number;
   start_date: string;
   end_date: string;
+  plans_from: string;
+  review_cadence: "weekly" | "monthly";
   schedule: NewSchedule;
   reason: string;
   created_by_review_id: string;
@@ -154,6 +156,8 @@ export function extensionDecision(
     seq: latest.seq + 1,
     start_date: start,
     end_date: end,
+    plans_from: start,
+    review_cadence: row.review_cadence,
     schedule: write.schedule,
     reason: write.reason,
     created_by_review_id: write.review_id,

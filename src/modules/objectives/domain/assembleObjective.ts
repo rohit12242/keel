@@ -177,6 +177,8 @@ function toPlanSegment(segment: ObjectiveSegmentRow): PlanSegment {
     schedule: toSchedule(segment),
     start_date: segment.start_date,
     end_date: segment.end_date,
+    plans_from: segment.plans_from,
+    review_cadence: segment.review_cadence,
     reason: segment.reason,
     created_by_review_id: segment.created_by_review_id,
   };

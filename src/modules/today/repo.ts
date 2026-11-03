@@ -37,7 +37,9 @@ seg AS (
       'days_per_week', s.days_per_week,
       'minutes_per_planned_day', s.minutes_per_planned_day,
       'start_date', to_char(s.start_date, 'YYYY-MM-DD'),
-      'end_date', to_char(s.end_date, 'YYYY-MM-DD')
+      'end_date', to_char(s.end_date, 'YYYY-MM-DD'),
+      'plans_from', to_char(s.plans_from, 'YYYY-MM-DD'),
+      'review_cadence', s.review_cadence
     ) ORDER BY s.seq) AS segments
   FROM plan_segment s
   JOIN obj ON obj.id = s.objective_id
