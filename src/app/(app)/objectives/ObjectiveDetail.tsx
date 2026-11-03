@@ -16,10 +16,10 @@ import {
   type Pill as PillValue,
   type Tone,
 } from "@/modules/objectives/domain/objectiveView";
-import { footer } from "@/modules/objectives/domain/statusActions";
 import { DeviationsTab } from "./DeviationsTab";
 import { EffortTab } from "./EffortTab";
 import { Notes } from "./Notes";
+import { StatusFooter } from "./ReasonDialog";
 import { Resume } from "./Resume";
 import { DueBanner, ExtensionOwed, ReviewsTab } from "./ReviewsTab";
 import type { TabId } from "./tabs";
@@ -262,9 +262,7 @@ function Overview({
         </ol>
       </section>
 
-      <div className={styles.foot}>
-        <p className={styles.fine}>{footer(o, today).line}</p>
-      </div>
+      <StatusFooter o={o} today={today} tz={tz} />
     </>
   );
 }
