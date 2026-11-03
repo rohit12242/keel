@@ -31,5 +31,6 @@ export function toSegment(row: PlanSegmentRow): SegmentForSlots {
     minutesPerPlannedDay: row.minutes_per_planned_day,
     startDate: row.start_date,
     endDate: row.end_date,
+    plansFrom: row.plans_from,
   };
 }

@@ -3,10 +3,13 @@ import { getPool } from "@/shared/db";
 import type { Objective, PlanSegment } from "@/shared/contract";
 import * as extensions from "@/app/v1/objectives/[objectiveId]/extensions/route";
 import * as one from "@/app/v1/objectives/[objectiveId]/route";
+import * as grid from "@/app/v1/objectives/[objectiveId]/schedule/route";
+import type { ScheduleGrid } from "@/shared/contract";
 import {
   testObjective,
   testReview,
   testUser,
+  todayIn,
   type TestUser,
 } from "@/test/fixtures";
 import { saveReview, updateReview } from "@/modules/reviews/service";
@@ -107,6 +110,48 @@ describe("extending a plan (real Postgres)", () => {
       occurred_on: "2026-10-12",
       new_end_date: segment.end_date,
     });
+  });
+
+  it("plans a late extension from today: the days since the plan ended are never missed (G48)", async () => {
+    const reviewId = await closePlan("continued");
+    const res = await extend(body(reviewId, { extend_by_days: 14 }));
+    expect(res.status).toBe(201);
+    const today = todayIn("Asia/Kolkata");
+    const segment = (await res.json()) as PlanSegment;
+    expect(segment).toMatchObject({
+      start_date: "2026-10-12",
+      plans_from: today,
+      end_date: new Date(Date.parse(`${today}T00:00:00Z`) + 13 * DAY)
+        .toISOString()
+        .slice(0, 10),
+    });
+
+    // The gap: from the extension's start to the day before it plans.
+    const gapEnd = new Date(Date.parse(`${today}T00:00:00Z`) - DAY)
+      .toISOString()
+      .slice(0, 10);
+    const days = (await (
+      await grid.GET(
+        new Request(
+          `http://keel.test/v1/objectives/${objectiveId}/schedule?from=2026-10-12&to=${gapEnd}`,
+          { headers: { cookie: me.cookie } },
+        ),
+        { params: Promise.resolve({ objectiveId }) },
+      )
+    ).json()) as ScheduleGrid;
+    expect(days.days.length).toBeGreaterThan(0);
+    expect(days.days.every((d) => d.state === "off_day")).toBe(true);
+
+    // Nothing in the gap is owed: no window of it is due.
+    const o = (await (
+      await one.GET(
+        new Request(`http://keel.test/v1/objectives/${objectiveId}`, {
+          headers: { cookie: me.cookie },
+        }),
+        { params: Promise.resolve({ objectiveId }) },
+      )
+    ).json()) as Objective;
+    expect(o.reviews_due).toBe(0);
   });
 
   it("409s a second extension from the same review", async () => {

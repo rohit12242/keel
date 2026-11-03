@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ObjectiveRow, ObjectiveSegmentRow } from "./rows";
 import {
   extensionDecision,
+  extensionSpan,
   validateExtensionWrite,
   type ExtensionWrite,
 } from "./validateExtension";
@@ -175,8 +176,8 @@ describe("extensionDecision", () => {
     });
   });
 
-  it("adds the next segment, starting the day after the plan ends", () => {
-    expect(extensionDecision(row(), write(), "2026-10-13")).toEqual({
+  it("adds the next segment, starting and planning the day after the plan ends, made on time", () => {
+    expect(extensionDecision(row(), write(), "2026-10-12")).toEqual({
       ok: true,
       value: {
         seq: 1,
@@ -193,6 +194,35 @@ describe("extensionDecision", () => {
         created_by_review_id: RID,
       },
     });
+  });
+
+  it("plans a late extension from today, and counts its days from there (G48)", () => {
+    expect(extensionDecision(row(), write(), "2026-10-16")).toMatchObject({
+      ok: true,
+      value: {
+        start_date: "2026-10-12",
+        plans_from: "2026-10-16",
+        end_date: "2026-10-29",
+      },
+    });
+  });
+
+  it("checks the weekdays over the days it plans, not the gap before", () => {
+    // Fri 16 – Sat 17 October: no Monday, though Mon 12 lies in the gap.
+    expect(
+      extensionDecision(
+        row(),
+        write({
+          extend_by_days: 2,
+          schedule: {
+            mode: "fixed",
+            planned_weekdays: [1],
+            minutes_per_planned_day: 60,
+          },
+        }),
+        "2026-10-16",
+      ),
+    ).toMatchObject({ ok: false, error: { kind: "invalid" } });
   });
 
   it("409s without a saved plan-end review of the plan as it stands", () => {
@@ -263,7 +293,7 @@ describe("extensionDecision", () => {
 
   it("422s an extension that would not end after today — refused, not adjusted", () => {
     expect(
-      extensionDecision(row(), write({ extend_by_days: 2 }), "2026-10-13"),
+      extensionDecision(row(), write({ extend_by_days: 1 }), "2026-10-13"),
     ).toMatchObject({
       ok: false,
       error: { kind: "not_in_future" },
@@ -285,5 +315,29 @@ describe("extensionDecision", () => {
         "2026-10-12",
       ),
     ).toMatchObject({ ok: false, error: { kind: "invalid" } });
+  });
+});
+
+describe("extensionSpan", () => {
+  it("starts the day after the old end, and plans from then when made on time", () => {
+    expect(extensionSpan("2026-09-04", "2026-09-05", 21)).toEqual({
+      start_date: "2026-09-05",
+      plans_from: "2026-09-05",
+      end_date: "2026-09-25",
+    });
+  });
+
+  it("plans from today when made late, and ends its days after that", () => {
+    expect(extensionSpan("2026-09-04", "2026-09-14", 21)).toEqual({
+      start_date: "2026-09-05",
+      plans_from: "2026-09-14",
+      end_date: "2026-10-04",
+    });
+  });
+
+  it("never plans before its start, whatever today says", () => {
+    expect(extensionSpan("2026-09-04", "2026-09-01", 1).plans_from).toBe(
+      "2026-09-05",
+    );
   });
 });

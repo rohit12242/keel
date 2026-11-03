@@ -27,6 +27,7 @@ describe("toSegment", () => {
       minutesPerPlannedDay: 120,
       startDate: "2026-09-14",
       endDate: "2026-10-11",
+      plansFrom: "2026-09-14",
     });
   });
 
