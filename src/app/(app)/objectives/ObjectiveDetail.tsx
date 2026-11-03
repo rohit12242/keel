@@ -9,7 +9,6 @@ import { tabCount } from "@/modules/reviews/domain/reviewView";
 import { dayLabel } from "@/modules/objectives/domain/newObjective";
 import {
   banner,
-  footerLine,
   headPill,
   history,
   planLine,
@@ -17,6 +16,7 @@ import {
   type Pill as PillValue,
   type Tone,
 } from "@/modules/objectives/domain/objectiveView";
+import { footer } from "@/modules/objectives/domain/statusActions";
 import { DeviationsTab } from "./DeviationsTab";
 import { EffortTab } from "./EffortTab";
 import { DueBanner, ExtensionOwed, ReviewsTab } from "./ReviewsTab";
@@ -270,7 +270,7 @@ function Overview({
       </section>
 
       <div className={styles.foot}>
-        <p className={styles.fine}>{footerLine(o.status)}</p>
+        <p className={styles.fine}>{footer(o, today).line}</p>
       </div>
     </>
   );
