@@ -419,8 +419,7 @@ export const extendedToast = (end: string, today: string): string =>
   `Review saved. Extended to ${dayLabel(end, today)}.`;
 export const EXTENSION_NOT_MADE = "The extension wasn't made.";
 export const MAKE_EXTENSION = "Make the extension";
-export const EXTENSION_FAILED =
-  "Couldn't make the extension. The review is saved. Try again.";
+export const EXTENSION_FAILED = "It still wasn't made. Try again.";
 export const extensionMadeToast = (end: string, today: string): string =>
   `Extended to ${dayLabel(end, today)}.`;
 

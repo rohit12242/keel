@@ -241,6 +241,74 @@
 .fill_neutral {
   background: var(--text-3);
 }
+/* A fieldset that only groups, so a saved final review can lock its cards. */
+.plain {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
+
+/* What next: Complete it · Extend it. */
+.outcomes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 14px 16px;
+  text-align: left;
+  border-radius: var(--radius-md);
+  border: var(--border-hairline) solid var(--line-control);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.outcome span {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.outcome[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.outcome:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.outcome:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Extend's fields, under the choice cards. */
+.extend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding-top: var(--space-16);
+  border-top: var(--border-hairline) solid var(--line);
+}
+
+.extendHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* "Chosen deviations in the last week", inside card 2 of the final review. */
 .sub3 {
   font-size: 13px;
@@ -480,5 +548,9 @@
   .wrow {
     grid-template-columns: 110px minmax(0, 1fr) auto;
     gap: var(--space-8);
+  }
+
+  .outcomes {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

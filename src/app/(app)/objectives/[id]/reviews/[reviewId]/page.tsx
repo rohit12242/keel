@@ -10,12 +10,12 @@ import { reviewHead } from "@/modules/reviews/domain/reviewView";
 import { PageHeader } from "../../../../PageHeader";
 import { readApi, type Read } from "../../../../readApi";
 import { requireUser } from "../../../../requireUser";
+import { FinalReviewForm } from "../../../review/FinalReviewForm";
 import { ReviewForm } from "../../../review/ReviewForm";
 import { ReviewHead } from "../../../review/ReviewHead";
 import { SavedReview } from "../../../review/SavedReview";
 import { Unreachable } from "../../../Screen";
 import { dayAndZone } from "../../../today";
-import shell from "../../../../shell.module.css";
 
 export const metadata: Metadata = { title: "Review · Keel" };
 
@@ -78,13 +78,19 @@ export default async function ReviewPage({
   const previousReview = previous ? valueOf(previous) : null;
   const days = valueOf(grid)?.days ?? null;
 
-  // The final review's form comes with I-14 step 8; its saved page is built.
+  // The final review: the whole plan, the criteria, and what next (I-14).
   if (review.kind === "plan_end" && !saved) {
     return (
-      <>
-        <ReviewHead head={head} back={back} />
-        <p className={shell.notBuilt}>This screen isn&rsquo;t built yet.</p>
-      </>
+      <FinalReviewForm
+        key={review.id}
+        review={review}
+        previous={previousReview}
+        objective={o}
+        head={head}
+        back={back}
+        tz={tz}
+        today={today}
+      />
     );
   }
 
