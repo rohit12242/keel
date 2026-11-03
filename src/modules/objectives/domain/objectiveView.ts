@@ -394,19 +394,6 @@ export function banner(o: Objective, today: string): Banner | null {
   }
 }
 
-/** The footer's words; its actions come with a later intent. */
-export function footerLine(status: ObjectiveStatus): string {
-  switch (status) {
-    case "active":
-      return "Schedule and target are fixed. They change only when you extend at the final review.";
-    case "paused":
-      return "Resume to plan days again. Terminating can't be undone.";
-    case "completed":
-    case "ended":
-      return "This status is final. You can keep adding notes.";
-  }
-}
-
 export type HistoryRow = {
   date: string;
   dot: "created" | "active" | "paused" | "terminated" | "completed";
@@ -453,6 +440,16 @@ export function history(o: Objective, today: string): HistoryRow[] {
   return rows.reverse();
 }
 
+/**
+ * The plan's end as it stood on `date`: an extension planning only from
+ * that day or later didn't exist yet, since one is made only once the plan
+ * has ended and its final review is saved (I-14, I-15).
+ */
+function endAsOf(segments: Objective["segments"], date: string): string {
+  const known = segments.filter((s) => s.seq === 0 || s.plans_from < date);
+  return known[known.length - 1].end_date;
+}
+
 function eventRow(
   o: Objective,
   e: Objective["status_history"][number],
@@ -480,13 +477,18 @@ function eventRow(
         label: "Paused",
         text: reason,
       };
-    case "resumed":
+    case "resumed": {
+      const end = endAsOf(o.segments, e.occurred_on);
       return {
         date: e.occurred_on,
         dot: "active",
         label: "Resumed",
-        text: reason,
+        text:
+          e.occurred_on <= end
+            ? `Resumed. Still planned till ${dayLabel(end, today)}.`
+            : `Resumed after the plan ended ${dayLabel(end, today)}.`,
       };
+    }
     case "ended":
       return {
         date: e.occurred_on,

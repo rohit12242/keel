@@ -4,7 +4,6 @@ import {
   banner,
   emptyLine,
   filters,
-  footerLine,
   headPill,
   history,
   inFilter,
@@ -346,7 +345,7 @@ describe("soFar", () => {
   });
 });
 
-describe("banner and footerLine", () => {
+describe("banner", () => {
   it("paused: since when, the reason word for word, the end date", () => {
     expect(
       banner(
@@ -407,19 +406,6 @@ describe("banner and footerLine", () => {
       note: null,
     });
     expect(banner(objective(), TODAY)).toBeNull();
-  });
-
-  it("says the footer's words for each status", () => {
-    expect(footerLine("active")).toBe(
-      "Schedule and target are fixed. They change only when you extend at the final review.",
-    );
-    expect(footerLine("paused")).toBe(
-      "Resume to plan days again. Terminating can't be undone.",
-    );
-    expect(footerLine("completed")).toBe(
-      "This status is final. You can keep adding notes.",
-    );
-    expect(footerLine("ended")).toBe(footerLine("completed"));
   });
 });
 
@@ -542,7 +528,7 @@ describe("history", () => {
         "active",
         "Extended at the final review, now planned till Fri 25 Sep. Fixed · Mon, Tue, Thu, Fri · 1h 30m a day · weekly reviews.",
       ],
-      ["Resumed", "active", null],
+      ["Resumed", "active", "Resumed. Still planned till Mon 21 Sep."],
       ["Paused", "paused", "Ill"],
       [
         "Active",
@@ -551,6 +537,34 @@ describe("history", () => {
       ],
       ["Created", "created", "Fixed · Mon–Sat · 2h 00m a day · 30 days."],
     ]);
+  });
+
+  it("a resume after the end says the plan had ended, by the end as it stood (I-15)", () => {
+    const base = objective();
+    const rows = history(
+      objective({
+        segments: [
+          base.segments[0],
+          {
+            ...base.segments[0],
+            id: "s1",
+            seq: 1,
+            start_date: "2026-09-22",
+            end_date: "2026-10-05",
+            plans_from: "2026-09-28", // made later, after the final review
+          },
+        ],
+        status_history: [
+          { occurred_on: "2026-08-22", change: "created" },
+          { occurred_on: "2026-09-10", change: "paused", reason: "Ill" },
+          { occurred_on: "2026-09-28", change: "resumed" },
+        ],
+      }),
+      "2026-09-30",
+    );
+    expect(rows.find((r) => r.label === "Resumed")?.text).toBe(
+      "Resumed after the plan ended Mon 21 Sep.",
+    );
   });
 
   it("terminated, an extension without its segment, and no verdict", () => {

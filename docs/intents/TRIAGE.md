@@ -17,6 +17,31 @@ future intent would be *wrong* without the entry.
 
 ## Open
 
+### The review-windows property test runs close to its timeout · found in I-15
+
+"always tiles the segment, ends on calendar boundaries, and joins every short period"
+(`reviewWindows.test.ts`) takes about 1 s alone, but 2.6–3.2 s inside `npm run test:tz`,
+against vitest's 5 s default. With the machine busy (`next dev` compiling), it timed out
+once under `Pacific/Kiritimati`, and passed on the rerun. Either make it do less work
+(fewer start dates, or one cadence per case) or give it its own timeout, with the reason
+written next to it.
+
+### A status change can be dated in the future · found in I-15
+
+`POST /objectives/{id}/status-changes` stores `occurred_on` as sent and checks only
+that it isn't before the latest change. A note dated after today is refused (`422`),
+but a pause dated next week is accepted, and its paused stretch then starts later
+than the request says it did. The UI always sends today in the user's zone, so only
+a direct API call can do it. Refusing a future `occurred_on` is a contract change.
+
+### The API can complete an objective without its final review · found in I-15
+
+The status-change endpoint accepts `complete` from `active` or `paused`
+(`statusChange.ts`). That breaks the rule that only the plan-end review completes an
+objective (ERD invariant 7). The UI never sends it. Removing `complete` from the
+request enum, so completing goes only through saving the final review, is a contract
+change.
+
 ### An owed extension reads as "final review due" on Today and the list · found in I-14
 
 A final review saved with Extend whose extension wasn't made (G49) leaves the

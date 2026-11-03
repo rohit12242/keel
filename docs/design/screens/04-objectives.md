@@ -53,6 +53,7 @@ In order:
    - Examples: "Started. Planned till Mon 21 Sep with weekly reviews." · "Fixed · Mon–Sat · 2h 00m a day · 30 days." · "Extended at the final review, now planned till Fri 25 Sep. Fixed · Mon, Tue, Thu, Fri · 1h 30m a day · weekly reviews." · a pause or terminate reason, word for word.
 7. **Footer:**
    - **Active:** "Schedule and target are fixed. They change only when you extend at the final review." with **Pause** (secondary) and **Terminate** (red tint).
+   - **Active, plan ended:** "The plan has ended. The final review decides what happens next." with **Terminate** only — no Pause *(I-15)*.
    - **Paused:** "Resume to plan days again. Terminating can't be undone." with **Terminate**.
    - **Completed or terminated:** "This status is final. You can keep adding notes."
 
@@ -134,15 +135,18 @@ On create, the objective:
 ## Pause, resume, terminate
 
 - **Pause** dialog: "Pause this objective?", "Days stop being planned until you resume. The end date stays Mon 21 Sep, so paused days are not made up. Reviews wait too."
-  - Field **Why are you pausing?** (280, required), hint "It goes into the status history, word for word."
+  - Field **Why are you pausing?** (280, required; error "Write why you are pausing it."), hint "It goes into the status history, word for word."
+  - When time is already logged on it today, a line above the buttons: "Today stops being planned. The 1h 20m logged today stays, as extra." *(I-15: a pause starts on the day it is made.)*
   - **Pause it**. The objective leaves Today and the list switches to Paused.
   - Toast "Paused. The end date stays Mon 21 Sep."
 - **Resume** (no dialog): back to Active and back on Today, with history "Resumed. Still planned till Mon 21 Sep."
   - Toast "Resumed. It is back on Today."
+  - Resumed after the plan's end date, the final review is due at once; the toast says "Resumed. Its plan has ended, so the final review is due." *(I-15)*
 - **Terminate** dialog: "Terminate this objective?", "It moves to Terminated and can't be resumed. Its effort, deviations, reviews and notes are kept."
   - Field **Why are you terminating it?** (required; error "Write why you are terminating it.").
   - Red **Terminate** button.
   - Toast "Terminated. Everything recorded is kept."
+- Pause is offered while the objective is running or has not started, never once its plan has ended *(I-15)*.
 - An objective is never deleted.
 
 ## Phone

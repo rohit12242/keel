@@ -145,12 +145,16 @@ objective's status and its saved reviews:
 
 > The due window is the **earliest** window that has **closed** (`today ≥
 > period_end`), is **not yet saved**, and contains **at least one planned day**,
-> while the objective is **active**.
+> while the objective is **active**. A `plan_end` window needs no planned day.
 
 - Closed on its `period_end` day — that day *is* "due today". A window still in
   progress is not due.
 - `period_end` is the window's own `due_on`; no separate field is stored.
-- Zero-planned-day windows are skipped (the pause rule above).
+- Zero-planned-day windows are skipped (the pause rule above), **except a `plan_end`
+  window**. A plan ends only through its final review, so a final review must
+  always become due. Otherwise a plan paused before its last window starts and
+  resumed after its end would never get one. An earlier segment's `plan_end` is
+  always saved already, because its extension needed it (invariant 7). *(I-15)*
 - Paused / completed / ended objectives surface nothing as due. On resume, any
   window that closed during the pause and has planned days becomes due, oldest
   first.
@@ -161,8 +165,8 @@ objective's status and its saved reviews:
 when none is due) — one rule, two readers.
 
 **How many are due.** `reviews_due` on `ObjectiveSummary` is the number of windows that
-satisfy the same predicate — every closed, unsaved window with a planned day, not just
-the earliest. It is `0` exactly when `next_review_on` is null, and it is computed, never
+satisfy the same predicate — every closed, unsaved window with a planned day (or of
+kind `plan_end`), not just the earliest. It is `0` exactly when `next_review_on` is null, and it is computed, never
 stored (invariant 15). A paused objective shows `0` like it shows no due date; the
 windows it owes come back, and are counted, on resume.
 
@@ -180,7 +184,8 @@ Onboarding and an empty Reviews tab say when the first review falls before any i
 review**, whether or not it has closed:
 
 - a window that has **closed with no planned day** is skipped — it can never become
-  due, so it would otherwise stick;
+  due, so it would otherwise stick. A `plan_end` window is never skipped, since it
+  always becomes due *(I-15)*;
 - `null` once every window is saved, and once the objective is completed or ended. A
   paused objective still shows one.
 
@@ -219,6 +224,8 @@ Assume weekly cadence unless stated. Dates written `MM-DD`.
 | **Sat 09-05 to Tue 09-08 (4 days)** | **End of plan** `09-05…09-08` only — two short weeks joined, nothing numbered |
 | **Weekly, Mon 09-07 start, paused 09-14…09-20 entirely** | Windows unchanged; Week 2 `09-14…09-20` has zero planned days and is **never surfaced as due** |
 | **Weekly, paused 09-16…09-18 (mid-window)** | Week 2 `09-14…09-20` still due, with a lower target for the three paused days |
+| **Weekly, Mon 09-07…Sun 09-27, paused 09-20, resumed 09-30** | Week 2 `09-14…09-20` has planned days and is due on resume; **End of plan** `09-21…09-27` has none and is **due on resume too** — the final review always comes *(I-15)* |
+| **Weekly, Mon 09-07…Sun 09-27, paused 09-14, resumed 09-21** | Week 2 `09-14…09-20` has zero planned days and is never due; End of plan follows the normal rule *(I-15)* |
 | **Monthly, 09-10 to 12-09** | Month 1 `09-10…09-30` (21 days, not short) · Month 2 `10-01…10-31` · **End of plan** `11-01…12-09` (the 9-day December joined November) |
 | **Monthly, start 2027-01-20** | Month 1 `01-20…02-28` (the 12-day January joined February) · … |
 | **Extended: seg 0 Mon 09-07…Sun 09-27, seg 1 09-28…10-14** | seg 0: Week 1, Week 2, End of plan `09-21…09-27`; seg 1: **Week 3** `09-28…10-04`, End of plan `10-05…10-14` (the 3-day tail joined) — weeks continue, second plan-end review appears |
@@ -239,7 +246,8 @@ These extend ADR-007's named list for `reviewWindows`.
   a first or last month of 1–14 days joins its neighbour, of 15 or more stands alone.
 - Two short windows only (Sat to Tue) join into one `plan_end`.
 - A fully-paused window has zero planned days and is not due; a partly-paused window
-  is due with a reduced target.
+  is due with a reduced target. A `plan_end` window with zero planned days is due
+  once closed while active, and not while paused *(I-15)*.
 - Continuous labels across an extension boundary; a second `plan_end` for the second
   segment.
 - `previous_review_id` skips an unreviewed period and points at the last *saved*

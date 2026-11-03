@@ -424,6 +424,62 @@ describe("dueWindows", () => {
       expect(due({ today: "2026-09-30", status })).toEqual([]);
     }
   });
+
+  // I-15: paused before the last week, resumed after the end.
+  const pausedThroughEnd: StatusEventRow[] = [
+    ...created,
+    { occurred_on: "2026-09-19", change: "paused" },
+    { occurred_on: "2026-09-30", change: "resumed" },
+  ];
+
+  it("makes a plan_end with no planned day due once resumed (I-15)", () => {
+    expect(due({ today: "2026-09-30", events: pausedThroughEnd })).toEqual([
+      "2026-09-13",
+      "2026-09-20",
+      "2026-09-27",
+    ]);
+  });
+
+  it("keeps that plan_end waiting while paused, and gone once saved (I-15)", () => {
+    expect(
+      due({ today: "2026-09-30", events: pausedThroughEnd, status: "paused" }),
+    ).toEqual([]);
+    expect(
+      due({
+        today: "2026-09-30",
+        events: pausedThroughEnd,
+        saved: [periodKey(schedule[2])],
+      }),
+    ).toEqual(["2026-09-13", "2026-09-20"]);
+  });
+
+  it("makes a plan_end due when the plan never had a planned day (I-15)", () => {
+    // Mondays only, Tue 8 – Sun 13 Sep: one plan_end window, no Monday in it.
+    const mondays: SegmentForSlots = {
+      ...plan,
+      plannedWeekdays: [1],
+      startDate: "2026-09-08",
+      endDate: "2026-09-13",
+    };
+    const windows = reviewSchedule(
+      cadenced("weekly", [seg(mondays.startDate, mondays.endDate)]),
+    );
+    const slots = planSlots(
+      [mondays],
+      [{ occurred_on: "2026-09-08", change: "created" }],
+    );
+    expect(windows.map((w) => w.kind)).toEqual(["plan_end"]);
+    expect(plannedDaysIn(windows[0], slots)).toBe(0);
+    expect(
+      dueWindows({
+        schedule: windows,
+        today: "2026-09-13",
+        status: "active",
+        saved: new Set(),
+        slots,
+      }).map((w) => w.period_end),
+    ).toEqual(["2026-09-13"]);
+  });
 });
 
 describe("plannedDaysIn", () => {
@@ -538,6 +594,22 @@ describe("upcomingReviewOn — the next review, due or not (G34)", () => {
     expect(
       upcoming({ today: "2026-09-15", slots: planSlots([PLAN], pausedWeek1) }),
     ).toBe("2026-09-20");
+  });
+
+  it("never skips the plan_end, even with no planned day (I-15)", () => {
+    const pausedToEnd: StatusEventRow[] = [
+      ...created,
+      { occurred_on: "2026-09-21", change: "paused" },
+      { occurred_on: "2026-09-29", change: "resumed" },
+    ];
+    const weeks = reviewSchedule(cadenced("weekly", [segment]));
+    expect(
+      upcoming({
+        today: "2026-09-29",
+        slots: planSlots([PLAN], pausedToEnd),
+        saved: new Set(weeks.slice(0, -1).map(periodKey)),
+      }),
+    ).toBe("2026-09-27");
   });
 
   it("still shows one while paused, and none once completed or ended", () => {
