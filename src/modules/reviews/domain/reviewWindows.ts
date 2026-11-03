@@ -24,7 +24,16 @@ export type ReviewWindow = {
   period_end: string;
 };
 
-export type SegmentSpan = { id: string; start_date: string; end_date: string };
+export type SegmentSpan = {
+  id: string;
+  start_date: string;
+  end_date: string;
+  /** The first day it plans; absent means `start_date` (I-14). */
+  plans_from?: string;
+};
+
+/** A segment as the schedule reads it: its span, and its own cadence (I-14). */
+export type CadencedSpan = SegmentSpan & { review_cadence: Cadence };
 
 const DAY = 86_400_000;
 const addDays = (date: string, n: number) => toIso(parseIso(date) + n * DAY);
@@ -60,6 +69,11 @@ const length = (p: { start: string; end: string }) =>
  * overlap the segment, clipped to it. A short first period joins the one
  * after it, a short last one the one before. The last window is the plan-end
  * review, whatever its length.
+ *
+ * A first period's days count from the segment's `plans_from` (I-14): a late
+ * extension's first window keeps joining the next until it has at least half
+ * a period of days to plan, so its first review never judges a couple of
+ * days. With `plans_from` at the start, that is the plain rule.
  */
 export function reviewWindows(
   cadence: Cadence,
@@ -73,7 +87,13 @@ export function reviewWindows(
     periods.push({ start, end });
     start = addDays(end, 1);
   }
-  if (periods.length > 1 && length(periods[0]) < SHORT[cadence]) {
+  // The first period starts at the segment's start, so its days to plan
+  // run from plans_from (never before the start) to its end.
+  const planned = segment.plans_from ?? segment.start_date;
+  const from = planned > segment.start_date ? planned : segment.start_date;
+  const plannable = (p: { start: string; end: string }) =>
+    p.end < from ? 0 : length({ start: from, end: p.end });
+  while (periods.length > 1 && plannable(periods[0]) < SHORT[cadence]) {
     const [first, second] = periods.splice(0, 2);
     periods.unshift({ start: first.start, end: second.end });
   }
@@ -94,25 +114,26 @@ export function reviewWindows(
 export type LabelledWindow = ReviewWindow & { label: string };
 
 /**
- * Every window of the objective, segment after segment. Labels run on across
- * an extension — Week 1 … Week 3, End of plan, Week 4 … — and each segment
- * keeps its own End of plan.
+ * Every window of the objective, segment after segment, each cut by its own
+ * segment's cadence (I-14). Labels run on across an extension — Week 1 …
+ * Week 3, End of plan, Week 4 … — and each segment keeps its own End of plan.
+ * Weeks and months are counted apart: a change to monthly continues Month 1.
  */
 export function reviewSchedule(
-  cadence: Cadence,
-  segments: readonly SegmentSpan[],
+  segments: readonly CadencedSpan[],
 ): LabelledWindow[] {
   const out: LabelledWindow[] = [];
-  let n = 0;
+  const n: Record<Cadence, number> = { weekly: 0, monthly: 0 };
   for (const segment of segments) {
+    const cadence = segment.review_cadence;
     for (const w of reviewWindows(cadence, segment)) {
       if (w.kind === "plan_end") {
         out.push({ ...w, label: "End of plan" });
       } else {
-        n += 1;
+        n[cadence] += 1;
         out.push({
           ...w,
-          label: `${cadence === "weekly" ? "Week" : "Month"} ${n}`,
+          label: `${cadence === "weekly" ? "Week" : "Month"} ${n[cadence]}`,
         });
       }
     }
@@ -186,14 +207,11 @@ export function upcomingReviewOn(input: {
  */
 export function reviewDueOn(
   date: string,
-  objectives: readonly {
-    cadence: Cadence;
-    segments: readonly SegmentSpan[];
-  }[],
+  objectives: readonly { segments: readonly CadencedSpan[] }[],
 ): string | null {
   let due: string | null = null;
   for (const o of objectives) {
-    for (const w of reviewSchedule(o.cadence, o.segments)) {
+    for (const w of reviewSchedule(o.segments)) {
       if (w.period_start <= date && date <= w.period_end) {
         if (due === null || w.period_end < due) due = w.period_end;
       }

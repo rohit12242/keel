@@ -31,6 +31,8 @@ export type ExtensionWrite = {
   extend_by_days: number;
   reason: string;
   schedule: NewSchedule;
+  /** The extension's own review cadence (I-14). */
+  review_cadence: "weekly" | "monthly";
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -71,6 +73,12 @@ export function validateExtensionWrite(
       message: "Required; 1–2000 characters. Why extend rather than complete?",
     });
   }
+  if (body.review_cadence !== "weekly" && body.review_cadence !== "monthly") {
+    errors.push({
+      field: "review_cadence",
+      message: "Required; weekly or monthly.",
+    });
+  }
   const schedule = parseSchedule(body.schedule);
   errors.push(...schedule.errors);
   if (schedule.errors.length === 0 && schedule.mismatch !== null) {
@@ -82,6 +90,7 @@ export function validateExtensionWrite(
     extend_by_days: days as number,
     reason: body.reason as string,
     schedule: normaliseSchedule(body.schedule),
+    review_cadence: body.review_cadence as "weekly" | "monthly",
   });
 }
 
@@ -185,7 +194,7 @@ export function extensionDecision(
     start_date: span.start_date,
     end_date: end,
     plans_from: span.plans_from,
-    review_cadence: row.review_cadence,
+    review_cadence: write.review_cadence,
     schedule: write.schedule,
     reason: write.reason,
     created_by_review_id: write.review_id,

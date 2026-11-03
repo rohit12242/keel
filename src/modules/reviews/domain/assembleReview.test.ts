@@ -27,8 +27,13 @@ const SLOTS = planSlots(
   [PLAN],
   [{ occurred_on: "2026-09-07", change: "created" }],
 );
-const SCHEDULE = reviewSchedule("weekly", [
-  { id: "s0", start_date: "2026-09-07", end_date: "2026-09-27" },
+const SCHEDULE = reviewSchedule([
+  {
+    id: "s0",
+    start_date: "2026-09-07",
+    end_date: "2026-09-27",
+    review_cadence: "weekly",
+  },
 ]);
 
 const review = (over: Partial<ReviewRow> = {}): ReviewRow => ({

@@ -19,6 +19,7 @@ const body = (over: Record<string, unknown> = {}) => ({
     planned_weekdays: [3, 1, 1],
     minutes_per_planned_day: 60,
   },
+  review_cadence: "monthly",
   ...over,
 });
 
@@ -35,8 +36,18 @@ describe("validateExtensionWrite", () => {
           planned_weekdays: [1, 3],
           minutes_per_planned_day: 60,
         },
+        review_cadence: "monthly",
       },
     });
+  });
+
+  it("requires the extension's own review cadence (I-14)", () => {
+    for (const review_cadence of [undefined, "daily"]) {
+      const r = validateExtensionWrite(body({ review_cadence }));
+      expect(r.ok ? [] : r.error.map((e) => e.field)).toEqual([
+        "review_cadence",
+      ]);
+    }
   });
 
   it("names every bad field, and a schedule that contradicts its mode", () => {
@@ -50,6 +61,7 @@ describe("validateExtensionWrite", () => {
       "review_id",
       "extend_by_days",
       "reason",
+      "review_cadence",
       "schedule.days_per_week",
     ]);
     const mismatch = validateExtensionWrite(
@@ -153,6 +165,7 @@ const write = (over: Partial<ExtensionWrite> = {}): ExtensionWrite => ({
     planned_weekdays: [1, 3],
     minutes_per_planned_day: 60,
   },
+  review_cadence: "monthly",
   ...over,
 });
 
@@ -184,7 +197,7 @@ describe("extensionDecision", () => {
         start_date: "2026-10-12",
         end_date: "2026-10-25",
         plans_from: "2026-10-12",
-        review_cadence: "weekly",
+        review_cadence: "monthly",
         schedule: {
           mode: "fixed",
           planned_weekdays: [1, 3],

@@ -101,7 +101,7 @@ function summaryOf(
   const latest = wf.segments[wf.segments.length - 1];
   const slots = planSlots(wf.segments.map(toSegment), row.status_events);
   const windows = {
-    schedule: reviewSchedule(row.review_cadence, wf.segments),
+    schedule: reviewSchedule(wf.segments),
     today,
     status: wf.status,
     saved: new Set(row.saved_reviews.map(periodKey)),
@@ -205,7 +205,8 @@ export function assembleObjective(
     why_now: row.why_now,
     success_criteria: row.success_criteria,
     plan_link: row.plan_link,
-    review_cadence: row.review_cadence,
+    // Each segment has its own; the objective reads as its latest (I-14).
+    review_cadence: segments[segments.length - 1].review_cadence,
     original_end_date: segments[0].end_date,
     extension_count: segments.length - 1,
     segments: segments.map(toPlanSegment),

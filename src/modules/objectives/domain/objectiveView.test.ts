@@ -574,10 +574,10 @@ describe("history", () => {
     expect(rows[0]).toMatchObject({ dot: "terminated", label: "Terminated" });
   });
 
-  it("an extension's segment without a cadence", () => {
+  it("names each plan's own cadence: a weekly plan extended as monthly (I-14)", () => {
     const rows = history(
       objective({
-        review_cadence: undefined,
+        review_cadence: "monthly",
         segments: [
           objective().segments[0],
           {
@@ -585,9 +585,9 @@ describe("history", () => {
             seq: 1,
             schedule,
             start_date: "2026-09-22",
-            end_date: "2026-09-25",
+            end_date: "2026-10-25",
             plans_from: "2026-09-22",
-            review_cadence: "weekly",
+            review_cadence: "monthly",
             reason: "",
           },
         ],
@@ -596,14 +596,16 @@ describe("history", () => {
           {
             occurred_on: "2026-09-22",
             change: "extended",
-            new_end_date: "2026-09-25",
+            new_end_date: "2026-10-25",
           },
         ],
       }),
       "2026-09-26",
     );
-    expect(rows[0].text).toBe(
-      "Extended at the final review, now planned till Fri 25 Sep. Fixed · Mon–Sat · 2h 00m a day.",
-    );
+    expect(rows.map((r) => r.text)).toEqual([
+      "Extended at the final review, now planned till Sun 25 Oct. Fixed · Mon–Sat · 2h 00m a day · monthly reviews.",
+      "Started. Planned till Mon 21 Sep with weekly reviews.",
+      "Fixed · Mon–Sat · 2h 00m a day · 30 days.",
+    ]);
   });
 });

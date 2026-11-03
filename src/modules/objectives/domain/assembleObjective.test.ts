@@ -368,6 +368,18 @@ describe("assembleObjective — with an extension", () => {
     expect(o.schedule.label).toBe("FIXED · MON, WED, FRI · 1h 30m PER DAY");
   });
 
+  it("reads the latest segment's review cadence, and each segment keeps its own (I-14)", () => {
+    const o = detail({
+      ...EXTENDED,
+      segments: [SEG_0, { ...SEG_1, review_cadence: "monthly" }],
+    });
+    expect(o.review_cadence).toBe("monthly");
+    expect(o.segments.map((x) => x.review_cadence)).toEqual([
+      "weekly",
+      "monthly",
+    ]);
+  });
+
   it("carries the stored text, and the description only when set", () => {
     const o = detail(EXTENDED);
     expect(o).toMatchObject({

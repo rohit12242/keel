@@ -14,6 +14,12 @@ import {
 } from "./reviewWindows";
 
 /** docs/domain/review-windows.md — every worked example and named edge case. */
+/** Each segment with its own cadence, as the schedule reads it (I-14). */
+const cadenced = <T extends object>(
+  cadence: "weekly" | "monthly",
+  segments: readonly T[],
+) => segments.map((x) => ({ ...x, review_cadence: cadence }));
+
 const seg = (start_date: string, end_date: string, id = "s0") => ({
   id,
   start_date,
@@ -203,10 +209,12 @@ describe("reviewWindows", () => {
 
 describe("reviewSchedule", () => {
   it("numbers weeks on across an extension, each segment with its own End of plan", () => {
-    const s = reviewSchedule("weekly", [
-      seg("2026-09-07", "2026-09-27", "s0"),
-      seg("2026-09-28", "2026-10-14", "s1"),
-    ]);
+    const s = reviewSchedule(
+      cadenced("weekly", [
+        seg("2026-09-07", "2026-09-27", "s0"),
+        seg("2026-09-28", "2026-10-14", "s1"),
+      ]),
+    );
     expect(
       s.map(
         (w) => `${w.label} ${w.period_start.slice(5)}…${w.period_end.slice(5)}`,
@@ -223,10 +231,127 @@ describe("reviewSchedule", () => {
 
   it("labels monthly windows as months", () => {
     expect(
-      reviewSchedule("monthly", [seg("2026-01-01", "2026-03-15")]).map(
-        (w) => w.label,
-      ),
+      reviewSchedule(
+        cadenced("monthly", [seg("2026-01-01", "2026-03-15")]),
+      ).map((w) => w.label),
     ).toEqual(["Month 1", "Month 2", "End of plan"]);
+  });
+});
+
+describe("reviewSchedule across a change of cadence (I-14)", () => {
+  it("cuts each segment by its own cadence and counts weeks and months apart", () => {
+    const s = reviewSchedule([
+      { ...seg("2026-09-07", "2026-09-27", "s0"), review_cadence: "weekly" },
+      { ...seg("2026-09-28", "2026-11-30", "s1"), review_cadence: "monthly" },
+      { ...seg("2026-12-01", "2026-12-20", "s2"), review_cadence: "weekly" },
+    ]);
+    expect(
+      s.map(
+        (w) => `${w.label} ${w.period_start.slice(5)}…${w.period_end.slice(5)}`,
+      ),
+    ).toEqual([
+      "Week 1 09-07…09-13",
+      "Week 2 09-14…09-20",
+      "End of plan 09-21…09-27",
+      "Month 1 09-28…10-31",
+      "End of plan 11-01…11-30",
+      "Week 3 12-01…12-06",
+      "Week 4 12-07…12-13",
+      "End of plan 12-14…12-20",
+    ]);
+  });
+
+  it("leaves an earlier segment's windows where they were", () => {
+    const before = reviewSchedule([
+      { ...seg("2026-09-07", "2026-09-27", "s0"), review_cadence: "weekly" },
+    ]);
+    const after = reviewSchedule([
+      { ...seg("2026-09-07", "2026-09-27", "s0"), review_cadence: "weekly" },
+      { ...seg("2026-09-28", "2026-11-30", "s1"), review_cadence: "monthly" },
+    ]);
+    expect(after.slice(0, before.length)).toEqual(before);
+  });
+});
+
+describe("a late extension's first window counts from plans_from (I-14)", () => {
+  // The old plan ended Fri 4 Sep; the extension starts Sat 5 Sep.
+  const late = (plans_from: string, end = "2026-10-04") => ({
+    id: "s1",
+    start_date: "2026-09-05",
+    end_date: end,
+    plans_from,
+  });
+  const spans = (ws: readonly { period_start: string; period_end: string }[]) =>
+    ws.map((w) => `${w.period_start.slice(5)}…${w.period_end.slice(5)}`);
+
+  it("joins forward until the first window has half a week to plan", () => {
+    // Made Fri 11 Sep: Sat 5–Sun 6 plans nothing, Sat 5–Sun 13 only 3 days.
+    expect(spans(reviewWindows("weekly", late("2026-09-11")))).toEqual([
+      "09-05…09-20",
+      "09-21…09-27",
+      "09-28…10-04",
+    ]);
+  });
+
+  it("stops joining once the window is no longer short", () => {
+    // Made Thu 10 Sep: Sat 5 – Sun 13 has 4 days from it.
+    expect(spans(reviewWindows("weekly", late("2026-09-10")))[0]).toBe(
+      "09-05…09-13",
+    );
+  });
+
+  it("joins a gap of several whole weeks", () => {
+    // Made Fri 25 Sep: three weeks plan nothing, and 25–27 Sep only 3 days.
+    expect(
+      spans(reviewWindows("weekly", late("2026-09-25", "2026-10-25")))[0],
+    ).toBe("09-05…10-04");
+    // Made Thu 24 Sep: 24–27 Sep is 4 days, enough.
+    expect(
+      spans(reviewWindows("weekly", late("2026-09-24", "2026-10-25")))[0],
+    ).toBe("09-05…09-27");
+  });
+
+  it("makes one plan-end window when joining reaches the end", () => {
+    const ws = reviewWindows("weekly", late("2026-09-25", "2026-09-27"));
+    expect(ws).toEqual([
+      {
+        segment_id: "s1",
+        kind: "plan_end",
+        seq_in_seg: 0,
+        period_start: "2026-09-05",
+        period_end: "2026-09-27",
+      },
+    ]);
+  });
+
+  it("counts half a month the same way", () => {
+    // Made Thu 17 Sep: 14 days left in September, under 15.
+    const monthly = {
+      id: "s1",
+      start_date: "2026-09-05",
+      end_date: "2026-11-30",
+      plans_from: "2026-09-17",
+    };
+    expect(spans(reviewWindows("monthly", monthly))[0]).toBe("09-05…10-31");
+    expect(
+      spans(
+        reviewWindows("monthly", { ...monthly, plans_from: "2026-09-16" }),
+      )[0],
+    ).toBe("09-05…09-30");
+  });
+
+  it("never counts from before the start", () => {
+    expect(reviewWindows("weekly", late("2026-09-01"))).toEqual(
+      reviewWindows("weekly", late("2026-09-05")),
+    );
+  });
+
+  it("is the plain rule when plans_from is the start", () => {
+    const onTime = late("2026-09-05");
+    expect(reviewWindows("weekly", onTime)).toEqual(
+      reviewWindows("weekly", { ...onTime, plans_from: undefined }),
+    );
+    expect(spans(reviewWindows("weekly", onTime))[0]).toBe("09-05…09-13");
   });
 });
 
@@ -238,9 +363,9 @@ describe("dueWindows", () => {
     startDate: "2026-09-07", // a Monday
     endDate: "2026-09-27",
   };
-  const schedule = reviewSchedule("weekly", [
-    seg(plan.startDate, plan.endDate),
-  ]);
+  const schedule = reviewSchedule(
+    cadenced("weekly", [seg(plan.startDate, plan.endDate)]),
+  );
   const created: StatusEventRow[] = [
     { occurred_on: "2026-09-07", change: "created" },
   ];
@@ -332,8 +457,9 @@ describe("plannedDaysIn", () => {
 
 describe("reviewDueOn — the review that will judge a date (G33)", () => {
   const weekly = {
-    cadence: "weekly" as const,
-    segments: [{ id: "s0", start_date: "2026-09-07", end_date: "2026-09-27" }],
+    segments: cadenced("weekly", [
+      { id: "s0", start_date: "2026-09-07", end_date: "2026-09-27" },
+    ]),
   };
 
   it("is the end of the window the date falls in", () => {
@@ -344,10 +470,9 @@ describe("reviewDueOn — the review that will judge a date (G33)", () => {
 
   it("takes the earlier end across the objectives a date names", () => {
     const monthly = {
-      cadence: "monthly" as const,
-      segments: [
+      segments: cadenced("monthly", [
         { id: "m0", start_date: "2026-08-20", end_date: "2026-12-19" },
-      ],
+      ]),
     };
     // The 12 days of August join September.
     expect(reviewDueOn("2026-08-25", [monthly])).toBe("2026-09-30");
@@ -381,7 +506,7 @@ describe("upcomingReviewOn — the next review, due or not (G34)", () => {
     over: Partial<Parameters<typeof upcomingReviewOn>[0]> = {},
   ) =>
     upcomingReviewOn({
-      schedule: reviewSchedule("weekly", [segment]),
+      schedule: reviewSchedule(cadenced("weekly", [segment])),
       today: "2026-09-09",
       status: "active",
       saved: new Set(),
@@ -422,7 +547,7 @@ describe("upcomingReviewOn — the next review, due or not (G34)", () => {
   });
 
   it("is null once every window is saved", () => {
-    const all = reviewSchedule("weekly", [segment]);
+    const all = reviewSchedule(cadenced("weekly", [segment]));
     expect(
       upcoming({ today: "2026-09-27", saved: new Set(all.map(periodKey)) }),
     ).toBeNull();

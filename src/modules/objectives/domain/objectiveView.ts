@@ -431,7 +431,8 @@ const runLength = (days: number) =>
  */
 export function history(o: Objective, today: string): HistoryRow[] {
   const first = o.segments[0];
-  const cadence = o.review_cadence ? ` with ${o.review_cadence} reviews` : "";
+  // The original plan's cadence, not the latest segment's (I-14).
+  const cadence = ` with ${first.review_cadence} reviews`;
   const started: HistoryRow = {
     date: o.start_date,
     dot: "active",
@@ -508,9 +509,7 @@ function eventRow(
         (s) => s.seq > 0 && s.start_date === e.occurred_on,
       );
       const plan = segment
-        ? ` ${scheduleLine(segment.schedule, duration)}${
-            o.review_cadence ? ` · ${o.review_cadence} reviews` : ""
-          }.`
+        ? ` ${scheduleLine(segment.schedule, duration)} · ${segment.review_cadence} reviews.`
         : "";
       return {
         date: e.occurred_on,

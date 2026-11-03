@@ -80,8 +80,13 @@ export type DeviationRow = {
   pattern_nth: number | null;
   /** What the review windows need, per objective it names. Not shown. */
   review_objectives: {
-    review_cadence: "weekly" | "monthly";
-    segments: { id: string; start_date: string; end_date: string }[];
+    segments: {
+      id: string;
+      start_date: string;
+      end_date: string;
+      plans_from: string;
+      review_cadence: "weekly" | "monthly";
+    }[];
   }[];
 };
 
@@ -90,7 +95,7 @@ export type DeviationRow = {
  * `pattern_nth` counts by date, then as recorded — "3rd time" (G32).
  * `verdict_saved` says whether the verdict may be read outside its review
  * (G47). The
- * objectives' cadence and segments feed `review_due_on`, which is computed
+ * objectives' segments, each with its own cadence (I-14), feed `review_due_on`, which is computed
  * from the review windows, never stored (G33).
  */
 export const DEVIATION_COLUMNS = `
@@ -111,12 +116,13 @@ export const DEVIATION_COLUMNS = `
   ) END AS pattern_nth,
   COALESCE((
     SELECT json_agg(json_build_object(
-      'review_cadence', o.review_cadence,
       'segments', (
         SELECT json_agg(json_build_object(
           'id', s.id,
           'start_date', to_char(s.start_date, 'YYYY-MM-DD'),
-          'end_date', to_char(s.end_date, 'YYYY-MM-DD')
+          'end_date', to_char(s.end_date, 'YYYY-MM-DD'),
+          'plans_from', to_char(s.plans_from, 'YYYY-MM-DD'),
+          'review_cadence', s.review_cadence
         ) ORDER BY s.seq)
         FROM plan_segment s WHERE s.objective_id = o.id)
     ))

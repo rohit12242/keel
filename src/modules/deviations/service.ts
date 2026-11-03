@@ -58,10 +58,7 @@ export function recorded(row: DeviationRow): RecordedDeviation {
     ...rest,
     review_due_on: reviewDueOn(
       row.local_date,
-      review_objectives.map((o) => ({
-        cadence: o.review_cadence,
-        segments: o.segments ?? [],
-      })),
+      review_objectives.map((o) => ({ segments: o.segments ?? [] })),
     ),
     ...(reasoning === null ? {} : { reasoning }),
     ...(did_instead === null ? {} : { did_instead }),
