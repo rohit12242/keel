@@ -507,7 +507,7 @@ function eventRow(
       };
     case "extended": {
       const segment = o.segments.find(
-        (s) => s.seq > 0 && s.start_date === e.occurred_on,
+        (s) => s.seq > 0 && s.plans_from === e.occurred_on,
       );
       const plan = segment
         ? ` ${scheduleLine(segment.schedule, duration)} · ${segment.review_cadence} reviews.`

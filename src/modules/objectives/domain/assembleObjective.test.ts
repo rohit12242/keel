@@ -442,6 +442,17 @@ describe("assembleObjective — with an extension", () => {
     ]);
   });
 
+  it("dates a late extension by the day it was made, not its start (I-14)", () => {
+    const late = detail({
+      ...EXTENDED,
+      segments: [SEG_0, { ...SEG_1, plans_from: "2026-11-20" }],
+    }).status_history.at(-1);
+    expect(late).toMatchObject({
+      change: "extended",
+      occurred_on: "2026-11-20",
+    });
+  });
+
   it("orders an extension before a later event", () => {
     const history = detail({
       ...EXTENDED,

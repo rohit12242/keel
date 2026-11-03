@@ -107,9 +107,10 @@ describe("extending a plan (real Postgres)", () => {
       original_end_date: "2026-10-11",
       end_date: segment.end_date,
     });
+    // Made after the plan ended, so dated the day it was made (I-14).
     expect(o.status_history.at(-1)).toMatchObject({
       change: "extended",
-      occurred_on: "2026-10-12",
+      occurred_on: segment.plans_from,
       new_end_date: segment.end_date,
     });
   });
