@@ -158,7 +158,8 @@ export function plannedDaysIn(
 /**
  * The windows that are due, earliest first: closed (today on or after its
  * period_end), not saved, with at least one planned day — and only while the
- * objective is active. `next_review_on` is the first one's period_end;
+ * objective is active. A plan_end window needs no planned day: a plan ends
+ * only through its final review, so a pause must not hide it (I-15). `next_review_on` is the first one's period_end;
  * `reviews_due` is how many there are.
  */
 export function dueWindows<W extends ReviewWindow>(input: {
@@ -173,14 +174,14 @@ export function dueWindows<W extends ReviewWindow>(input: {
     (w) =>
       input.today >= w.period_end &&
       !input.saved.has(periodKey(w)) &&
-      plannedDaysIn(w, input.slots) > 0,
+      (w.kind === "plan_end" || plannedDaysIn(w, input.slots) > 0),
   );
 }
 
 /**
  * The next review, due or not (G34): the period_end of the earliest window
  * without a saved review. A window that has closed with no planned day is
- * skipped — it can never become due. Null once none is left, and once the
+ * skipped — it can never become due — unless it is the plan_end (I-15). Null once none is left, and once the
  * objective is completed or ended; a paused one still has one.
  */
 export function upcomingReviewOn(input: {
@@ -194,7 +195,11 @@ export function upcomingReviewOn(input: {
   const next = input.schedule.find(
     (w) =>
       !input.saved.has(periodKey(w)) &&
-      !(input.today >= w.period_end && plannedDaysIn(w, input.slots) === 0),
+      !(
+        w.kind !== "plan_end" &&
+        input.today >= w.period_end &&
+        plannedDaysIn(w, input.slots) === 0
+      ),
   );
   return next ? next.period_end : null;
 }

@@ -2,8 +2,15 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { getPool, query } from "@/shared/db";
 import * as route from "@/app/v1/objectives/[objectiveId]/status-changes/route";
 import * as one from "@/app/v1/objectives/[objectiveId]/route";
+import * as reviewsOf from "@/app/v1/objectives/[objectiveId]/reviews/route";
 import type { Objective } from "@/shared/contract";
-import { testObjective, testUser, type TestUser } from "@/test/fixtures";
+import type { ReviewList } from "@/shared/contract";
+import {
+  testObjective,
+  testUser,
+  todayIn,
+  type TestUser,
+} from "@/test/fixtures";
 
 /**
  * I-02 step 11 — status changes through the route: every declared response,
@@ -73,6 +80,43 @@ describe("status changes (real Postgres)", () => {
       "paused",
       "resumed",
     ]);
+  });
+
+  it("makes the final review due on a resume after the end, though its week was all paused (I-15)", async () => {
+    // Mon 14 Sep – Sun 11 Oct, weekly. Paused from the last week's first
+    // day, resumed today: the End of plan window has no planned day.
+    expect(
+      (await post({ change: "pause", occurred_on: "2026-10-05", reason: "r" }))
+        .status,
+    ).toBe(201);
+    expect(
+      (await post({ change: "resume", occurred_on: todayIn("Asia/Kolkata") }))
+        .status,
+    ).toBe(201);
+    const listed = await reviewsOf.GET(
+      new Request(`http://keel.test/v1/objectives/${objectiveId}/reviews`, {
+        headers: { cookie: me.cookie },
+      }),
+      params(objectiveId),
+    );
+    const { due } = (await listed.json()) as ReviewList;
+    expect(due.at(-1)).toMatchObject({
+      kind: "plan_end",
+      period_start: "2026-10-05",
+      period_end: "2026-10-11",
+    });
+    const started = await reviewsOf.POST(
+      new Request(`http://keel.test/v1/objectives/${objectiveId}/reviews`, {
+        method: "POST",
+        headers: { cookie: me.cookie },
+        body: JSON.stringify({
+          period_start: "2026-10-05",
+          period_end: "2026-10-11",
+        }),
+      }),
+      params(objectiveId),
+    );
+    expect(started.status).toBe(201);
   });
 
   it("409s a change that does not follow, and appends nothing", async () => {
