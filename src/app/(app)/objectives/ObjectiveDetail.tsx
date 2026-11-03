@@ -20,6 +20,7 @@ import { footer } from "@/modules/objectives/domain/statusActions";
 import { DeviationsTab } from "./DeviationsTab";
 import { EffortTab } from "./EffortTab";
 import { Notes } from "./Notes";
+import { Resume } from "./Resume";
 import { DueBanner, ExtensionOwed, ReviewsTab } from "./ReviewsTab";
 import type { TabId } from "./tabs";
 import list from "../listDetail.module.css";
@@ -194,6 +195,9 @@ function Overview({
           <b>{b.title}</b>
           {b.quote ? <p className={styles.p}>&ldquo;{b.quote}&rdquo;</p> : null}
           {b.note ? <span className={styles.hint}>{b.note}</span> : null}
+          {o.status === "paused" ? (
+            <Resume o={o} reviews={reviews} tz={tz} />
+          ) : null}
         </div>
       ) : null}
 

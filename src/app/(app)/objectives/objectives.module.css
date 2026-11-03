@@ -367,6 +367,47 @@
   padding: var(--space-10) var(--space-12);
 }
 
+.resume {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+.resumeButton,
+.pauseButton,
+.terminateButton {
+  min-height: 40px;
+  padding: var(--space-8) var(--space-16);
+  border-radius: var(--radius-lg);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.resumeButton,
+.pauseButton {
+  border: var(--border-hairline) solid var(--line-control);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.terminateButton {
+  border: 0;
+  background: var(--deviation-tint);
+  color: var(--deviation);
+}
+
+.resumeButton:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.resumeButton:focus-visible,
+.pauseButton:focus-visible,
+.terminateButton:focus-visible,
 .addNote:focus-visible {
   outline: var(--border-focus) solid var(--accent);
   outline-offset: 2px;
