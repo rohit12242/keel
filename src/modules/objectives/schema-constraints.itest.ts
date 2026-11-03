@@ -68,8 +68,9 @@ async function attemptCommit(
 const SEG = (seq: number, start: string, end: string) => ({
   sql: `INSERT INTO plan_segment
           (objective_id, seq, schedule_mode, planned_weekdays,
-           minutes_per_planned_day, start_date, end_date, reason)
-        VALUES ($1, $2, 'fixed', 31, 120, $3, $4, 'W4-10 itest')`,
+           minutes_per_planned_day, start_date, end_date, reason,
+           plans_from, review_cadence)
+        VALUES ($1, $2, 'fixed', 31, 120, $3, $4, 'W4-10 itest', $3, 'weekly')`,
   params: [OBJECTIVE_ID, seq, start, end],
 });
 
@@ -82,8 +83,10 @@ function insertSegment(
   return {
     sql: `INSERT INTO plan_segment
             (objective_id, seq, schedule_mode, ${columns},
-             minutes_per_planned_day, start_date, end_date, reason)
-          VALUES ($1, $2, $3, ${values}, $4, $5, '2026-10-18', 'W4-10 itest')`,
+             minutes_per_planned_day, start_date, end_date, reason,
+             plans_from, review_cadence)
+          VALUES ($1, $2, $3, ${values}, $4, $5, '2026-10-18', 'W4-10 itest',
+                  $5, 'weekly')`,
     params: [OBJECTIVE_ID, 1, "fixed", 120, start],
   };
 }
@@ -121,8 +124,10 @@ describe("W4-10 schema constraints (real Postgres)", () => {
       const err = await attempt(
         `INSERT INTO plan_segment
            (objective_id, seq, schedule_mode, days_per_week,
-            minutes_per_planned_day, start_date, end_date, reason)
-         VALUES ($1, 1, 'flexible', $2, 120, $3, '2026-10-18', 'W4-10 itest')`,
+            minutes_per_planned_day, start_date, end_date, reason,
+            plans_from, review_cadence)
+         VALUES ($1, 1, 'flexible', $2, 120, $3, '2026-10-18', 'W4-10 itest',
+                 $3, 'weekly')`,
         [OBJECTIVE_ID, days, ADJACENT],
       );
       expect(err?.constraint, `days_per_week = ${days}`).toBe(
@@ -145,8 +150,10 @@ describe("W4-10 schema constraints (real Postgres)", () => {
     const err = await attempt(
       `INSERT INTO plan_segment
          (objective_id, seq, schedule_mode, planned_weekdays,
-          minutes_per_planned_day, start_date, end_date, reason)
-       VALUES ($1, 1, 'fixed', 31, 0, $2, '2026-10-18', 'W4-10 itest')`,
+          minutes_per_planned_day, start_date, end_date, reason,
+          plans_from, review_cadence)
+       VALUES ($1, 1, 'fixed', 31, 0, $2, '2026-10-18', 'W4-10 itest',
+               $2, 'weekly')`,
       [OBJECTIVE_ID, ADJACENT],
     );
     expect(err?.constraint).toBe("plan_segment_minutes_positive");
@@ -156,11 +163,43 @@ describe("W4-10 schema constraints (real Postgres)", () => {
     const err = await attempt(
       `INSERT INTO plan_segment
          (objective_id, seq, schedule_mode, planned_weekdays,
-          minutes_per_planned_day, start_date, end_date, reason)
-       VALUES ($1, -1, 'fixed', 31, 120, $2, '2026-10-18', 'W4-10 itest')`,
+          minutes_per_planned_day, start_date, end_date, reason,
+          plans_from, review_cadence)
+       VALUES ($1, -1, 'fixed', 31, 120, $2, '2026-10-18', 'W4-10 itest',
+               $2, 'weekly')`,
       [OBJECTIVE_ID, ADJACENT],
     );
     expect(err?.constraint).toBe("plan_segment_seq_non_negative");
+  });
+
+  it("refuses plans_from outside the segment (I-14)", async () => {
+    for (const day of ["2026-10-11", "2026-10-19"]) {
+      const err = await attempt(
+        `INSERT INTO plan_segment
+           (objective_id, seq, schedule_mode, planned_weekdays,
+            minutes_per_planned_day, start_date, end_date, reason,
+            plans_from, review_cadence)
+         VALUES ($1, 1, 'fixed', 31, 120, $2, '2026-10-18', 'I-14 itest',
+                 $3, 'weekly')`,
+        [OBJECTIVE_ID, ADJACENT, day],
+      );
+      expect(err?.constraint, `plans_from = ${day}`).toBe(
+        "plan_segment_plans_from_in_range",
+      );
+    }
+  });
+
+  it("accepts plans_from later than the start, inside the segment (I-14)", async () => {
+    const err = await attempt(
+      `INSERT INTO plan_segment
+         (objective_id, seq, schedule_mode, planned_weekdays,
+          minutes_per_planned_day, start_date, end_date, reason,
+          plans_from, review_cadence)
+       VALUES ($1, 1, 'fixed', 31, 120, $2, '2026-10-18', 'I-14 itest',
+               '2026-10-15', 'monthly')`,
+      [OBJECTIVE_ID, ADJACENT],
+    );
+    expect(err).toBeUndefined();
   });
 
   it("refuses a second 'created' event for one objective (invariant 16)", async () => {
@@ -218,6 +257,20 @@ describe("W4-10 schema constraints (real Postgres)", () => {
     expect(res.rows[0].occurred_on).toBe(res.rows[0].start);
     // A DATE comes back as a 'YYYY-MM-DD' string, never a JS Date (NFR-12).
     expect(typeof res.rows[0].occurred_on).toBe("string");
+  });
+
+  it("gave segment 0 plans_from = start_date and its objective's cadence (I-14)", async () => {
+    const res = await client.query<{ segments: string; wrong: string }>(
+      `SELECT count(*) AS segments,
+              count(*) FILTER (
+                WHERE s.plans_from <> s.start_date
+                   OR s.review_cadence <> o.review_cadence
+              ) AS wrong
+       FROM plan_segment s JOIN objective o ON o.id = s.objective_id
+       WHERE s.seq = 0`,
+    );
+    expect(Number(res.rows[0].segments)).toBeGreaterThan(0);
+    expect(Number(res.rows[0].wrong)).toBe(0);
   });
 
   it("accepts a contiguous segment, so the trigger is not refusing everything", async () => {

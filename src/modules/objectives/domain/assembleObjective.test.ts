@@ -20,6 +20,8 @@ const SEG_0: ObjectiveSegmentRow = {
   minutes_per_planned_day: 60,
   start_date: "2026-11-02", // Monday
   end_date: "2026-11-15",
+  plans_from: "2026-11-02",
+  review_cadence: "weekly",
   reason: "Why this, now.",
   created_by_review_id: null,
 };
@@ -340,6 +342,8 @@ describe("assembleObjective — with an extension", () => {
     minutes_per_planned_day: 90,
     start_date: "2026-11-16",
     end_date: "2026-11-29",
+    plans_from: "2026-11-16",
+    review_cadence: "weekly",
     reason: "Extending rather than restarting.",
     created_by_review_id: "review-1",
   };
@@ -362,6 +366,18 @@ describe("assembleObjective — with an extension", () => {
     expect(o.original_end_date).toBe("2026-11-15");
     expect(o.extension_count).toBe(1);
     expect(o.schedule.label).toBe("FIXED · MON, WED, FRI · 1h 30m PER DAY");
+  });
+
+  it("reads the latest segment's review cadence, and each segment keeps its own (I-14)", () => {
+    const o = detail({
+      ...EXTENDED,
+      segments: [SEG_0, { ...SEG_1, review_cadence: "monthly" }],
+    });
+    expect(o.review_cadence).toBe("monthly");
+    expect(o.segments.map((x) => x.review_cadence)).toEqual([
+      "weekly",
+      "monthly",
+    ]);
   });
 
   it("carries the stored text, and the description only when set", () => {
@@ -389,6 +405,8 @@ describe("assembleObjective — with an extension", () => {
         },
         start_date: "2026-11-02",
         end_date: "2026-11-15",
+        plans_from: "2026-11-02",
+        review_cadence: "weekly",
         reason: "Why this, now.",
         created_by_review_id: null,
       },
@@ -403,6 +421,8 @@ describe("assembleObjective — with an extension", () => {
         },
         start_date: "2026-11-16",
         end_date: "2026-11-29",
+        plans_from: "2026-11-16",
+        review_cadence: "weekly",
         reason: "Extending rather than restarting.",
         created_by_review_id: "review-1",
       },
@@ -420,6 +440,17 @@ describe("assembleObjective — with an extension", () => {
         new_end_date: "2026-11-29",
       },
     ]);
+  });
+
+  it("dates a late extension by the day it was made, not its start (I-14)", () => {
+    const late = detail({
+      ...EXTENDED,
+      segments: [SEG_0, { ...SEG_1, plans_from: "2026-11-20" }],
+    }).status_history.at(-1);
+    expect(late).toMatchObject({
+      change: "extended",
+      occurred_on: "2026-11-20",
+    });
   });
 
   it("orders an extension before a later event", () => {

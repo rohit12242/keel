@@ -67,6 +67,13 @@ Given a segment with `start_date` **S** and `end_date` **E** (inclusive, S ≤ E
    full one. A short first window joins the window after it; a short last window joins
    the window before it. So a joined weekly window runs up to 10 days, a monthly one up
    to 45. When joining leaves one window, it is `[S, E]`.
+   - *The first period counts from `plans_from`.* *(I-14.)* Its days are counted from
+     the segment's `plans_from`, not from S, and it keeps joining the next period while
+     it is still short. A late extension's first review so never judges a couple of
+     days: an extension starting Sat 5 Sep and planning from Fri 11 Sep has a first
+     weekly window of Sat 5 – Sun 20, not Sat 5 – Sun 13. Where `plans_from` is S —
+     every segment but a late extension — this is the rule above, unchanged. The last
+     period is unaffected.
 3. **The last window is the plan-end review.** Whichever window ends at E is typed
    `plan_end` and labelled *End of plan*, **not** by cadence — even when it is a
    full-length week. Every earlier window keeps the cadence kind (`weekly` /
@@ -76,7 +83,16 @@ Given a segment with `start_date` **S** and `end_date` **E** (inclusive, S ≤ E
 4. **A segment shorter than one window** yields a single `plan_end` window `[S, E]`
    and nothing numbered.
 
-Pauses do **not** enter this function — see below.
+Pauses do **not** enter this function — see below. A segment's `plans_from` enters
+only the first-period join above: a late extension's windows still tile from its
+`start_date`, and a window holding only days before `plans_from` has no planned day,
+so it is never due (I-14).
+
+**The cadence is the segment's.** *(I-14.)* Each segment carries its own
+`review_cadence`, set when it is created — segment 0 from the objective's create
+request, an extension from its own request — so the function's inputs are
+`(segment.review_cadence, segment)`. An extension can change the cadence without
+moving a window of any earlier segment.
 
 ### Pauses shift nothing; they empty windows
 
@@ -105,7 +121,9 @@ in date order, then:
 
 - **Labels (G-08) run continuously across the whole objective.** Numbering does not
   restart per segment: `Week 1 … Week 3`, `End of plan` (segment 0), then
-  `Week 4 …`, `End of plan` (segment 1). Each segment keeps its own `plan_end`
+  `Week 4 …`, `End of plan` (segment 1). Weeks and months are counted apart: an
+  extension that changes to monthly reviews continues `Month 1 …`, and a later return
+  to weekly continues the week count *(I-14)*. Each segment keeps its own `plan_end`
   window; they are told apart by date, not by the label. *Continuous, not
   per-segment* is the G-08 decision — it matches the reviews list, which shows weeks
   continuing after an extension.

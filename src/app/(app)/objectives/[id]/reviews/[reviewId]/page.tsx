@@ -10,12 +10,12 @@ import { reviewHead } from "@/modules/reviews/domain/reviewView";
 import { PageHeader } from "../../../../PageHeader";
 import { readApi, type Read } from "../../../../readApi";
 import { requireUser } from "../../../../requireUser";
+import { FinalReviewForm } from "../../../review/FinalReviewForm";
 import { ReviewForm } from "../../../review/ReviewForm";
 import { ReviewHead } from "../../../review/ReviewHead";
 import { SavedReview } from "../../../review/SavedReview";
 import { Unreachable } from "../../../Screen";
 import { dayAndZone } from "../../../today";
-import shell from "../../../../shell.module.css";
 
 export const metadata: Metadata = { title: "Review · Keel" };
 
@@ -33,11 +33,15 @@ const valueOf = <T,>(r: Read<T>): T | null =>
  */
 export default async function ReviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; reviewId: string }>;
+  /** `?extend=1`: the Overview sent the user to make an owed extension (G49). */
+  searchParams: Promise<{ extend?: string }>;
 }) {
   const user = await requireUser();
   const { id, reviewId } = await params;
+  const { extend } = await searchParams;
   const { today, tz } = await dayAndZone(user);
 
   const read = await readApi<Review>(
@@ -78,13 +82,19 @@ export default async function ReviewPage({
   const previousReview = previous ? valueOf(previous) : null;
   const days = valueOf(grid)?.days ?? null;
 
-  // The final review opens with its own intent (Rohit, 2026-11-02).
-  if (review.kind === "plan_end") {
+  // The final review: the whole plan, the criteria, and what next (I-14).
+  if (review.kind === "plan_end" && !saved) {
     return (
-      <>
-        <ReviewHead head={head} back={back} />
-        <p className={shell.notBuilt}>This screen isn&rsquo;t built yet.</p>
-      </>
+      <FinalReviewForm
+        key={review.id}
+        review={review}
+        previous={previousReview}
+        objective={o}
+        head={head}
+        back={back}
+        tz={tz}
+        today={today}
+      />
     );
   }
 
@@ -119,6 +129,8 @@ export default async function ReviewPage({
         grid={days}
         list={reviews.reviews}
         due={reviews.due}
+        objective={o}
+        extend={extend === "1"}
         today={today}
       />
     </>

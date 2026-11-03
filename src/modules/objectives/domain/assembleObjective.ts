@@ -101,7 +101,7 @@ function summaryOf(
   const latest = wf.segments[wf.segments.length - 1];
   const slots = planSlots(wf.segments.map(toSegment), row.status_events);
   const windows = {
-    schedule: reviewSchedule(row.review_cadence, wf.segments),
+    schedule: reviewSchedule(wf.segments),
     today,
     status: wf.status,
     saved: new Set(row.saved_reviews.map(periodKey)),
@@ -145,7 +145,8 @@ export function assembleSummary(
  * Status events and extensions, merged by date. The two are stored apart — an
  * extension is a segment, never a status event — and joined only here, so the
  * history can never show one twice (ERD, "a merge, not a table"). An extension
- * is dated by the day its segment starts. Same-day rows keep their order:
+ * is dated by the day it plans from: the day it was made, since an extension
+ * is made only once the plan has ended (I-14). Same-day rows keep their order:
  * status events first, as recorded, then extensions.
  */
 function statusHistory(
@@ -160,7 +161,7 @@ function statusHistory(
   const extensions: StatusEvent[] = segments
     .filter((s) => s.seq > 0)
     .map((s) => ({
-      occurred_on: s.start_date,
+      occurred_on: s.plans_from,
       change: "extended",
       reason: s.reason,
       new_end_date: s.end_date,
@@ -177,6 +178,8 @@ function toPlanSegment(segment: ObjectiveSegmentRow): PlanSegment {
     schedule: toSchedule(segment),
     start_date: segment.start_date,
     end_date: segment.end_date,
+    plans_from: segment.plans_from,
+    review_cadence: segment.review_cadence,
     reason: segment.reason,
     created_by_review_id: segment.created_by_review_id,
   };
@@ -203,7 +206,8 @@ export function assembleObjective(
     why_now: row.why_now,
     success_criteria: row.success_criteria,
     plan_link: row.plan_link,
-    review_cadence: row.review_cadence,
+    // Each segment has its own; the objective reads as its latest (I-14).
+    review_cadence: segments[segments.length - 1].review_cadence,
     original_end_date: segments[0].end_date,
     extension_count: segments.length - 1,
     segments: segments.map(toPlanSegment),

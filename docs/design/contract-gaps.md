@@ -53,6 +53,8 @@ Checked against `docs/keel-api.yaml`, `docs/domain/*.md` and ADR-002 on 20 Oct 2
 | G45 | **An objective whose plan has ended** on Today, before its final review | The design says nothing, and `DayObjective` has no end date, so Today can't tell a plan that has ended from one with no planned day left. | Return the plan's end date, and show "Plan ended · final review due". *(Found in I-08.)* | Yes, for that card |
 | G46 | **Pulled you away from**: one objective | A deviation names one or several (`objective_ids`), a rule confirmed in I-02. | Keep the API's several; the dialog picks one. *(Found in I-12.)* | No |
 | G47 | **A deviation's verdict** on the Deviations page and Today, "once a review has given one" | A verdict is written while the review is still a draft, so it reads before the review is saved. | Read a verdict outside its review only once that review is saved; discarding clears it. *(Found in I-13.)* | Yes, for honest verdicts |
+| G48 | **Extend** from a final review saved after the plan ended: "Sat 5 – Fri 25 Sep" | Segments are contiguous, so an extension starts the day after the old end: days already past become planned days that can never be logged, so they read as missed, and "extend by 2 weeks" leaves fewer days. | The extension plans from the day it is made; days before plan nothing. *(Found in I-14.)* | Yes, for honest figures |
+| G49 | **Save review and extend** as one action | Saving the review and creating the extension are two calls (G9); the second can fail after the first. | Keep two calls; offer the extension again until it is made. *(Found in I-14.)* | No |
 
 ## Decided in I-03
 
@@ -144,6 +146,16 @@ The table above is the gap as the design found it. This is how each was closed
 | G21 | Still kept: recomputed. The saved review reads "Recomputed from the record" (`05-reviews.md`). |
 | G47 | Outside its review, a verdict reads only once that review is saved; inside the draft it reads as given. Discarding a draft clears its verdicts (`DELETE /reviews/{id}`, already so). |
 | — | A draft can be discarded: **Discard draft**, with a confirm, in the review's sticky bar (`05-reviews.md`). Closes the I-03 TRIAGE entry. |
+
+## Decided in I-14
+
+| # | Decision |
+|---|---|
+| G48 | `plans_from` on `plan_segment` and `PlanSegment`: the later of the day after the old end and the day the extension is made. Days before it plan nothing, like paused days; segments stay contiguous. `extend_by_days` counts from it. |
+| G49 | Kept: two calls. Until the extension exists, the saved final review and the Overview offer **Make the extension** (`05-reviews.md`). |
+| — | The UI keeps an extension to six months or 26 weeks; the contract keeps 365 days. Extensions are fixed only in v1 (I-09). |
+| — | **Review every** for an extension: `review_cadence` on `plan_segment`, `PlanSegment` and the `POST /extensions` body (required). `Objective.review_cadence` is the latest segment's. Earlier windows never move (ADR-008, I-14). |
+| — | A late extension's first window is short by its days from `plans_from`, and joins forward until it isn't (`review-windows.md`). |
 
 ## Names that differ (not gaps — map them in the UI)
 

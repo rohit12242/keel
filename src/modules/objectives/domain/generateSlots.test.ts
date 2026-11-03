@@ -120,3 +120,78 @@ describe("generateSlots (flexible)", () => {
     expect(generateSlots({ ...FLEXIBLE, daysPerWeek: undefined })).toEqual([]);
   });
 });
+
+/**
+ * I-14 (G48): an extension made after the plan ended plans from the day it was
+ * made. No slot falls before `plansFrom`, as no slot falls in a pause.
+ */
+describe("generateSlots from plansFrom", () => {
+  it("makes no day slot before plansFrom", () => {
+    const slots = generateSlots({
+      scheduleMode: "fixed",
+      plannedWeekdays: [1, 2, 3, 4, 5],
+      minutesPerPlannedDay: 60,
+      startDate: "2026-09-14",
+      endDate: "2026-09-20",
+      plansFrom: "2026-09-17",
+    });
+    expect(slots.map((s) => s.periodStart)).toEqual([
+      "2026-09-17",
+      "2026-09-18",
+    ]);
+  });
+
+  it("is the whole segment when plansFrom is the start, or absent", () => {
+    const base = {
+      scheduleMode: "fixed" as const,
+      plannedWeekdays: [1, 3],
+      minutesPerPlannedDay: 60,
+      startDate: "2026-09-14",
+      endDate: "2026-09-27",
+    };
+    expect(generateSlots({ ...base, plansFrom: "2026-09-14" })).toEqual(
+      generateSlots(base),
+    );
+  });
+
+  it("clips a flexible week to plansFrom, and asks no more than the days left", () => {
+    const slots = generateSlots({
+      scheduleMode: "flexible",
+      plannedWeekdays: [],
+      daysPerWeek: 4,
+      minutesPerPlannedDay: 60,
+      startDate: "2026-09-14",
+      endDate: "2026-09-27",
+      plansFrom: "2026-09-19",
+    });
+    expect(slots).toEqual([
+      {
+        periodKind: "week",
+        periodStart: "2026-09-19",
+        periodEnd: "2026-09-20",
+        targetDays: 2,
+        targetMinutes: 120,
+      },
+      {
+        periodKind: "week",
+        periodStart: "2026-09-21",
+        periodEnd: "2026-09-27",
+        targetDays: 4,
+        targetMinutes: 240,
+      },
+    ]);
+  });
+
+  it("drops a flexible week wholly before plansFrom", () => {
+    const slots = generateSlots({
+      scheduleMode: "flexible",
+      plannedWeekdays: [],
+      daysPerWeek: 3,
+      minutesPerPlannedDay: 60,
+      startDate: "2026-09-14",
+      endDate: "2026-09-27",
+      plansFrom: "2026-09-21",
+    });
+    expect(slots.map((s) => s.periodStart)).toEqual(["2026-09-21"]);
+  });
+});

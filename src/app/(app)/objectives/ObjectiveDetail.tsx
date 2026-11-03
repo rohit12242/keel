@@ -19,7 +19,7 @@ import {
 } from "@/modules/objectives/domain/objectiveView";
 import { DeviationsTab } from "./DeviationsTab";
 import { EffortTab } from "./EffortTab";
-import { DueBanner, ReviewsTab } from "./ReviewsTab";
+import { DueBanner, ExtensionOwed, ReviewsTab } from "./ReviewsTab";
 import type { TabId } from "./tabs";
 import list from "../listDetail.module.css";
 import styles from "./objectives.module.css";
@@ -185,6 +185,7 @@ function Overview({
   return (
     <>
       <DueBanner o={o} reviews={reviews} today={today} />
+      <ExtensionOwed o={o} reviews={reviews} />
       {b ? (
         <div className={`${styles.banner} ${TONE[b.tone]}`}>
           <b>{b.title}</b>

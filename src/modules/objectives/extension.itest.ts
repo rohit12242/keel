@@ -3,10 +3,14 @@ import { getPool } from "@/shared/db";
 import type { Objective, PlanSegment } from "@/shared/contract";
 import * as extensions from "@/app/v1/objectives/[objectiveId]/extensions/route";
 import * as one from "@/app/v1/objectives/[objectiveId]/route";
+import * as grid from "@/app/v1/objectives/[objectiveId]/schedule/route";
+import * as reviewList from "@/app/v1/objectives/[objectiveId]/reviews/route";
+import type { ReviewList, ScheduleGrid } from "@/shared/contract";
 import {
   testObjective,
   testReview,
   testUser,
+  todayIn,
   type TestUser,
 } from "@/test/fixtures";
 import { saveReview, updateReview } from "@/modules/reviews/service";
@@ -59,6 +63,7 @@ const body = (reviewId: string, over: Record<string, unknown> = {}) => ({
     planned_weekdays: [1, 3],
     minutes_per_planned_day: 90,
   },
+  review_cadence: "weekly",
   ...over,
 });
 
@@ -102,11 +107,104 @@ describe("extending a plan (real Postgres)", () => {
       original_end_date: "2026-10-11",
       end_date: segment.end_date,
     });
+    // Made after the plan ended, so dated the day it was made (I-14).
     expect(o.status_history.at(-1)).toMatchObject({
       change: "extended",
-      occurred_on: "2026-10-12",
+      occurred_on: segment.plans_from,
       new_end_date: segment.end_date,
     });
+  });
+
+  it("plans a late extension from today: the days since the plan ended are never missed (G48)", async () => {
+    const reviewId = await closePlan("continued");
+    const res = await extend(body(reviewId, { extend_by_days: 14 }));
+    expect(res.status).toBe(201);
+    const today = todayIn("Asia/Kolkata");
+    const segment = (await res.json()) as PlanSegment;
+    expect(segment).toMatchObject({
+      start_date: "2026-10-12",
+      plans_from: today,
+      end_date: new Date(Date.parse(`${today}T00:00:00Z`) + 13 * DAY)
+        .toISOString()
+        .slice(0, 10),
+    });
+
+    // The gap: from the extension's start to the day before it plans.
+    const gapEnd = new Date(Date.parse(`${today}T00:00:00Z`) - DAY)
+      .toISOString()
+      .slice(0, 10);
+    const days = (await (
+      await grid.GET(
+        new Request(
+          `http://keel.test/v1/objectives/${objectiveId}/schedule?from=2026-10-12&to=${gapEnd}`,
+          { headers: { cookie: me.cookie } },
+        ),
+        { params: Promise.resolve({ objectiveId }) },
+      )
+    ).json()) as ScheduleGrid;
+    expect(days.days.length).toBeGreaterThan(0);
+    expect(days.days.every((d) => d.state === "off_day")).toBe(true);
+
+    // Nothing in the gap is owed: no window of it is due.
+    const o = (await (
+      await one.GET(
+        new Request(`http://keel.test/v1/objectives/${objectiveId}`, {
+          headers: { cookie: me.cookie },
+        }),
+        { params: Promise.resolve({ objectiveId }) },
+      )
+    ).json()) as Objective;
+    expect(o.reviews_due).toBe(0);
+  });
+
+  it("gives the extension its own cadence, and leaves the saved reviews' windows where they were (I-14)", async () => {
+    const reviewId = await closePlan("continued");
+    const list = async () =>
+      (await (
+        await reviewList.GET(
+          new Request(`http://keel.test/v1/objectives/${objectiveId}/reviews`, {
+            headers: { cookie: me.cookie },
+          }),
+          { params: Promise.resolve({ objectiveId }) },
+        )
+      ).json()) as ReviewList;
+    const before = (await list()).reviews.map((r) => [
+      r.label,
+      r.period_start,
+      r.period_end,
+    ]);
+
+    const res = await extend(body(reviewId, { review_cadence: "monthly" }));
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ review_cadence: "monthly" });
+
+    const o = (await (
+      await one.GET(
+        new Request(`http://keel.test/v1/objectives/${objectiveId}`, {
+          headers: { cookie: me.cookie },
+        }),
+        { params: Promise.resolve({ objectiveId }) },
+      )
+    ).json()) as Objective;
+    expect(o.review_cadence).toBe("monthly");
+    expect(o.segments.map((s) => s.review_cadence)).toEqual([
+      "weekly",
+      "monthly",
+    ]);
+    expect(
+      (await list()).reviews.map((r) => [
+        r.label,
+        r.period_start,
+        r.period_end,
+      ]),
+    ).toEqual(before);
+  });
+
+  it("400s an extension without its review cadence", async () => {
+    const reviewId = await closePlan("continued");
+    expect(
+      (await extend(body(reviewId, { review_cadence: undefined }))).status,
+    ).toBe(400);
   });
 
   it("409s a second extension from the same review", async () => {

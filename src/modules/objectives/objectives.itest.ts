@@ -223,6 +223,8 @@ describe("I-01 — declare an objective (the intent's check)", () => {
         seq: 0,
         start_date: "2026-11-02",
         end_date: "2026-11-15",
+        plans_from: "2026-11-02",
+        review_cadence: cadence,
       });
       expect(body.status_history).toEqual([
         { occurred_on: "2026-11-02", change: "created", reason: null },

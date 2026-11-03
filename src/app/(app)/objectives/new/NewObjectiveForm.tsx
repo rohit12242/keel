@@ -40,7 +40,8 @@ import styles from "./newObjective.module.css";
  * Create.
  */
 
-const WEEKDAYS: [number, string][] = [
+/** The weekday chips, Monday first; Extend uses them too (I-14). */
+export const WEEKDAYS: [number, string][] = [
   [1, "Mon"],
   [2, "Tue"],
   [3, "Wed"],
@@ -50,7 +51,7 @@ const WEEKDAYS: [number, string][] = [
   [7, "Sun"],
 ];
 
-const onlyDigits = (s: string) => s.replace(/\D/g, "");
+export const onlyDigits = (s: string) => s.replace(/\D/g, "");
 
 /** The checks an edit to each part of the draft can change. */
 const AFFECTS: Record<keyof Draft, Field[]> = {
@@ -152,7 +153,7 @@ function RadioGroup<T extends string | number>({
 }
 
 /** Two or more buttons, one pressed. */
-function Segments<T extends string>({
+export function Segments<T extends string>({
   label,
   labelledBy,
   options,

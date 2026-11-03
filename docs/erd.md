@@ -284,6 +284,8 @@ What you committed to. Note what is *not* here: no schedule, no end date. Those 
 | days_per_week | int2 null | Null when fixed. |
 | minutes_per_planned_day | int |  |
 | start_date / end_date | date | Contiguous with the previous segment; never overlapping. |
+| review_cadence | enum review_cadence | **NOT NULL.** The cadence this segment's review windows are cut by. Segment 0 takes the create request's `review_cadence`; an extension takes its own request's. Earlier segments' windows never move when an extension changes it (ADR-008, I-14 amendment). |
+| plans_from | date | **NOT NULL**, `start_date ≤ plans_from ≤ end_date`. The first day the segment plans. Equal to `start_date`, except for an extension made after the plan had ended: then it is the day the extension was made, and the days before it plan nothing, like paused days (I-14). Contiguity holds; only planning starts late (ADR-008, I-14 amendment). |
 | reason | text | **NOT NULL.** The Continue dialog marks "why extend rather than complete?" as required, so the schema should too. Segment 0's reason is the objective's creation reason — its `why_now`, copied at create, because the create request has no `reason` field of its own and should not grow one. |
 | created_by_review_id | uuid null FK | Null on segment 0. Set by the plan-end review that extended. |
 

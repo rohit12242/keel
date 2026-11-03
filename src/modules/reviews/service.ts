@@ -55,7 +55,7 @@ export function contextOf(raw: ObjectiveReviewFacts, now: Date): Context {
     status: currentStatus(raw.status_events),
     today: localDayOf(now, raw.user_tz),
     facts: {
-      schedule: reviewSchedule(raw.review_cadence, raw.segments),
+      schedule: reviewSchedule(raw.segments),
       slots,
       daily: Object.fromEntries(
         raw.daily_minutes.map((d) => [d.local_date, d.minutes]),

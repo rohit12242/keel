@@ -51,8 +51,9 @@ export async function insertObjective(
   await tx.query(
     `INSERT INTO plan_segment
        (objective_id, seq, schedule_mode, planned_weekdays, days_per_week,
-        minutes_per_planned_day, start_date, end_date, reason)
-     VALUES ($1, 0, $2, $3, $4, $5, $6, $7, $8)`,
+        minutes_per_planned_day, start_date, end_date, reason,
+        plans_from, review_cadence)
+     VALUES ($1, 0, $2, $3, $4, $5, $6, $7, $8, $6, $9)`,
     [
       id,
       o.schedule.mode,
@@ -64,6 +65,7 @@ export async function insertObjective(
       o.starts_on,
       o.end_date,
       o.why_now,
+      o.review_cadence,
     ],
   );
 
@@ -98,6 +100,8 @@ seg AS (
       'minutes_per_planned_day', s.minutes_per_planned_day,
       'start_date', to_char(s.start_date, 'YYYY-MM-DD'),
       'end_date', to_char(s.end_date, 'YYYY-MM-DD'),
+      'plans_from', to_char(s.plans_from, 'YYYY-MM-DD'),
+      'review_cadence', s.review_cadence,
       'reason', s.reason,
       'created_by_review_id', s.created_by_review_id
     ) ORDER BY s.seq) AS segments
@@ -263,8 +267,8 @@ export async function insertSegment(
     `INSERT INTO plan_segment
        (objective_id, seq, schedule_mode, planned_weekdays, days_per_week,
         minutes_per_planned_day, start_date, end_date, reason,
-        created_by_review_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        created_by_review_id, plans_from, review_cadence)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
     [
       objectiveId,
       s.seq,
@@ -278,6 +282,8 @@ export async function insertSegment(
       s.end_date,
       s.reason,
       s.created_by_review_id,
+      s.plans_from,
+      s.review_cadence,
     ],
   );
 }

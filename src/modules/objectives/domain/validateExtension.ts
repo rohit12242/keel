@@ -12,8 +12,11 @@ import {
 
 /**
  * Extending a plan (ADR-001 domain: pure; invariants 4–7). A new segment
- * starts the day after the plan now ends and carries its own schedule. Two
- * rules the contract enforces rather than the UI:
+ * starts the day after the plan now ends and carries its own schedule. It
+ * plans from the later of that day and today (G48): an extension made after
+ * the plan had ended does not turn the days since into missed ones, and its
+ * length counts from the day it plans. Two rules the contract enforces rather
+ * than the UI:
  *
  * - it is authorised by a saved plan-end review of the plan as it stands,
  *   whose outcome is `continued` and which has not already extended it — and
@@ -28,6 +31,8 @@ export type ExtensionWrite = {
   extend_by_days: number;
   reason: string;
   schedule: NewSchedule;
+  /** The extension's own review cadence (I-14). */
+  review_cadence: "weekly" | "monthly";
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -68,6 +73,12 @@ export function validateExtensionWrite(
       message: "Required; 1–2000 characters. Why extend rather than complete?",
     });
   }
+  if (body.review_cadence !== "weekly" && body.review_cadence !== "monthly") {
+    errors.push({
+      field: "review_cadence",
+      message: "Required; weekly or monthly.",
+    });
+  }
   const schedule = parseSchedule(body.schedule);
   errors.push(...schedule.errors);
   if (schedule.errors.length === 0 && schedule.mismatch !== null) {
@@ -79,6 +90,7 @@ export function validateExtensionWrite(
     extend_by_days: days as number,
     reason: body.reason as string,
     schedule: normaliseSchedule(body.schedule),
+    review_cadence: body.review_cadence as "weekly" | "monthly",
   });
 }
 
@@ -86,6 +98,8 @@ export type NewSegment = {
   seq: number;
   start_date: string;
   end_date: string;
+  plans_from: string;
+  review_cadence: "weekly" | "monthly";
   schedule: NewSchedule;
   reason: string;
   created_by_review_id: string;
@@ -98,6 +112,31 @@ export type ExtensionRefusal =
   | { kind: "fixed_only"; detail: string };
 
 const DAY = 86_400_000;
+
+export type ExtensionSpan = {
+  start_date: string;
+  plans_from: string;
+  end_date: string;
+};
+
+/**
+ * The dates an extension of `days` days gets, made `today` on a plan that
+ * ends `oldEnd`. The one rule: the server writes these, and Extend's preview
+ * shows them, so the two cannot disagree.
+ */
+export function extensionSpan(
+  oldEnd: string,
+  today: string,
+  days: number,
+): ExtensionSpan {
+  const start = toIso(parseIso(oldEnd) + DAY);
+  const plansFrom = today > start ? today : start;
+  return {
+    start_date: start,
+    plans_from: plansFrom,
+    end_date: toIso(parseIso(plansFrom) + (days - 1) * DAY),
+  };
+}
 
 export function extensionDecision(
   row: ObjectiveRow,
@@ -139,21 +178,23 @@ export function extensionDecision(
     });
   }
 
-  const start = toIso(parseIso(latest.end_date) + DAY);
-  const end = toIso(parseIso(start) + (write.extend_by_days - 1) * DAY);
+  const span = extensionSpan(latest.end_date, today, write.extend_by_days);
+  const end = span.end_date;
   if (end <= today) {
     return err({
       kind: "not_in_future",
       detail: `The extension would end on ${end}, not after today (${today}). It is refused, not adjusted.`,
     });
   }
-  const missed = missesEveryWeekday(write.schedule, start, end);
+  const missed = missesEveryWeekday(write.schedule, span.plans_from, end);
   if (missed) return err({ kind: "invalid", error: missed });
 
   return ok({
     seq: latest.seq + 1,
-    start_date: start,
+    start_date: span.start_date,
     end_date: end,
+    plans_from: span.plans_from,
+    review_cadence: write.review_cadence,
     schedule: write.schedule,
     reason: write.reason,
     created_by_review_id: write.review_id,

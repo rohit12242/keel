@@ -118,6 +118,8 @@ const SEGMENT_SETS: Record<string, SegmentForSlots[]> = {
   "one segment": [MON_TO_FRI],
   "two segments": [MON_TO_FRI, EXTENSION],
   "two segments, given out of order": [EXTENSION, MON_TO_FRI],
+  // I-14 (G48): an extension made late plans from the day it was made.
+  "a late extension": [MON_TO_FRI, { ...EXTENSION, plansFrom: "2026-10-17" }],
 };
 
 // One day either side of the whole run, so "outside the plan" is compared too.

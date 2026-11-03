@@ -43,7 +43,8 @@ const shortDay = (date: string) => {
 };
 
 /** "Every day", "Mon–Fri" for a run of three or more, else "Mon, Wed, Fri". */
-function daysLabel(weekdays: readonly number[]): string {
+/** "Mon–Sat", "Mon, Wed", "Every day". */
+export function daysLabel(weekdays: readonly number[]): string {
   const sorted = [...weekdays].sort((a, b) => a - b);
   if (sorted.length === 7) return "Every day";
   const run = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
@@ -431,7 +432,8 @@ const runLength = (days: number) =>
  */
 export function history(o: Objective, today: string): HistoryRow[] {
   const first = o.segments[0];
-  const cadence = o.review_cadence ? ` with ${o.review_cadence} reviews` : "";
+  // The original plan's cadence, not the latest segment's (I-14).
+  const cadence = ` with ${first.review_cadence} reviews`;
   const started: HistoryRow = {
     date: o.start_date,
     dot: "active",
@@ -505,12 +507,10 @@ function eventRow(
       };
     case "extended": {
       const segment = o.segments.find(
-        (s) => s.seq > 0 && s.start_date === e.occurred_on,
+        (s) => s.seq > 0 && s.plans_from === e.occurred_on,
       );
       const plan = segment
-        ? ` ${scheduleLine(segment.schedule, duration)}${
-            o.review_cadence ? ` · ${o.review_cadence} reviews` : ""
-          }.`
+        ? ` ${scheduleLine(segment.schedule, duration)} · ${segment.review_cadence} reviews.`
         : "";
       return {
         date: e.occurred_on,

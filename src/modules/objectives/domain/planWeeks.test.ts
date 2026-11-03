@@ -50,6 +50,21 @@ describe("planWeeks — docs/domain/adherence.md, Plan weeks (G16)", () => {
     ]);
   });
 
+  it("joins a late extension's first weeks as its review windows do (I-14)", () => {
+    // Made Fri 2 Oct, the extension plans 2–4 Oct of its first fortnight.
+    const ext = {
+      id: "s1",
+      start_date: "2026-09-22",
+      end_date: "2026-10-18",
+      plans_from: "2026-10-02",
+    };
+    const weeks = planWeeks([SPAN, ext], [], {});
+    expect(weeks.slice(-2).map((w) => [w.period_start, w.period_end])).toEqual([
+      ["2026-09-22", "2026-10-11"],
+      ["2026-10-12", "2026-10-18"],
+    ]);
+  });
+
   it("gives each week its figures, which add up to the whole run's", () => {
     const slots = planSlots([PLAN], created);
     const daily = {

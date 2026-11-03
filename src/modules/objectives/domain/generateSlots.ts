@@ -5,6 +5,10 @@
  * segment's date range. A flexible schedule makes one *week* slot per week
  * of the range, asking for `days_per_week` days (I-01).
  *
+ * No slot falls before the segment's `plansFrom` (G48, ADR-008 I-14
+ * amendment): an extension made after the plan had ended plans from the day
+ * it was made, and the days between plan nothing, as paused days do.
+ *
  * The status timeline does not enter here — pause suppression is `planSlots`'
  * job. This is the schedule alone.
  *
@@ -22,6 +26,8 @@ export type SegmentForSlots = {
   /** Inclusive range, YYYY-MM-DD. */
   startDate: string;
   endDate: string;
+  /** The first day it plans; absent means `startDate` (I-14). */
+  plansFrom?: string;
 };
 
 /** A day slot carries no day count; a week slot always does. */
@@ -64,9 +70,15 @@ export function generateSlots(segment: SegmentForSlots): GeneratedSlot[] {
     : weekSlots(segment);
 }
 
+/** The first day the segment plans: never before its start. */
+export function firstPlannedDay(segment: SegmentForSlots): string {
+  const from = segment.plansFrom ?? segment.startDate;
+  return from > segment.startDate ? from : segment.startDate;
+}
+
 function daySlots(segment: SegmentForSlots): GeneratedSlot[] {
   const planned = new Set(segment.plannedWeekdays);
-  return datesBetween(segment.startDate, segment.endDate)
+  return datesBetween(firstPlannedDay(segment), segment.endDate)
     .filter((day) => planned.has(isoWeekday(parseIso(day))))
     .map((day) => ({
       periodKind: "day",
@@ -83,20 +95,25 @@ function daySlots(segment: SegmentForSlots): GeneratedSlot[] {
  * the start"), so a flexible week and a weekly review cover the same days.
  * A short final week cannot ask for more days than it contains. A segment with
  * no day count asks for none and yields no slots, rather than throwing.
+ * A week is clipped to start at `plansFrom`, and asks for no more days than
+ * are left in it; a week wholly before it yields no slot.
  */
 function weekSlots(segment: SegmentForSlots): GeneratedSlot[] {
   const perWeek = segment.daysPerWeek ?? 0;
   const end = parseIso(segment.endDate);
+  const from = parseIso(firstPlannedDay(segment));
   const slots: GeneratedSlot[] = [];
 
   for (let ms = parseIso(segment.startDate); ms <= end; ms += 7 * DAY_MS) {
     const weekEnd = Math.min(ms + 6 * DAY_MS, end);
-    const daysInWeek = (weekEnd - ms) / DAY_MS + 1;
+    const weekStart = Math.max(ms, from);
+    if (weekStart > weekEnd) continue;
+    const daysInWeek = (weekEnd - weekStart) / DAY_MS + 1;
     const targetDays = Math.min(perWeek, daysInWeek);
     if (targetDays === 0) continue;
     slots.push({
       periodKind: "week",
-      periodStart: toIso(ms),
+      periodStart: toIso(weekStart),
       periodEnd: toIso(weekEnd),
       targetMinutes: targetDays * segment.minutesPerPlannedDay,
       targetDays,

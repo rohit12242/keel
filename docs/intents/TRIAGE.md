@@ -17,6 +17,32 @@ future intent would be *wrong* without the entry.
 
 ## Open
 
+### An owed extension reads as "final review due" on Today and the list · found in I-14
+
+A final review saved with Extend whose extension wasn't made (G49) leaves the
+objective active with its plan ended. Today's card says "Plan ended {date} · final
+review due" and the objectives list "Plan ended · final review due", though the
+review is saved; what is owed is the extension. The Overview and the saved review
+say so and offer **Make the extension**. Today and the list would need the owed
+extension in `DayObjective` and `ObjectiveSummary`, or a rule that derives it from
+what they already carry.
+
+### `objective.review_cadence` is written and no longer read · found in I-14
+
+Since each segment carries its own `review_cadence` (ADR-008, I-14 amendment), the
+objective's column is written at create and never read; `Objective.review_cadence`
+reads as the latest segment's. Either drop the column in a migration, or keep it as
+the creation fact and say so in the ERD. Not urgent: nothing can make the two
+disagree, since nothing writes the objective's after create.
+
+### A saved review's head shows the plan as it is now · found in I-14
+
+A saved review's sub-line ends with the objective's schedule ("Fixed · Mon–Sat · 2h
+a day"), which is the latest segment's. After an extension changes the schedule,
+every earlier saved review, final review included, shows the extension's schedule
+rather than the one it reviewed. The head would read the schedule of the segment
+holding the review's `period_end`; `Objective.segments` already carries it.
+
 ### A shared deviation can be judged by an unsaved draft of another objective · found in I-13
 
 A Chosen deviation can name two objectives. A draft review of one can judge it. Since

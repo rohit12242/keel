@@ -14,6 +14,8 @@ const FIXED_SEG: ObjectiveSegmentRow = {
   minutes_per_planned_day: 60,
   start_date: "2026-11-02", // Monday
   end_date: "2026-11-08", // Sunday
+  plans_from: "2026-11-02",
+  review_cadence: "weekly",
   reason: "Why.",
   created_by_review_id: null,
 };
@@ -197,6 +199,8 @@ describe("assembleGrid — segments and range", () => {
     seq: 1,
     start_date: "2026-11-09",
     end_date: "2026-11-15",
+    plans_from: "2026-11-09",
+    review_cadence: "weekly",
   };
   const EXTENDED: ObjectiveRow = { ...ROW, segments: [SEG_1, FIXED_SEG] };
 

@@ -14,6 +14,8 @@ const segment = (
   minutes_per_planned_day: 60,
   start_date: "2026-09-14",
   end_date: "2026-10-11",
+  plans_from: "2026-09-14",
+  review_cadence: "weekly",
   reason: "r",
   created_by_review_id: null,
   ...over,
@@ -71,6 +73,8 @@ describe("committedMinutesPerWeek", () => {
         minutes_per_planned_day: 90,
         start_date: "2026-10-12",
         end_date: "2026-11-08",
+        plans_from: "2026-10-12",
+        review_cadence: "weekly",
       }),
     ]);
     expect(committedMinutesPerWeek([extended], "2026-10-11")).toBe(300);

@@ -133,9 +133,11 @@ export function runsForDays(
 }
 
 /** Digits typed into a number field; anything else reads as 0. */
-const digits = (s: string): number => (/^\d+$/.test(s) ? Number(s) : 0);
+export const digits = (s: string): number => (/^\d+$/.test(s) ? Number(s) : 0);
 
-const targetOf = (d: Draft) => digits(d.hours) * 60 + digits(d.minutes);
+/** A target typed as hours and minutes, in minutes. */
+export const targetOf = (d: Pick<Draft, "hours" | "minutes">) =>
+  digits(d.hours) * 60 + digits(d.minutes);
 
 /** The length typed, or 1 while it is empty or 0, so the preview still reads. */
 const lengthOf = (d: Draft) => Math.max(1, digits(d.length));
@@ -203,7 +205,10 @@ export type Checked =
   | { ok: true; body: ObjectiveBody }
   | { ok: false; errors: Partial<Record<Field, string>>; first: Field };
 
-function targetError(d: Draft): string | null {
+/** The daily target's checks, in the design's words; New objective's and Extend's. */
+export function targetError(
+  d: Pick<Draft, "hours" | "minutes">,
+): string | null {
   const t = targetOf(d);
   if (t === 0) return "Set a target above zero.";
   if (digits(d.minutes) > 59) return "Minutes go up to 59.";

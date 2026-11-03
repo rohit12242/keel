@@ -367,6 +367,7 @@ export const AUTHORIZATION: AuthRow[] = [
           review_id: "00000000-0000-0000-0000-00000000dead",
           extend_by_days: 14,
           reason: "r",
+          review_cadence: "weekly",
           schedule: {
             mode: "flexible",
             days_per_week: 2,
