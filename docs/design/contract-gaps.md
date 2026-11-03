@@ -154,6 +154,8 @@ The table above is the gap as the design found it. This is how each was closed
 | G48 | `plans_from` on `plan_segment` and `PlanSegment`: the later of the day after the old end and the day the extension is made. Days before it plan nothing, like paused days; segments stay contiguous. `extend_by_days` counts from it. |
 | G49 | Kept: two calls. Until the extension exists, the saved final review and the Overview offer **Make the extension** (`05-reviews.md`). |
 | — | The UI keeps an extension to six months or 26 weeks; the contract keeps 365 days. Extensions are fixed only in v1 (I-09). |
+| — | **Review every** for an extension: `review_cadence` on `plan_segment`, `PlanSegment` and the `POST /extensions` body (required). `Objective.review_cadence` is the latest segment's. Earlier windows never move (ADR-008, I-14). |
+| — | A late extension's first window is short by its days from `plans_from`, and joins forward until it isn't (`review-windows.md`). |
 
 ## Names that differ (not gaps — map them in the UI)
 

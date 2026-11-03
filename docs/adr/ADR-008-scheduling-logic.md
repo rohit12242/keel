@@ -200,7 +200,23 @@ The boundaries hold:
 - `plans_from` is written once, when the segment is created, and never derived from
   anything else. It is not a cache.
 
-**Considered and not chosen**
+**The first review counts from `plans_from`** *(Rohit, 2026-11-03)*. The windows
+still tile from `start_date`, but a first period is short — and joins the next —
+by its days from `plans_from`, so a late extension's first review is never over a
+couple of planned days (`review-windows.md`, rule 2).
+
+### Amendment (I-14): the review cadence is a segment's
+
+*Rohit, 2026-11-03.* Extend sets the extension's review cadence. Cadence was a fact of
+the objective, and review windows are cut from it per segment; changing it on the
+objective would re-cut every earlier segment's windows, and saved reviews would stop
+matching them. `plan_segment` gains **`review_cadence`**, a stored fact written once,
+like the schedule it sits beside: segment 0 from the create request, an extension from
+its own. `Objective.review_cadence` reads as the latest segment's. The
+`objective.review_cadence` column is still written at create and is no longer read
+(`docs/intents/TRIAGE.md`).
+
+**Considered and not chosen** *(for `plans_from`)*
 
 - *A gap between segments.* It breaks invariant 4 and the trigger that guards it,
   and every read that relies on contiguity.

@@ -612,7 +612,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [review_id, extend_by_days, reason, schedule]
+              required: [review_id, extend_by_days, reason, schedule, review_cadence]
               properties:
                 review_id:
                   type: string
@@ -629,6 +629,10 @@ paths:
                   maxLength: 2000
                   description: Required. "Why extend rather than complete?"
                 schedule: { $ref: '#/components/schemas/ScheduleWrite' }
+                review_cadence:
+                  type: string
+                  enum: [weekly, monthly]
+                  description: The extension's own review cadence. Earlier segments keep theirs, so no saved review's window moves (I-14).
       responses:
         '201':
           description: New segment created. Its slots follow from it on the next read.
@@ -1332,7 +1336,7 @@ components:
 
     PlanSegment:
       type: object
-      required: [id, seq, schedule, start_date, end_date, plans_from, reason]
+      required: [id, seq, schedule, start_date, end_date, plans_from, review_cadence, reason]
       properties:
         id: { type: string, format: uuid }
         seq: { type: integer, description: '0 is the original plan.' }
@@ -1346,6 +1350,10 @@ components:
             The first day this segment plans. `start_date`, except for an extension
             made after the plan had ended: the day it was made. Days before it plan
             nothing, like paused days (`docs/erd.md`, I-14).
+        review_cadence:
+          type: string
+          enum: [weekly, monthly]
+          description: The cadence this segment's review windows are cut by (I-14).
         reason: { type: string }
         created_by_review_id: { type: [string, 'null'], format: uuid }
 
@@ -1632,7 +1640,10 @@ components:
             why_now: { type: string }
             success_criteria: { type: string }
             plan_link: { type: [string, 'null'], format: uri }
-            review_cadence: { type: string, enum: [weekly, monthly] }
+            review_cadence:
+              type: string
+              enum: [weekly, monthly]
+              description: The latest segment's. Each segment has its own (`PlanSegment.review_cadence`, I-14).
             original_end_date: { type: string, format: date, description: 'Segment 0''s end. Derived.' }
             extension_count: { type: integer, description: 'A row count. Derived.' }
             segments:
