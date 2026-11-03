@@ -43,7 +43,8 @@ const shortDay = (date: string) => {
 };
 
 /** "Every day", "Mon–Fri" for a run of three or more, else "Mon, Wed, Fri". */
-function daysLabel(weekdays: readonly number[]): string {
+/** "Mon–Sat", "Mon, Wed", "Every day". */
+export function daysLabel(weekdays: readonly number[]): string {
   const sorted = [...weekdays].sort((a, b) => a - b);
   if (sorted.length === 7) return "Every day";
   const run = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
