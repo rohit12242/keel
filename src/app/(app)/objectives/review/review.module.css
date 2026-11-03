@@ -294,6 +294,13 @@
   opacity: 0.7;
 }
 
+/* A saved final review's owed extension (G49). */
+.owed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
 /* Extend's fields, under the choice cards. */
 .extend {
   display: flex;

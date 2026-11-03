@@ -19,7 +19,6 @@ import {
   dueBanner,
   dueCards,
   emptyLine,
-  FINAL_LATER,
   IMPROVEMENT,
   IMPROVEMENT_ORDER,
   monthWeeks,
@@ -245,7 +244,7 @@ describe("the Reviews tab", () => {
     ).toEqual({ kind: "start" });
   });
 
-  it("shows a due final review with no way to open it yet", () => {
+  it("opens a due final review like any other (I-14)", () => {
     const [card] = dueCards(
       [
         due({
@@ -262,7 +261,7 @@ describe("the Reviews tab", () => {
     expect(card).toMatchObject({
       title: "Final review",
       period: "The whole plan · ended Fri 4 Sep",
-      action: { kind: "later", text: FINAL_LATER },
+      action: { kind: "start" },
     });
   });
 
@@ -424,7 +423,7 @@ describe("the due banner", () => {
     ).toEqual({
       title: "Final review is due",
       sub: "1 review due · the plan ended Fri 4 Sep",
-      action: { kind: "later", text: FINAL_LATER },
+      action: { kind: "start" },
     });
   });
 });

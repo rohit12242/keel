@@ -29,6 +29,7 @@ import {
 } from "@/modules/reviews/domain/finalReview";
 import { KindPill } from "../../deviations/KindPill";
 import { Pill } from "../ObjectiveDetail";
+import { MakeExtension } from "./MakeExtension";
 import { Numbers } from "./Numbers";
 import { PlanNumbers } from "./PlanNumbers";
 import form from "../new/newObjective.module.css";
@@ -47,6 +48,7 @@ export function SavedReview({
   list,
   due,
   objective,
+  extend = false,
   today,
 }: {
   review: Review;
@@ -55,6 +57,8 @@ export function SavedReview({
   list: ReviewSummary[];
   due: DueReview[];
   objective: Objective;
+  /** Open Make the extension's fields at once (`?extend=1`, G49). */
+  extend?: boolean;
   today: string;
 }) {
   const nav = neighbours(review, list, due);
@@ -79,6 +83,7 @@ export function SavedReview({
           review={review}
           previous={previous}
           objective={objective}
+          extend={extend}
           today={today}
         />
       </div>
@@ -138,11 +143,13 @@ function SavedFinal({
   review,
   previous,
   objective: o,
+  extend,
   today,
 }: {
   review: Review;
   previous: Review | null;
   objective: Objective;
+  extend: boolean;
   today: string;
 }) {
   const chosen = chosenCard(review, today);
@@ -199,7 +206,14 @@ function SavedFinal({
 
       <section className={form.card} aria-labelledby="rv-next">
         <CardHead id="rv-next" n={5} title="What next" />
-        {next === null ? null : next.kind === "extended" ? (
+        {next === null ? null : next.kind === "pending" ? (
+          <MakeExtension
+            objective={o}
+            reviewId={review.id}
+            today={today}
+            open={extend}
+          />
+        ) : next.kind === "extended" ? (
           <div className={styles.answer}>
             <p className={styles.next}>
               <b>{next.text}</b>

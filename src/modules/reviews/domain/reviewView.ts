@@ -159,11 +159,7 @@ export const nothingToCheck = (saved: boolean): string =>
 export type DueAction =
   | { kind: "start" }
   | { kind: "continue"; reviewId: string }
-  | { kind: "wait"; text: string }
-  | { kind: "later"; text: string };
-
-/** A final review is due, but opens with its own intent (Rohit, 2026-11-02). */
-export const FINAL_LATER = "Opens in a later release.";
+  | { kind: "wait"; text: string };
 
 export type DueCard = {
   key: string;
@@ -193,7 +189,6 @@ function actionOf(
   draft: ReviewSummary | null,
 ): DueAction {
   if (i > 0) return { kind: "wait", text: `Opens after ${first.label}` };
-  if (d.kind === "plan_end") return { kind: "later", text: FINAL_LATER };
   return draft ? { kind: "continue", reviewId: draft.id } : { kind: "start" };
 }
 

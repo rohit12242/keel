@@ -33,11 +33,15 @@ const valueOf = <T,>(r: Read<T>): T | null =>
  */
 export default async function ReviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; reviewId: string }>;
+  /** `?extend=1`: the Overview sent the user to make an owed extension (G49). */
+  searchParams: Promise<{ extend?: string }>;
 }) {
   const user = await requireUser();
   const { id, reviewId } = await params;
+  const { extend } = await searchParams;
   const { today, tz } = await dayAndZone(user);
 
   const read = await readApi<Review>(
@@ -126,6 +130,7 @@ export default async function ReviewPage({
         list={reviews.reviews}
         due={reviews.due}
         objective={o}
+        extend={extend === "1"}
         today={today}
       />
     </>

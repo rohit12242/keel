@@ -9,6 +9,11 @@ import {
   START_FAILED,
 } from "@/modules/reviews/domain/reviewForm";
 import {
+  EXTENSION_NOT_MADE,
+  MAKE_EXTENSION,
+  pendingExtension,
+} from "@/modules/reviews/domain/finalReview";
+import {
   dueBanner,
   dueCards,
   emptyLine,
@@ -154,8 +159,7 @@ export function ReviewsTab({
 
 /**
  * The due banner on Overview (04-objectives.md): the whole banner opens the
- * oldest due review. A final review has no way in yet, so its banner is
- * words only.
+ * oldest due review, a final review like any other (I-14).
  */
 export function DueBanner({
   o,
@@ -206,6 +210,36 @@ export function DueBanner({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A final review saved with Extend whose extension wasn't made (G49):
+ * "The extension wasn't made." on the Overview. The banner opens the saved
+ * final review with Make the extension's fields showing.
+ */
+export function ExtensionOwed({
+  o,
+  reviews,
+}: {
+  o: Objective;
+  reviews: ReviewList | null;
+}) {
+  const owed = reviews ? pendingExtension(o, reviews.reviews) : null;
+  if (!owed) return null;
+  return (
+    <Link
+      className={styles.dueBanner}
+      href={`/objectives/${o.id}/reviews/${owed.id}?extend=1`}
+    >
+      <span className={styles.dueText}>
+        <b>{EXTENSION_NOT_MADE}</b>
+        <span className={styles.hint}>
+          The final review is saved with Extend.
+        </span>
+      </span>
+      <span className={styles.dueGo}>{MAKE_EXTENSION}</span>
+    </Link>
   );
 }
 
