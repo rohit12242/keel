@@ -9,7 +9,7 @@ import type {
   Deviation,
   EffortEntry,
 } from "@/shared/contract";
-import { DeviationsIcon, PlusIcon } from "@/app/icons";
+import { DeviationsIcon, ParkingIcon, PlusIcon } from "@/app/icons";
 import { useToast } from "@/app/toast";
 import { localDayOf } from "@/shared/time/localDay";
 import {
@@ -32,6 +32,7 @@ import { lastCard } from "@/modules/deviations/domain/deviationView";
 import { KindPill } from "../deviations/KindPill";
 import { LogDeviationButton, LogDeviationProvider } from "../LogDeviation";
 import { KeyHint, PageHeader } from "../PageHeader";
+import { ParkIdeaButton, ParkIdeaProvider } from "../ParkIdea";
 import { useShortcut } from "../shortcuts";
 import { LogTime, type Opened, type SaveOutcome } from "./LogTime";
 import shell from "../shell.module.css";
@@ -235,107 +236,118 @@ export function Today({
       zone={zone}
       shortcut={day.objectives.length > 0}
     >
-      <PageHeader
-        eyebrow={longDate(date)}
-        title="Today"
-        action={
-          day.objectives.length > 0 ? (
-            <button
-              type="button"
-              className={shell.primary}
-              onClick={() => logNew()}
-              aria-keyshortcuts="L"
-            >
-              <PlusIcon />
-              Log time
-              <KeyHint k="L" />
-            </button>
-          ) : null
-        }
-        phoneAction={
-          day.objectives.length > 0 ? (
-            <button
-              type="button"
-              className={`${shell.primary} ${shell.primarySmall}`}
-              onClick={() => logNew()}
-            >
-              <PlusIcon />
-              Log time
-            </button>
-          ) : null
-        }
-      />
-      {reset ? (
-        <p className={styles.notice} role="status">
-          Password changed. You&rsquo;re signed in.
-        </p>
-      ) : null}
-
-      {day.objectives.length === 0 ? (
-        <EmptyToday />
-      ) : (
-        <div className={styles.split}>
-          <div className={styles.stack}>
-            <Summary day={day} />
-            <Filter
-              objectives={day.objectives}
-              value={filter}
-              onChange={setFilter}
-            />
-            {planned.some(shown) ? (
-              <div className={styles.grid}>
-                {planned.filter(shown).map((o) => (
-                  <PlannedCard
-                    key={o.id}
-                    o={o}
-                    date={date}
-                    flash={flash}
-                    onLog={() => logNew(o.id)}
-                    onEdit={(id) => edit(o, id)}
-                  />
-                ))}
-              </div>
-            ) : null}
-            {others.some(shown) ? (
-              <div className={styles.others}>
-                {others.filter(shown).map((o) => (
-                  <OtherCard
-                    key={o.id}
-                    o={o}
-                    date={date}
-                    flash={flash}
-                    onLog={() => logNew(o.id)}
-                    onEdit={(id) => edit(o, id)}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <aside className={styles.rail} aria-label="Plan to date">
-            <Adherence objectives={day.objectives} date={date} />
-            <LogDeviationButton className={styles.logDeviation}>
-              <DeviationsIcon />
-              Log a deviation
-            </LogDeviationButton>
-            {day.last_deviation ? (
-              <LastDeviation d={day.last_deviation} date={date} />
-            ) : null}
-          </aside>
-        </div>
-      )}
-
-      <LogTime
-        opened={opened}
-        day={day}
+      {/* Park an idea, from the rail and with P, as Log a deviation. */}
+      <ParkIdeaProvider
+        objectives={day.objectives}
         zone={zone}
-        onClose={() => setOpened(null)}
-        onSave={(objectiveId, body) =>
-          opened?.kind === "edit"
-            ? editEntry(opened.entry, body)
-            : logEntry(objectiveId, body)
-        }
-        onDelete={deleteEntry}
-      />
+        shortcut={day.objectives.length > 0}
+      >
+        <PageHeader
+          eyebrow={longDate(date)}
+          title="Today"
+          action={
+            day.objectives.length > 0 ? (
+              <button
+                type="button"
+                className={shell.primary}
+                onClick={() => logNew()}
+                aria-keyshortcuts="L"
+              >
+                <PlusIcon />
+                Log time
+                <KeyHint k="L" />
+              </button>
+            ) : null
+          }
+          phoneAction={
+            day.objectives.length > 0 ? (
+              <button
+                type="button"
+                className={`${shell.primary} ${shell.primarySmall}`}
+                onClick={() => logNew()}
+              >
+                <PlusIcon />
+                Log time
+              </button>
+            ) : null
+          }
+        />
+        {reset ? (
+          <p className={styles.notice} role="status">
+            Password changed. You&rsquo;re signed in.
+          </p>
+        ) : null}
+
+        {day.objectives.length === 0 ? (
+          <EmptyToday />
+        ) : (
+          <div className={styles.split}>
+            <div className={styles.stack}>
+              <Summary day={day} />
+              <Filter
+                objectives={day.objectives}
+                value={filter}
+                onChange={setFilter}
+              />
+              {planned.some(shown) ? (
+                <div className={styles.grid}>
+                  {planned.filter(shown).map((o) => (
+                    <PlannedCard
+                      key={o.id}
+                      o={o}
+                      date={date}
+                      flash={flash}
+                      onLog={() => logNew(o.id)}
+                      onEdit={(id) => edit(o, id)}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {others.some(shown) ? (
+                <div className={styles.others}>
+                  {others.filter(shown).map((o) => (
+                    <OtherCard
+                      key={o.id}
+                      o={o}
+                      date={date}
+                      flash={flash}
+                      onLog={() => logNew(o.id)}
+                      onEdit={(id) => edit(o, id)}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <aside className={styles.rail} aria-label="Plan to date">
+              <Adherence objectives={day.objectives} date={date} />
+              <LogDeviationButton className={styles.logDeviation}>
+                <DeviationsIcon />
+                Log a deviation
+              </LogDeviationButton>
+              <ParkIdeaButton className={styles.parkIdea}>
+                <ParkingIcon />
+                Park an idea
+              </ParkIdeaButton>
+              {day.last_deviation ? (
+                <LastDeviation d={day.last_deviation} date={date} />
+              ) : null}
+            </aside>
+          </div>
+        )}
+
+        <LogTime
+          opened={opened}
+          day={day}
+          zone={zone}
+          onClose={() => setOpened(null)}
+          onSave={(objectiveId, body) =>
+            opened?.kind === "edit"
+              ? editEntry(opened.entry, body)
+              : logEntry(objectiveId, body)
+          }
+          onDelete={deleteEntry}
+        />
+      </ParkIdeaProvider>
     </LogDeviationProvider>
   );
 }
