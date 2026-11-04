@@ -157,6 +157,12 @@ The table above is the gap as the design found it. This is how each was closed
 | — | **Review every** for an extension: `review_cadence` on `plan_segment`, `PlanSegment` and the `POST /extensions` body (required). `Objective.review_cadence` is the latest segment's. Earlier windows never move (ADR-008, I-14). |
 | — | A late extension's first window is short by its days from `plans_from`, and joins forward until it isn't (`review-windows.md`). |
 
+## Decided in I-16
+
+| # | Decision |
+|---|---|
+| G13 | Still kept: Approve, Back to Parked and Drop are held until the toast closes; Undo cancels the held one. Leaving or closing the page sends it at once (Rohit, 2026-11-04; `07-parking-lot.md`). |
+
 ## Names that differ (not gaps — map them in the UI)
 
 | Design says | Contract value |

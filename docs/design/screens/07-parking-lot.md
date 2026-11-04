@@ -38,6 +38,8 @@ The layout starts with the idea; there's nothing above it except the back link o
 
 **Taken can't be chosen here.** An idea becomes Taken only by being picked in New objective (from Approved).
 
+**Undo holds the verdict** (G13): Approve, Back to Still parked and Drop are sent when their toast closes, and **Undo** cancels the one not yet sent. Leaving or closing the page while a toast is showing sends the held verdict at once, so it is never lost *(I-16)*. Until it is sent, the idea already shows its new state.
+
 ## Park an idea (dialog)
 
 - Title "Park an idea", sub "Write it down so you can stop thinking about it. You'll decide on it later."
