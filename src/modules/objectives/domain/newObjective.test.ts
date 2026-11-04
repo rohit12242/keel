@@ -249,6 +249,13 @@ describe("checkDraft — the body", () => {
       },
     });
   });
+
+  it("names the approved idea it starts from, and only when there is one", () => {
+    const from = checkDraft(draft(), TODAY, TZ, "idea-1");
+    expect(from.ok && from.body.from_parked_idea_id).toBe("idea-1");
+    const scratch = checkDraft(draft(), TODAY, TZ, null);
+    expect(scratch.ok && "from_parked_idea_id" in scratch.body).toBe(false);
+  });
 });
 
 describe("whatever passes the page, the API accepts", () => {

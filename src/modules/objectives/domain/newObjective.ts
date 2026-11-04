@@ -199,6 +199,8 @@ export type ObjectiveBody = {
   tz: string;
   runs_for_days: number;
   review_cadence: Cadence;
+  /** Start from an approved parked idea (G4). */
+  from_parked_idea_id?: string;
 };
 
 export type Checked =
@@ -228,8 +230,14 @@ function lengthError(d: Draft): string | null {
 /**
  * Every check in the design's list, in its words and page order — or, when
  * all pass, the body to send. `today` and `tz` are the browser's (NFR-12).
+ * `fromIdea` is the approved idea it starts from, when there is one.
  */
-export function checkDraft(draft: Draft, today: string, tz: string): Checked {
+export function checkDraft(
+  draft: Draft,
+  today: string,
+  tz: string,
+  fromIdea: string | null = null,
+): Checked {
   const found: Record<Field, string | null> = {
     name: draft.name.trim() ? null : "Name the objective.",
     why: draft.why.trim()
@@ -265,6 +273,7 @@ export function checkDraft(draft: Draft, today: string, tz: string): Checked {
       tz,
       runs_for_days: runsForDays(startsOn, digits(draft.length), draft.unit),
       review_cadence: draft.cadence,
+      ...(fromIdea === null ? {} : { from_parked_idea_id: fromIdea }),
     },
   };
 }
