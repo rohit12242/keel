@@ -252,3 +252,12 @@ recorded in `07-parking-lot.md`, which owns the design:
   filter". `filters`, `inFilter`, `filterOf` and `emptyFilter` are in `parkingView.ts`.
 - **No ⓘ in a row.** A locked row reads "Locked · opens 9 Jan 2027"; the ⓘ stays in the
   detail.
+- **The lock opens at the earliest end** (Rohit, 2026-11-04), not the latest, and an
+  objective already past its end sets no lock. The intent and spec are amended, and
+  `parking-lock.md` is the record. It is a server rule: `lockedUntil` in
+  `parking/domain/parking.ts` and its tests, `park.itest.ts`, and the words in
+  `parkingView.ts`, `parkIdea.ts` and `EMPTY`. Locks already stored never move (no
+  migration), so on the deployed service only ideas parked after the release get the
+  new date. **Riskiest part:** both `POST /parked-ideas` and
+  `GET /parked-ideas?caught_on=` read `lockedUntil`, so they change together; the
+  itest checks both.

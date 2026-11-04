@@ -1,6 +1,6 @@
 # Parking lot
 
-Data: `GET /parked-ideas`, `POST /parked-ideas`, `POST /parked-ideas/{id}/verdicts`, notes (G3), Approved (G4). Lock rule: `docs/domain/parking-lock.md` — an idea is locked until the latest end date among the objectives that were active on the day it was caught.
+Data: `GET /parked-ideas`, `POST /parked-ideas`, `POST /parked-ideas/{id}/verdicts`, notes (G3), Approved (G4). Lock rule: `docs/domain/parking-lock.md` — an idea is locked until the earliest end date, on or after the day it was caught, among the objectives that were active that day (I-16; it was the latest until then).
 
 ## Screen
 
@@ -17,7 +17,7 @@ Data: `GET /parked-ideas`, `POST /parked-ideas`, `POST /parked-ideas/{id}/verdic
 | Taken | `Taken 31 Aug · early` | the same |
 | Dropped | `Dropped 21 Sep` | the same |
 
-- **The lock rule is shown only through the ⓘ** on a locked pill. It's a tooltip: "Locked until 2 Nov, the latest end date among the objectives running on 14 Sep, the day you caught it (System design). Deciding earlier is recorded as early." Esc or a click elsewhere closes it. There's no separate "How the lock works" block.
+- **The lock rule is shown only through the ⓘ** on a locked pill. It's a tooltip: "Locked until 2 Nov, the earliest end date among the objectives running on 14 Sep, the day you caught it (System design). Deciding earlier is recorded as early." Esc or a click elsewhere closes it. There's no separate "How the lock works" block.
 
 ## Detail
 
@@ -45,7 +45,7 @@ The layout starts with the idea; there's nothing above it except the back link o
 - Title "Park an idea", sub "Write it down so you can stop thinking about it. You'll decide on it later."
 - **The idea** (input, 120, "What's pulling at you?").
 - **Why it grabbed you** (280), hint "Be honest. You'll read this again when you decide."
-- A lock note in caution tint: "Locked until 2 Nov, the latest end date among the objectives running today (System design). Taking it or dropping it before then is recorded as early, not blocked." With nothing running (grey): "No objectives are running, so it opens straight away."
+- A lock note in caution tint: "Locked until 2 Nov, the earliest end date among the objectives running today (System design). Taking it or dropping it before then is recorded as early, not blocked." With nothing running (grey): "No objectives are running, so it opens straight away."
 - Footer: "esc to close", **Cancel**, **Park it**.
 - Errors: "Enter the idea." · "Add why it grabbed you."
 - **After parking:**
@@ -66,6 +66,6 @@ The layout starts with the idea; there's nothing above it except the back link o
 - "Write down the idea and why it grabbed you. It stays locked until the objectives you're running now have ended, so you can get back to work without losing it."
 - Three numbered steps:
   1. Park it: the idea and why it grabbed you.
-  2. It opens on the latest end date among the objectives running that day.
+  2. It opens on the earliest end date among the objectives running that day.
   3. Then decide: take it as an objective, or drop it and say why.
 - **Park an idea**.

@@ -1,6 +1,6 @@
 # Spec — I-16 · Parking lot
 
-**Intent:** `intent.md` in this folder · **Status:** Accepted · **Written:** 2026-11-04 · **Accepted:** 2026-11-04
+**Intent:** `intent.md` in this folder · **Status:** Accepted · **Written:** 2026-11-04 · **Accepted:** 2026-11-04 · **Amended:** 2026-11-04, the lock
 
 The design this needs is in the repository: `docs/design/screens/07-parking-lot.md`,
 the "Start from" card in `04-objectives.md`, Today's rail in `03-today.md`, the shared
@@ -53,12 +53,20 @@ This file does not repeat them.
 - Creating the objective takes the idea: it reads Taken, dated the day it was taken
   (G37), with the objective's dates. Onboarding keeps no "Start from" card.
 
+**The lock** *(amended 2026-11-04)*
+
+- A new idea is locked until the earliest end date, on or after the day it is caught,
+  among the objectives running that day, as `parking-lock.md` now says. With none, it
+  opens straight away. `new_idea_locked_until` follows the same rule.
+- An idea parked before the change keeps its stored lock.
+- The lock note, the ⓘ and the empty state say "earliest".
+
 **What does not change**
 
-- The API, the contract and the lock rule. No new runtime dependency. Accessibility as
+- The API and the contract. No new runtime dependency. Accessibility as
   `01-shell.md` sets it.
 
 ## Out of scope
 
-Changing the lock. Reviving a dropped or taken idea. Parked ideas inside reviews (the
+Reviving a dropped or taken idea. Parked ideas inside reviews (the
 TRIAGE entry "A review still returns parked ideas the design no longer shows").

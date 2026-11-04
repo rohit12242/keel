@@ -1,6 +1,6 @@
 # I-16 — Parking lot
 
-**Author:** Rohit · **Status:** Accepted · **Raised:** 2026-11-04 · **Accepted:** 2026-11-04
+**Author:** Rohit · **Status:** Accepted · **Raised:** 2026-11-04 · **Accepted:** 2026-11-04 · **Amended:** 2026-11-04, the lock opens at the earliest end
 
 ## Intent description
 
@@ -19,6 +19,9 @@ Parking lot lists every idea with its state: locked, open, approved, taken or dr
 A user approves an idea or drops it with a reason, early or not, adds notes to it, and
 starts a new objective from an approved idea, which then becomes Taken.
 
+An idea opens when the first of the objectives running that day ends, not the last
+*(amended 2026-11-04)*.
+
 ## How we know it worked
 
 On the deployed service, a user parks an idea while an objective is running and sees
@@ -29,5 +32,5 @@ added to both show newest first.
 
 ## Out of scope
 
-Changing the lock rule. Reviving a dropped or taken idea — both verdicts are final.
+Reviving a dropped or taken idea — both verdicts are final.
 Parked ideas inside reviews.
