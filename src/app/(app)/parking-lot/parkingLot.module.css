@@ -43,11 +43,6 @@
 }
 
 /* ---------- The ⓘ and its tooltip ---------- */
-.infoMark {
-  font-size: 12px;
-  line-height: 1;
-}
-
 .info {
   position: relative;
   display: inline-flex;

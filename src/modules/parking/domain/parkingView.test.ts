@@ -7,8 +7,12 @@ import {
   decidable,
   DROP_WHY_MAX,
   EMPTY,
+  emptyFilter,
+  filterOf,
+  filters,
   FINAL,
   heldIdea,
+  inFilter,
   lockRule,
   lockSetter,
   pill,
@@ -200,5 +204,34 @@ describe("dropping", () => {
 describe("the empty state", () => {
   it("has three steps", () => {
     expect(EMPTY.steps).toHaveLength(3);
+  });
+});
+
+describe("the filter", () => {
+  const ideas = [
+    idea({ id: "l" }),
+    idea({ id: "o", locked: false }),
+    idea({ id: "a", verdict: "approved" }),
+    idea({ id: "t", verdict: "taken" }),
+    idea({ id: "d", verdict: "dropped" }),
+  ];
+
+  it("counts each verdict; Parked holds locked and open", () => {
+    expect(filters(ideas).map((f) => [f.label, f.count])).toEqual([
+      ["All", 5],
+      ["Parked", 2],
+      ["Approved", 1],
+      ["Taken", 1],
+      ["Dropped", 1],
+    ]);
+    expect(inFilter(ideas, "parked").map((i) => i.id)).toEqual(["l", "o"]);
+    expect(inFilter(ideas, "all")).toHaveLength(5);
+  });
+
+  it("reads the address, All when it names none", () => {
+    expect(filterOf("taken")).toBe("taken");
+    expect(filterOf("nonsense")).toBe("all");
+    expect(filterOf(undefined)).toBe("all");
+    expect(emptyFilter("taken")).toBe("No taken ideas.");
   });
 });

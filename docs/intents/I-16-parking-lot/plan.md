@@ -239,3 +239,16 @@ through `POST /objectives`. Failures come from blocking the request in Chrome.
 **TRIAGE (step 9):**
 - Remove "`D` on the Parking lot · found in I-12". Step 3 does it.
 - Add: "`GET /parked-ideas` orders ideas caught on the same day by id, not by when they were parked". Fixing it needs `recorded_at` in the order: a repo change, with no contract change.
+
+---
+
+## Changed after acceptance
+
+Asked for by Rohit on 2026-11-04, after the build was checked on localhost. Each is
+recorded in `07-parking-lot.md`, which owns the design:
+
+- **The status filter.** All · Parked · Approved · Taken · Dropped, with counts from the
+  list, above it, kept in `?status=` as on Deviations. The design had said "No status
+  filter". `filters`, `inFilter`, `filterOf` and `emptyFilter` are in `parkingView.ts`.
+- **No ⓘ in a row.** A locked row reads "Locked · opens 9 Jan 2027"; the ⓘ stays in the
+  detail.

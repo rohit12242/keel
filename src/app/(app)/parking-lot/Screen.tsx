@@ -1,6 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import type { ObjectiveSummary, ParkedIdea } from "@/shared/contract";
+import {
+  filters,
+  inFilter,
+  type StatusFilter,
+} from "@/modules/parking/domain/parkingView";
 import { PlusIcon } from "@/app/icons";
 import { LogDeviationProvider } from "../LogDeviation";
 import { ParkIdeaButton, ParkIdeaProvider } from "../ParkIdea";
@@ -13,8 +19,13 @@ import { ParkingHeader } from "./ParkingHeader";
 import { datesOf } from "./dates";
 import { useHeldVerdict } from "./useHeldVerdict";
 
+/** Where a filter, a row or **‹ Parking lot** goes, keeping the filter. */
+export const hrefOf = (filter: StatusFilter, id?: string) =>
+  `/parking-lot${id ? `/${id}` : ""}${filter === "all" ? "" : `?status=${filter}`}`;
+
 /**
- * List and detail (01-shell.md): on desktop every idea beside the open one;
+ * List and detail (01-shell.md): on desktop the filter's ideas beside the
+ * open one, the filter with its counts above them (`?status=`);
  * on phone one or the other — `/parking-lot` the list, `/parking-lot/{id}`
  * the detail, with **‹ Parking lot**. `P` parks an idea, and `D` opens
  * Log a deviation here too.
@@ -24,6 +35,7 @@ export function Screen({
   show,
   ideas,
   objectives,
+  filter,
   selected,
   flash = false,
   today,
@@ -32,6 +44,7 @@ export function Screen({
   show: "list" | "detail";
   ideas: ParkedIdea[];
   objectives: ObjectiveSummary[];
+  filter: StatusFilter;
   selected: string | null;
   flash?: boolean;
   today: string;
@@ -63,10 +76,13 @@ export function Screen({
           >
             <div className={layout.listHead}>
               <ParkingHeader />
+              <Filters ideas={shown} filter={filter} />
             </div>
             <div className={layout.wrap}>
               <IdeaList
-                ideas={shown}
+                ideas={inFilter(shown, filter)}
+                filter={filter}
+                hrefOf={(id) => hrefOf(filter, id)}
                 selected={open?.id ?? null}
                 flash={flash}
                 today={today}
@@ -81,6 +97,7 @@ export function Screen({
                     zone={zone}
                     failure={verdicts.failures[open.id]}
                     onVerdict={(v, note) => verdicts.hold(open, v, note)}
+                    backHref={hrefOf(filter)}
                   />
                 ) : null}
               </div>
@@ -89,5 +106,30 @@ export function Screen({
         )}
       </ParkIdeaProvider>
     </LogDeviationProvider>
+  );
+}
+
+/** All · Parked · Approved · Taken · Dropped with their counts. */
+function Filters({
+  ideas,
+  filter,
+}: {
+  ideas: readonly ParkedIdea[];
+  filter: StatusFilter;
+}) {
+  return (
+    <nav className={layout.filters} aria-label="Filter ideas">
+      {filters(ideas).map((f) => (
+        <Link
+          key={f.id}
+          className={layout.filter}
+          href={hrefOf(f.id)}
+          aria-current={f.id === filter ? "page" : undefined}
+        >
+          {f.label}
+          <span className={layout.count}>{f.count}</span>
+        </Link>
+      ))}
+    </nav>
   );
 }

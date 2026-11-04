@@ -5,13 +5,13 @@ Data: `GET /parked-ideas`, `POST /parked-ideas`, `POST /parked-ideas/{id}/verdic
 ## Screen
 
 - Header "Parking lot" with **+ Park an idea `P`**. No counts line above the title.
-- **No status filter.** All ideas, newest caught first.
+- **Status filter** *(Rohit, 2026-11-04, I-16)*: **All · Parked · Approved · Taken · Dropped**, each with its count, as on Deviations (`01-shell.md`, *List and detail*). Parked holds locked and open ideas. Newest caught first.
 - List and detail (see `01-shell.md`).
 - **Row:** the idea (bold), "Caught 31 Aug" (mono), and a state pill:
 
 | State | Row pill | Detail pill |
 |---|---|---|
-| Locked | `Locked · opens 2 Nov` with an ⓘ | the same; ⓘ is a button that shows the rule |
+| Locked | `Locked · opens 2 Nov` (no ⓘ in the row, I-16) | the same, with the ⓘ: a button that shows the rule |
 | Open | `Open · decide now` | `Open since 21 Sep · decide now` |
 | Approved | `Approved 22 Sep` (`· early` if before it opened) | the same |
 | Taken | `Taken 31 Aug · early` | the same |

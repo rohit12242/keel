@@ -85,6 +85,40 @@ export function pill(idea: ParkedIdea, today: string): Pill {
   return { state, row: text, detail: text, info: false };
 }
 
+export type StatusFilter = "all" | "parked" | "approved" | "taken" | "dropped";
+
+/** The list's filter (Rohit, 2026-11-04): Parked is locked and open alike. */
+export const FILTERS: readonly { id: StatusFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "parked", label: "Parked" },
+  { id: "approved", label: "Approved" },
+  { id: "taken", label: "Taken" },
+  { id: "dropped", label: "Dropped" },
+];
+
+/** The filter named in the address, or All. */
+export const filterOf = (asked: string | undefined): StatusFilter =>
+  FILTERS.find((f) => f.id === asked)?.id ?? "all";
+
+/** The filter's ideas, in the API's order. */
+export function inFilter(
+  ideas: readonly ParkedIdea[],
+  filter: StatusFilter,
+): ParkedIdea[] {
+  return ideas.filter((i) => filter === "all" || i.verdict === filter);
+}
+
+/** Each filter with how many ideas it holds, counted from the list. */
+export function filters(
+  ideas: readonly ParkedIdea[],
+): { id: StatusFilter; label: string; count: number }[] {
+  return FILTERS.map((f) => ({ ...f, count: inFilter(ideas, f.id).length }));
+}
+
+/** "No taken ideas." */
+export const emptyFilter = (filter: Exclude<StatusFilter, "all">) =>
+  `No ${filter} ideas.`;
+
 /**
  * The objective whose end set the lock: one running on `caughtOn` that ends
  * on `until`. Null when none matches — the name is then left out.

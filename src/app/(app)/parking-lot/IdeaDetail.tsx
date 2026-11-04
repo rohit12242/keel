@@ -33,7 +33,10 @@ export function IdeaDetail({
   zone,
   failure,
   onVerdict,
+  backHref,
 }: {
+  /** Where **‹ Parking lot** goes on phone, keeping the filter. */
+  backHref: string;
   idea: ParkedIdea;
   objectives: readonly ObjectiveDates[];
   today: string;
@@ -47,7 +50,7 @@ export function IdeaDetail({
   const dropped = idea.verdict === "dropped";
   return (
     <article className={layout.detail} aria-labelledby="pi-title">
-      <Link className={layout.back} href="/parking-lot">
+      <Link className={layout.back} href={backHref}>
         <BackIcon />
         Parking lot
       </Link>
