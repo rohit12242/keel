@@ -1,0 +1,91 @@
+/*
+ * Park an idea (07-parking-lot.md, *Park an idea*): its fields and the lock
+ * note. The dialog's frame and footer are `dialog.module.css`. Colours only
+ * from the tokens.
+ */
+
+.sub {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.banner {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--deviation);
+  background: var(--deviation-tint);
+  border-radius: var(--radius-md);
+  padding: var(--space-10) var(--space-12);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line-control);
+  border-radius: var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+}
+
+.input {
+  min-height: 44px;
+}
+
+.textarea {
+  min-height: 80px;
+  resize: none;
+  line-height: 1.5;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.hasError .input,
+.hasError .textarea {
+  border-color: var(--deviation);
+  box-shadow: inset 0 0 0 1px var(--deviation);
+}
+
+/* The lock note: caution while something runs, grey when nothing does. */
+.lock {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.caution {
+  color: var(--text);
+  background: var(--caution-tint);
+}
+
+.muted {
+  color: var(--text-2);
+  background: var(--surface-muted);
+}
