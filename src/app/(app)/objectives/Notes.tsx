@@ -17,18 +17,20 @@ import { dialogParts as parts } from "../Dialog";
 import styles from "./objectives.module.css";
 
 /**
- * An objective's notes (01-shell.md, *Notes*): newest first, then
- * **+ Add a note** and its inline box. Append-only and open in every status
- * (G2). A saved note shows at once from the API's answer, then the page is
- * read again; the day is today in the user's zone, when it is saved.
+ * Notes on an objective or a parked idea (01-shell.md, *Notes*, the same
+ * pattern in both places): newest first, then **+ Add a note** and its
+ * inline box. Append-only and open in every state (G2, G3). A saved note
+ * shows at once from the API's answer, then the page is read again; the
+ * day is today in the user's zone, when it is saved.
  */
 export function Notes({
-  objectiveId,
+  postTo,
   notes,
   today,
   tz,
 }: {
-  objectiveId: string;
+  /** The notes endpoint: `/v1/objectives/{id}/notes` or `/v1/parked-ideas/{id}/notes`. */
+  postTo: string;
   /** Oldest first, as the API returns them. */
   notes: readonly Note[];
   today: string;
@@ -76,7 +78,7 @@ export function Notes({
     setFailed(null);
     let res: Response | null = null;
     try {
-      res = await fetch(`/v1/objectives/${objectiveId}/notes`, {
+      res = await fetch(postTo, {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },

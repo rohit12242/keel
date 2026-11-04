@@ -184,30 +184,6 @@
   background: var(--surface-muted);
 }
 
-.note {
-  display: flex;
-  gap: var(--space-12);
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  background: var(--surface-muted);
-}
-
-.note .date {
-  padding-top: 2px;
-  font-size: 11px;
-}
-
-.note .p {
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.empty {
-  margin: 0;
-  font-size: 14px;
-  color: var(--text-3);
-}
-
 .foot {
   display: flex;
   flex-direction: column;

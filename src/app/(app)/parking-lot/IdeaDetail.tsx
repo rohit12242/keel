@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { BackIcon } from "@/app/icons";
 import type { ParkedIdea } from "@/shared/contract";
-import { dayLabel } from "@/modules/objectives/domain/newObjective";
 import {
   approvedLine,
   caught,
@@ -15,6 +14,7 @@ import {
   type ObjectiveDates,
 } from "@/modules/parking/domain/parkingView";
 import layout from "../listDetail.module.css";
+import { Notes } from "../objectives/Notes";
 import { IdeaPill } from "./IdeaPill";
 import { LockInfo } from "./LockInfo";
 import styles from "./parkingLot.module.css";
@@ -28,10 +28,12 @@ export function IdeaDetail({
   idea,
   objectives,
   today,
+  zone,
 }: {
   idea: ParkedIdea;
   objectives: readonly ObjectiveDates[];
   today: string;
+  zone: string;
 }) {
   const p = pill(idea, today);
   const became = objectives.find((o) => o.id === idea.became_objective_id);
@@ -74,21 +76,12 @@ export function IdeaDetail({
         <p className={styles.takenLine}>{takenLine(idea, became, today)}</p>
       ) : null}
 
-      <div className={styles.blk}>
-        <span className={styles.lbl}>Notes</span>
-        {idea.notes.length > 0 ? (
-          [...idea.notes].reverse().map((n) => (
-            <div key={n.id} className={styles.note}>
-              <span className={styles.date}>
-                {dayLabel(n.written_on, today)}
-              </span>
-              <p className={styles.p}>{n.text}</p>
-            </div>
-          ))
-        ) : (
-          <p className={styles.empty}>No notes yet.</p>
-        )}
-      </div>
+      <Notes
+        postTo={`/v1/parked-ideas/${idea.id}/notes`}
+        notes={idea.notes}
+        today={today}
+        tz={zone}
+      />
 
       {decidable(idea) ? null : (
         <div className={styles.foot}>

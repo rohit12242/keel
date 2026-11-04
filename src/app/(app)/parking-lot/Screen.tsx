@@ -74,6 +74,7 @@ export function Screen({
                     idea={open}
                     objectives={dates}
                     today={today}
+                    zone={zone}
                   />
                 ) : null}
               </div>
