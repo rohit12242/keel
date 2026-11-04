@@ -12,11 +12,13 @@ import {
   pill,
   takenLine,
   type ObjectiveDates,
+  type Verdict as VerdictName,
 } from "@/modules/parking/domain/parkingView";
 import layout from "../listDetail.module.css";
 import { Notes } from "../objectives/Notes";
 import { IdeaPill } from "./IdeaPill";
 import { LockInfo } from "./LockInfo";
+import { Verdict } from "./Verdict";
 import styles from "./parkingLot.module.css";
 
 /**
@@ -29,11 +31,16 @@ export function IdeaDetail({
   objectives,
   today,
   zone,
+  failure,
+  onVerdict,
 }: {
   idea: ParkedIdea;
   objectives: readonly ObjectiveDates[];
   today: string;
   zone: string;
+  /** Why the last verdict wasn't saved, if it wasn't. */
+  failure?: string;
+  onVerdict: (verdict: VerdictName, note: string | null) => void;
 }) {
   const p = pill(idea, today);
   const became = objectives.find((o) => o.id === idea.became_objective_id);
@@ -83,11 +90,19 @@ export function IdeaDetail({
         tz={zone}
       />
 
-      {decidable(idea) ? null : (
-        <div className={styles.foot}>
+      <div className={styles.foot}>
+        {decidable(idea) ? (
+          <Verdict idea={idea} onVerdict={onVerdict} />
+        ) : (
           <p className={styles.fine}>{FINAL}</p>
-        </div>
-      )}
+        )}
+        {/* Under the control, or under the final line after a 409. */}
+        {failure ? (
+          <p className={styles.failed} role="alert">
+            {failure}
+          </p>
+        ) : null}
+      </div>
     </article>
   );
 }

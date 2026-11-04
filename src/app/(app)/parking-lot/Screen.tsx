@@ -11,6 +11,7 @@ import { IdeaDetail } from "./IdeaDetail";
 import { IdeaList } from "./IdeaList";
 import { ParkingHeader } from "./ParkingHeader";
 import { datesOf } from "./dates";
+import { useHeldVerdict } from "./useHeldVerdict";
 
 /**
  * List and detail (01-shell.md): on desktop every idea beside the open one;
@@ -37,7 +38,10 @@ export function Screen({
   zone: string;
 }) {
   const dates = datesOf(objectives);
-  const open = ideas.find((i) => i.id === selected) ?? null;
+  // A verdict is held until its toast closes; the page shows it at once.
+  const verdicts = useHeldVerdict(zone);
+  const shown = ideas.map(verdicts.view);
+  const open = shown.find((i) => i.id === selected) ?? null;
   return (
     <LogDeviationProvider objectives={dates} today={today} zone={zone}>
       <ParkIdeaProvider objectives={dates} zone={zone}>
@@ -62,7 +66,7 @@ export function Screen({
             </div>
             <div className={layout.wrap}>
               <IdeaList
-                ideas={ideas}
+                ideas={shown}
                 selected={open?.id ?? null}
                 flash={flash}
                 today={today}
@@ -75,6 +79,8 @@ export function Screen({
                     objectives={dates}
                     today={today}
                     zone={zone}
+                    failure={verdicts.failures[open.id]}
+                    onVerdict={(v, note) => verdicts.hold(open, v, note)}
                   />
                 ) : null}
               </div>
