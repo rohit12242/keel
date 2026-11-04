@@ -356,9 +356,11 @@
   filter: brightness(1.06);
 }
 
+/* Tighter than the app's ring: on a filled accent button, a 2 px gap read
+   as a second, oversized frame. */
 .primary:focus-visible {
   outline: var(--border-focus) solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 
 .primary svg {
