@@ -400,3 +400,118 @@
     flex: 1;
   }
 }
+
+/* ---------- Start from (I-16) ---------- */
+.origins {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-10);
+}
+
+.origin {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  min-height: 44px;
+  padding: 12px 14px;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line-control);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+
+.origin b {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.origin span {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.origin[aria-checked="true"] {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.origin:focus-visible,
+.idea:focus-within {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.hasError .origin {
+  box-shadow: inset 0 0 0 1px var(--deviation);
+}
+
+/* The approved ideas: a list that scrolls past 300 px. */
+.ideas {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.idea {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: var(--border-hairline) solid var(--line);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+
+.idea b {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.idea span {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.idea:has(.ideaRadio:checked) {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* The radio itself is hidden; the row is the control, and the arrow keys
+   move the choice. */
+.ideaRadio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .origins {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

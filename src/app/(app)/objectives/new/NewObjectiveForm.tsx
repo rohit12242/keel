@@ -6,7 +6,13 @@ import { useRef, useState } from "react";
 import { BackIcon } from "@/app/icons";
 import { useBrowserDay } from "@/app/browserDay";
 import { useToast } from "@/app/toast";
-import type { Objective } from "@/shared/contract";
+import type { Objective, ParkedIdea } from "@/shared/contract";
+import {
+  checkStart,
+  fillFrom,
+  NO_LONGER_APPROVED,
+  type Origin,
+} from "@/modules/parking/domain/startFrom";
 import {
   checkDraft,
   createdMessage,
@@ -27,11 +33,14 @@ import {
   errorIdOf,
   FieldError as SharedFieldError,
 } from "../../form";
+import { RadioGroup } from "./RadioGroup";
+import { StartFrom, type Approved } from "./StartFrom";
 import styles from "./newObjective.module.css";
 
 /**
- * The New objective page (04-objectives.md), without "Start from": What it
- * is, Schedule, Plan with its preview, and the sticky footer. The rules —
+ * The New objective page (04-objectives.md): "Start from" when it is given
+ * the approved ideas, What it is, Schedule, Plan with its preview, and the
+ * sticky footer. The rules —
  * the Start dates, the preview, the checks — are in
  * `modules/objectives/domain/newObjective.ts`; this draws them.
  *
@@ -89,69 +98,6 @@ const FieldError = ({ field, errors }: { field: Field; errors: Errors }) => (
   <SharedFieldError id={errorId(field)} message={errors[field]} />
 );
 
-/**
- * Buttons that act as one radio group: the chosen one is in the Tab order,
- * and the arrow keys move the choice (01-shell.md).
- */
-function RadioGroup<T extends string | number>({
-  label,
-  labelledBy,
-  options,
-  value,
-  onChange,
-  className,
-  optionClass,
-}: {
-  label?: string;
-  labelledBy?: string;
-  options: { value: T; content: React.ReactNode }[];
-  value: T;
-  onChange: (v: T) => void;
-  className: string;
-  optionClass: string;
-}) {
-  const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const move = (from: number, by: number) => {
-    const to = (from + by + options.length) % options.length;
-    onChange(options[to].value);
-    refs.current[to]?.focus();
-  };
-  return (
-    <div
-      role="radiogroup"
-      aria-label={label}
-      aria-labelledby={labelledBy}
-      className={className}
-    >
-      {options.map((o, i) => (
-        <button
-          key={String(o.value)}
-          ref={(el) => {
-            refs.current[i] = el;
-          }}
-          type="button"
-          role="radio"
-          aria-checked={o.value === value}
-          tabIndex={o.value === value ? 0 : -1}
-          className={optionClass}
-          onClick={() => onChange(o.value)}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-              e.preventDefault();
-              move(i, 1);
-            } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-              e.preventDefault();
-              move(i, -1);
-            }
-          }}
-        >
-          {o.content}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /** Two or more buttons, one pressed. */
 export function Segments<T extends string>({
   label,
@@ -197,6 +143,11 @@ export type FormOptions = {
   back?: React.ReactNode;
   /** Under the success criteria's hint. */
   criteriaExtra?: React.ReactNode;
+  /**
+   * The approved ideas New objective may start from (I-16). Without it —
+   * onboarding — there is no "Start from" card.
+   */
+  ideas?: Approved;
 };
 
 export function NewObjectiveForm({
@@ -204,6 +155,7 @@ export function NewObjectiveForm({
   onCreated,
   back,
   criteriaExtra,
+  ideas,
 }: FormOptions = {}) {
   const day = useBrowserDay();
   const own = useState<Draft>(DEFAULT_DRAFT);
@@ -239,6 +191,23 @@ export function NewObjectiveForm({
   };
   const marked = (f: Field) => (errors[f] ? styles.hasError : "");
 
+  // Start from (I-16): the choice, the idea picked, and what it filled in.
+  const [origin, setOrigin] = useState<Origin>(null);
+  const [filledFrom, setFilledFrom] = useState<ParkedIdea | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
+  // Only an idea still in the list can be sent: a refresh may drop one.
+  const picked =
+    ideas && ideas !== "unreachable"
+      ? (ideas.find((i) => i.id === filledFrom?.id) ?? null)
+      : null;
+  const pick = (idea: ParkedIdea) => {
+    const filled = fillFrom(draft, filledFrom, idea);
+    set("name", filled.name);
+    set("why", filled.why);
+    setFilledFrom(idea);
+    setStartError(null);
+  };
+
   // The server has no browser to ask for the day; the form waits for it.
   if (!day) {
     return (
@@ -254,15 +223,26 @@ export function NewObjectiveForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (sending.current) return;
-    const checked = checkDraft(draft, today, tz);
-    if (!checked.ok) {
+    const fromIdea = origin === "idea" && picked ? picked.id : null;
+    const checked = checkDraft(draft, today, tz, fromIdea);
+    const start = ideas ? checkStart(origin, fromIdea) : null;
+    if (!checked.ok || start) {
       // Every error at once, one shake, and the first bad field focused.
-      setErrors(checked.errors);
+      setErrors(checked.ok ? {} : checked.errors);
+      setStartError(start);
       setShaking(true);
-      document.getElementById(FOCUS[checked.first])?.focus();
+      const focus = start
+        ? document.querySelector<HTMLElement>(
+            '#nf-start-choices [role="radio"]',
+          )
+        : checked.ok
+          ? null
+          : document.getElementById(FOCUS[checked.first]);
+      focus?.focus();
       return;
     }
     setErrors({});
+    setStartError(null);
 
     sending.current = true;
     setBusy(true);
@@ -299,6 +279,15 @@ export function NewObjectiveForm({
       router.push("/sign-in");
       return;
     }
+    if (status === 422 && fromIdea) {
+      // The idea was moved back or taken elsewhere: read the list again.
+      sending.current = false;
+      setBusy(false);
+      setStartError(NO_LONGER_APPROVED);
+      setFilledFrom(null);
+      router.refresh();
+      return;
+    }
     // Everything entered stays; the page says nothing was created.
     sending.current = false;
     setBusy(false);
@@ -312,6 +301,20 @@ export function NewObjectiveForm({
       onSubmit={submit}
       onAnimationEnd={() => setShaking(false)}
     >
+      {ideas ? (
+        <StartFrom
+          ideas={ideas}
+          origin={origin}
+          picked={picked?.id ?? null}
+          error={startError}
+          today={today}
+          onOrigin={(o) => {
+            setOrigin(o);
+            setStartError(null);
+          }}
+          onPick={pick}
+        />
+      ) : null}
       <section className={styles.card} aria-labelledby="nf-what">
         <h2 className={styles.cardTitle} id="nf-what">
           What it is
