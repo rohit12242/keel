@@ -55,7 +55,7 @@ export function lockNote(
   const name = lockSetter(until, today, objectives);
   return {
     tone: "caution",
-    text: `Locked until ${shortDate(until, today)}, the latest end date among the objectives running today${
+    text: `Locked until ${shortDate(until, today)}, the earliest end date among the objectives running today${
       name ? ` (${name})` : ""
     }. Taking it or dropping it before then is recorded as early, not blocked.`,
   };

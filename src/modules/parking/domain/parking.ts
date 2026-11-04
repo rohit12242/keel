@@ -17,29 +17,31 @@ export type ObjectiveForLock = {
 };
 
 /**
- * An idea is locked until everything that was running when it was caught has
- * finished: the latest current end date among the objectives active on
- * `caughtOn`, or `caughtOn` itself when none was.
+ * An idea is locked until the first of the runs going on when it was caught
+ * has finished: the earliest current end date, on or after `caughtOn`, among
+ * the objectives active that day — or `caughtOn` itself when there is none
+ * (I-16; until then it was the latest end).
  *
  * "Current end date as it stood on caughtOn" is the end of the latest segment
  * that had begun by then — an extension starts after the plan it extends, so
  * one starting later did not exist yet. An objective still active past its end
- * (its plan-end review not yet saved) has nothing left to protect, so the lock
- * never ends before the day the idea was caught.
+ * (its plan-end review not yet saved) has no run left to finish, so it sets no
+ * lock: otherwise one overdue final review would open every new idea at once.
  */
 export function lockedUntil(
   caughtOn: string,
   objectives: readonly ObjectiveForLock[],
 ): string {
-  let until = caughtOn;
+  let until: string | null = null;
   for (const o of objectives) {
     if (statusOn(o.statusEvents, caughtOn) !== "active") continue;
     const begun = o.segments.filter((s) => s.start_date <= caughtOn);
     if (begun.length === 0) continue;
     const end = begun[begun.length - 1].end_date;
-    if (end > until) until = end;
+    if (end < caughtOn) continue;
+    if (until === null || end < until) until = end;
   }
-  return until;
+  return until ?? caughtOn;
 }
 
 export type IdeaWrite = { idea: string; why: string; caught_on: string };

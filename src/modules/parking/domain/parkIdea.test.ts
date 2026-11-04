@@ -57,10 +57,10 @@ describe("lockNote", () => {
   it("gives the API's date, naming the objective that sets it", () => {
     expect(lockNote(TODAY, "2026-11-02", [design])).toEqual({
       tone: "caution",
-      text: "Locked until 2 Nov, the latest end date among the objectives running today (System design). Taking it or dropping it before then is recorded as early, not blocked.",
+      text: "Locked until 2 Nov, the earliest end date among the objectives running today (System design). Taking it or dropping it before then is recorded as early, not blocked.",
     });
     expect(lockNote(TODAY, "2026-11-03", [design])?.text).toBe(
-      "Locked until 3 Nov, the latest end date among the objectives running today. Taking it or dropping it before then is recorded as early, not blocked.",
+      "Locked until 3 Nov, the earliest end date among the objectives running today. Taking it or dropping it before then is recorded as early, not blocked.",
     );
   });
 });

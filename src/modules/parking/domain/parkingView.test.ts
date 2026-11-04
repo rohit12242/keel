@@ -102,7 +102,7 @@ describe("the lock rule", () => {
       "System design",
     );
     expect(lockRule(idea({ caught_on: "2026-09-14" }), [design], TODAY)).toBe(
-      "Locked until 21 Sep, the latest end date among the objectives running on 14 Sep, the day you caught it (System design). Deciding earlier is recorded as early.",
+      "Locked until 21 Sep, the earliest end date among the objectives running on 14 Sep, the day you caught it (System design). Deciding earlier is recorded as early.",
     );
   });
 
@@ -111,7 +111,7 @@ describe("the lock rule", () => {
     const later = { ...design, start_date: "2026-09-01" };
     expect(lockSetter("2026-09-21", "2026-08-31", [later])).toBeNull();
     expect(lockRule(idea(), [], TODAY)).toBe(
-      "Locked until 21 Sep, the latest end date among the objectives running on 31 Aug, the day you caught it. Deciding earlier is recorded as early.",
+      "Locked until 21 Sep, the earliest end date among the objectives running on 31 Aug, the day you caught it. Deciding earlier is recorded as early.",
     );
   });
 });

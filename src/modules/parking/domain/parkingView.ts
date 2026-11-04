@@ -141,7 +141,7 @@ export function lockRule(
   today: string,
 ): string {
   const name = lockSetter(idea.locked_until, idea.caught_on, objectives);
-  return `Locked until ${shortDate(idea.locked_until, today)}, the latest end date among the objectives running on ${shortDate(
+  return `Locked until ${shortDate(idea.locked_until, today)}, the earliest end date among the objectives running on ${shortDate(
     idea.caught_on,
     today,
   )}, the day you caught it${name ? ` (${name})` : ""}. Deciding earlier is recorded as early.`;
@@ -238,7 +238,7 @@ export const EMPTY = {
   body: "Write down the idea and why it grabbed you. It stays locked until the objectives you're running now have ended, so you can get back to work without losing it.",
   steps: [
     "Park it: the idea and why it grabbed you.",
-    "It opens on the latest end date among the objectives running that day.",
+    "It opens on the earliest end date among the objectives running that day.",
     "Then decide: take it as an objective, or drop it and say why.",
   ],
 } as const;
