@@ -33,8 +33,13 @@ describe("lockedUntil — docs/domain/parking-lock.md", () => {
     expect(lockedUntil("2026-08-31", [short, long])).toBe("2026-09-21");
   });
 
-  it("locks an idea caught on 14 September until 2 November — the latest end", () => {
-    expect(lockedUntil("2026-09-14", [short, long])).toBe("2026-11-02");
+  it("locks an idea caught on 14 September until 21 September — the earliest end (I-16)", () => {
+    expect(lockedUntil("2026-09-14", [short, long])).toBe("2026-09-21");
+    expect(lockedUntil("2026-09-14", [long, short])).toBe("2026-09-21");
+  });
+
+  it("then the next run's end, once the first has finished", () => {
+    expect(lockedUntil("2026-09-22", [short, long])).toBe("2026-11-02");
   });
 
   it("does not lock an idea caught with nothing running", () => {
@@ -68,6 +73,15 @@ describe("lockedUntil — docs/domain/parking-lock.md", () => {
 
   it("never ends before the idea was caught, for an objective past its end", () => {
     expect(lockedUntil("2026-09-25", [short])).toBe("2026-09-25");
+  });
+
+  it("skips an objective past its end, so it doesn't open the idea at once", () => {
+    // Still active after 21 Sep: its final review isn't saved.
+    expect(lockedUntil("2026-09-25", [short, long])).toBe("2026-11-02");
+  });
+
+  it("counts an objective ending the day the idea is caught", () => {
+    expect(lockedUntil("2026-09-21", [short, long])).toBe("2026-09-21");
   });
 });
 

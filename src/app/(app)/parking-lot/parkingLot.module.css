@@ -1,0 +1,402 @@
+/*
+ * The Parking lot (07-parking-lot.md): the rows' and the detail's own
+ * parts, the state pills, the lock tooltip and the empty state. The list
+ * and detail around them is `listDetail.module.css`. Colours only from the
+ * tokens, by tokens.md's status words.
+ */
+
+/* ---------- State pills: the words always, never a colour alone ---------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.locked {
+  color: var(--caution);
+  background: var(--caution-tint);
+}
+
+.open {
+  color: var(--accent-text);
+  background: var(--accent-tint);
+}
+
+.approved {
+  color: var(--effort);
+  background: var(--effort-tint);
+}
+
+.taken {
+  color: var(--text-2);
+  background: var(--surface-muted);
+}
+
+.dropped {
+  color: var(--deviation);
+  background: var(--deviation-tint);
+}
+
+/* ---------- The ⓘ and its tooltip ---------- */
+.info {
+  position: relative;
+  display: inline-flex;
+}
+
+.infoButton {
+  display: inline-grid;
+  place-content: center;
+  min-width: 20px;
+  min-height: 20px;
+  margin: -4px -4px -4px 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.infoButton:focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tip {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 8px);
+  left: -120px;
+  width: 300px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--text);
+  color: var(--on-text);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+  box-shadow: var(--shadow-card);
+}
+
+/* ---------- A row ---------- */
+.rowTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.date {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+/* The idea: bold, two lines at most. */
+.rowText {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- The detail ---------- */
+.detailHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-10);
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.blk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Dropped: why it grabbed you beside why it ended. */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-16);
+}
+
+.lbl {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.approvedLine,
+.takenLine {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.approvedLine {
+  color: var(--text);
+  background: var(--effort-tint);
+}
+
+.takenLine {
+  color: var(--text-2);
+  background: var(--surface-muted);
+}
+
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding-top: 18px;
+  border-top: var(--border-hairline) solid var(--line);
+}
+
+.fine {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+/* ---------- No ideas yet ---------- */
+.emptyCard {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-14);
+  padding: var(--space-32);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.emptyCard h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.emptyCard p {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.emptyIcon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-content: center;
+  border-radius: var(--radius-full);
+  color: var(--accent-text);
+  background: var(--accent-tint);
+}
+
+.emptyIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.error {
+  padding: 14px 16px;
+  border-radius: var(--radius-panel);
+  border: var(--border-hairline) solid var(--line-control);
+  background: var(--surface);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 860px) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tip {
+    left: auto;
+    right: -8px;
+    width: min(300px, calc(100vw - 48px));
+  }
+
+  .emptyCard {
+    padding: var(--space-24);
+  }
+}
+
+/* ---------- Your verdict (I-16) ---------- */
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.segments {
+  display: flex;
+  align-self: flex-start;
+  max-width: 100%;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+}
+
+.segment {
+  min-height: 36px;
+  padding: 7px var(--space-14);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.segment:hover {
+  color: var(--text);
+}
+
+.segment[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-thumb);
+}
+
+.segment:focus-visible,
+.dropButton:focus-visible {
+  outline: var(--border-focus) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.failed {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--deviation);
+}
+
+/* ---------- Drop this idea? ---------- */
+.quote {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 12px 14px;
+  border-left: 3px solid var(--line-control);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.quote b {
+  font-size: 15px;
+}
+
+.quote .lbl {
+  margin-top: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: none;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--line-control);
+  border-radius: var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.hasError .textarea {
+  border-color: var(--deviation);
+  box-shadow: inset 0 0 0 1px var(--deviation);
+}
+
+.dropButton {
+  min-height: 40px;
+  padding: var(--space-8) var(--space-16);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--deviation);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}

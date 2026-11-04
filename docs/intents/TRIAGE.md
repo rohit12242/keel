@@ -97,12 +97,6 @@ navigation reads it again and shows the new one. Every page behaves this way aft
 write elsewhere, e.g. Log time and Back. Fixing it means deciding how the app refreshes
 a page brought back by Back, once, rather than page by page.
 
-### `D` on the Parking lot · found in I-12
-
-`01-shell.md` gives `D` to the Parking lot as well. I-12 builds Log a deviation on
-Today and Deviations only; the Parking lot screen isn't built. When it is, it puts
-`LogDeviationProvider` around its page, as Deviations does.
-
 ### Today's summary still says "Extra, off days" · found in I-11
 
 I-11 renamed the Objectives figure to **Unplanned day effort**, time only (Rohit):
@@ -292,3 +286,12 @@ nothing. Adherence works the same way: time over a slot's target is shown as ove
 credited (`docs/domain/adherence.md`, rules 3 and 7). The rule is deliberate, but the
 page doesn't say it, and a user can read it as a bug. Rohit will look at how the page
 explains it: the summary line, a note on the ring, or showing over-plan time apart.
+
+### Ideas caught on the same day come back in id order · found in I-16
+
+`GET /parked-ideas` orders ideas by `caught_on DESC, id`. Two ideas caught on the same
+day are therefore in random-id order, not newest first, so an idea just parked can sit
+below one parked earlier that day. The Parking lot selects and flashes the new one
+wherever it lands, so nothing is lost, but the list doesn't read as "newest caught
+first" within a day. Ordering by `recorded_at` after `caught_on` is a repo change with
+no contract change.

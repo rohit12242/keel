@@ -1,23 +1,23 @@
 # Parking lot
 
-Data: `GET /parked-ideas`, `POST /parked-ideas`, `POST /parked-ideas/{id}/verdicts`, notes (G3), Approved (G4). Lock rule: `docs/domain/parking-lock.md` — an idea is locked until the latest end date among the objectives that were active on the day it was caught.
+Data: `GET /parked-ideas`, `POST /parked-ideas`, `POST /parked-ideas/{id}/verdicts`, notes (G3), Approved (G4). Lock rule: `docs/domain/parking-lock.md` — an idea is locked until the earliest end date, on or after the day it was caught, among the objectives that were active that day (I-16; it was the latest until then).
 
 ## Screen
 
 - Header "Parking lot" with **+ Park an idea `P`**. No counts line above the title.
-- **No status filter.** All ideas, newest caught first.
+- **Status filter** *(Rohit, 2026-11-04, I-16)*: **All · Parked · Approved · Taken · Dropped**, each with its count, as on Deviations (`01-shell.md`, *List and detail*). Parked holds locked and open ideas. Newest caught first.
 - List and detail (see `01-shell.md`).
 - **Row:** the idea (bold), "Caught 31 Aug" (mono), and a state pill:
 
 | State | Row pill | Detail pill |
 |---|---|---|
-| Locked | `Locked · opens 2 Nov` with an ⓘ | the same; ⓘ is a button that shows the rule |
+| Locked | `Locked · opens 2 Nov` (no ⓘ in the row, I-16) | the same, with the ⓘ: a button that shows the rule |
 | Open | `Open · decide now` | `Open since 21 Sep · decide now` |
 | Approved | `Approved 22 Sep` (`· early` if before it opened) | the same |
 | Taken | `Taken 31 Aug · early` | the same |
 | Dropped | `Dropped 21 Sep` | the same |
 
-- **The lock rule is shown only through the ⓘ** on a locked pill. It's a tooltip: "Locked until 2 Nov, the latest end date among the objectives running on 14 Sep, the day you caught it (System design). Deciding earlier is recorded as early." Esc or a click elsewhere closes it. There's no separate "How the lock works" block.
+- **The lock rule is shown only through the ⓘ** on a locked pill. It's a tooltip: "Locked until 2 Nov, the earliest end date among the objectives running on 14 Sep, the day you caught it (System design). Deciding earlier is recorded as early." Esc or a click elsewhere closes it. There's no separate "How the lock works" block.
 
 ## Detail
 
@@ -38,12 +38,14 @@ The layout starts with the idea; there's nothing above it except the back link o
 
 **Taken can't be chosen here.** An idea becomes Taken only by being picked in New objective (from Approved).
 
+**Undo holds the verdict** (G13): Approve, Back to Still parked and Drop are sent when their toast closes, and **Undo** cancels the one not yet sent. Leaving or closing the page while a toast is showing sends the held verdict at once, so it is never lost *(I-16)*. Until it is sent, the idea already shows its new state.
+
 ## Park an idea (dialog)
 
 - Title "Park an idea", sub "Write it down so you can stop thinking about it. You'll decide on it later."
 - **The idea** (input, 120, "What's pulling at you?").
 - **Why it grabbed you** (280), hint "Be honest. You'll read this again when you decide."
-- A lock note in caution tint: "Locked until 2 Nov, the latest end date among the objectives running today (System design). Taking it or dropping it before then is recorded as early, not blocked." With nothing running (grey): "No objectives are running, so it opens straight away."
+- A lock note in caution tint: "Locked until 2 Nov, the earliest end date among the objectives running today (System design). Taking it or dropping it before then is recorded as early, not blocked." With nothing running (grey): "No objectives are running, so it opens straight away."
 - Footer: "esc to close", **Cancel**, **Park it**.
 - Errors: "Enter the idea." · "Add why it grabbed you."
 - **After parking:**
@@ -64,6 +66,6 @@ The layout starts with the idea; there's nothing above it except the back link o
 - "Write down the idea and why it grabbed you. It stays locked until the objectives you're running now have ended, so you can get back to work without losing it."
 - Three numbered steps:
   1. Park it: the idea and why it grabbed you.
-  2. It opens on the latest end date among the objectives running that day.
+  2. It opens on the earliest end date among the objectives running that day.
   3. Then decide: take it as an objective, or drop it and say why.
 - **Park an idea**.

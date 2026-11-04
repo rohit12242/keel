@@ -239,7 +239,12 @@ function Overview({
         <p className={styles.p}>{o.success_criteria}</p>
       </div>
 
-      <Notes objectiveId={o.id} notes={o.notes} today={today} tz={tz} />
+      <Notes
+        postTo={`/v1/objectives/${o.id}/notes`}
+        notes={o.notes}
+        today={today}
+        tz={tz}
+      />
 
       <section className={styles.sec} aria-labelledby="od-history">
         <div className={styles.secHead}>

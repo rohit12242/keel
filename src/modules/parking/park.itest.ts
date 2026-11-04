@@ -140,6 +140,32 @@ describe("parking an idea (real Postgres)", () => {
     expect((await preview("?caught_on=nope")).status).toBe(400);
   });
 
+  it("locks until the earliest end among the objectives running (I-16)", async () => {
+    const two = await testUser();
+    await testObjective(two); // 14 Sep – 11 Oct
+    await testObjective(two, { runs_for_days: 7 }); // 14 – 20 Sep
+    const preview = (await (
+      await route.GET(
+        new Request("http://keel.test/v1/parked-ideas?caught_on=2026-09-16", {
+          headers: { cookie: two.cookie },
+        }),
+        undefined,
+      )
+    ).json()) as { new_idea_locked_until: string };
+    expect(preview.new_idea_locked_until).toBe("2026-09-20");
+    const res = await park(
+      { idea: "Earliest", why: "w", caught_on: "2026-09-16" },
+      two,
+    );
+    expect(await res.json()).toMatchObject({ locked_until: "2026-09-20" });
+    // Once the shorter one has ended, the longer one's end.
+    const later = await park(
+      { idea: "Next end", why: "w", caught_on: "2026-09-22" },
+      two,
+    );
+    expect(await later.json()).toMatchObject({ locked_until: "2026-10-11" });
+  });
+
   it("400s a body that is not JSON or not an idea", async () => {
     expect((await park("{nope")).status).toBe(400);
     expect((await park({ idea: "", why: "w", caught_on: "x" })).status).toBe(

@@ -208,6 +208,32 @@ export type PlanWeek = {
 /** A note on an objective or a parked idea: dated, append-only. */
 export type Note = { id: string; written_on: string; text: string };
 
+/** A parked idea with its current verdict (G3, G4, G31). */
+export type ParkedIdea = {
+  id: string;
+  idea: string;
+  why: string;
+  caught_on: string;
+  /** Set when parked; never moves (`docs/domain/parking-lock.md`). */
+  locked_until: string;
+  /** Computed against today. */
+  locked: boolean;
+  /** Oldest first. */
+  notes: Note[];
+  verdict: "parked" | "approved" | "taken" | "dropped";
+  /** The current verdict's date. */
+  verdict_on: string;
+  note: string | null;
+  became_objective_id: string | null;
+  decided_early: boolean;
+};
+
+/** `GET /parked-ideas`; `new_idea_locked_until` only with `caught_on` (G38). */
+export type ParkedIdeaList = {
+  ideas: ParkedIdea[];
+  new_idea_locked_until?: string;
+};
+
 export type Objective = ObjectiveSummary & {
   description?: string;
   why_now: string;

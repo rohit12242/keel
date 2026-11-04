@@ -646,6 +646,31 @@ button.entry:focus-visible {
   height: 16px;
 }
 
+/* Park an idea: muted, full width, under it (03-today.md). */
+.parkIdea {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-14);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text-2);
+  background: var(--surface-muted);
+  border: 0;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+
+.parkIdea svg {
+  width: 16px;
+  height: 16px;
+}
+
+.parkIdea:focus-visible,
 .logDeviation:focus-visible {
   outline: var(--border-focus) solid var(--accent);
   outline-offset: 2px;
